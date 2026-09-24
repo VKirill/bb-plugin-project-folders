@@ -3,11 +3,13 @@ export type ChatListSettings = {
   sort: ChatSort;
   limit: number;
   autoCollapseInactive: boolean;
+  threadDisplay: "classic" | "provider-status";
 };
 export const defaults: ChatListSettings = {
   sort: "activity",
   limit: 10,
   autoCollapseInactive: true,
+  threadDisplay: "classic",
 };
 export const INACTIVE_SECTION_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -26,6 +28,10 @@ export function parseSettings(raw: string | null): ChatListSettings {
         typeof value.autoCollapseInactive === "boolean"
           ? value.autoCollapseInactive
           : defaults.autoCollapseInactive,
+      threadDisplay:
+        value.threadDisplay === "provider-status"
+          ? "provider-status"
+          : defaults.threadDisplay,
     };
   } catch {
     return defaults;

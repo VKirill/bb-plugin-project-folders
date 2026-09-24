@@ -63,6 +63,7 @@ import {
   useBbNavigate,
   experimental_useSidebarThreads,
   experimental_useSidebarThreadActions,
+  experimental_useProviders,
   experimental_NewThreadComposer as NewThreadComposer,
   type PluginThreadListProps,
   type PluginNavPanelProps,
@@ -1620,7 +1621,11 @@ function ThreadRow({
   onUnplace,
   worksIn,
   onDrag,
+  threadDisplay,
+  provider,
 }: {
+  threadDisplay: "classic" | "provider-status";
+  provider?: { displayName: string; logoUrl: string | null };
   onMove: (thread: PluginSidebarThread) => void;
   /** Present while the chat is filed somewhere it does not work. */
   onUnplace?: () => void;
@@ -1673,6 +1678,23 @@ function ThreadRow({
       setSaving(false);
     }
   };
+  const status =
+    thread.indicator === "unread-error"
+      ? "failed"
+      : thread.indicator === "waiting-for-input" || thread.hasPendingInteraction
+        ? "waiting"
+        : [
+              "runtime",
+              "workflow",
+              "background-agent",
+              "background-command",
+              "plan-mode",
+              "goal",
+            ].includes(thread.indicator)
+          ? "working"
+          : thread.indicator === "unread-success" || thread.isUnread
+            ? "unread"
+            : "inactive";
   return (
     <div
       className={"pf-thread " + (active === thread.id ? "pf-active" : "")}
@@ -1730,29 +1752,100 @@ function ThreadRow({
           }}
           title={thread.indicatorLabel ?? undefined}
         >
-          <span
-            className="pf-status"
-            aria-label={thread.indicatorLabel ?? undefined}
-          >
-            {thread.hasPendingInteraction
-              ? "◉"
-              : thread.indicator === "runtime"
-                ? "●"
-                : "·"}
-          </span>
+          {threadDisplay === "classic" && (
+            <span
+              className="pf-status"
+              aria-label={thread.indicatorLabel ?? undefined}
+            >
+              {thread.hasPendingInteraction
+                ? "◉"
+                : thread.indicator === "runtime"
+                  ? "●"
+                  : "·"}
+            </span>
+          )}
+          {threadDisplay === "provider-status" && (
+            <span
+              className="pf-provider"
+              data-provider-id={thread.providerId}
+              title={provider?.displayName ?? thread.providerId}
+              aria-label={provider?.displayName ?? thread.providerId}
+            >
+              {provider?.logoUrl ? (
+                <span
+                  className="pf-provider-logo"
+                  aria-hidden="true"
+                  style={{
+                    maskImage: `url("${provider.logoUrl}")`,
+                    WebkitMaskImage: `url("${provider.logoUrl}")`,
+                  }}
+                />
+              ) : (
+                <span className="pf-provider-glyph">
+                  {thread.providerId === "pi"
+                    ? "π"
+                    : thread.providerId === "acp-omp"
+                      ? "omp"
+                      : thread.providerId === "acp-opencode"
+                        ? "◈"
+                        : thread.providerId.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </span>
+          )}
           {thread.isPinned && <Icon name="Pin" />}
-          <span
-            onDoubleClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              beginRename();
-            }}
-            className={
-              "pf-thread-title" + (thread.isUnread ? " pf-unread" : "")
-            }
-          >
-            {thread.title || thread.titleFallback}
-          </span>
+          {threadDisplay === "provider-status" && (
+            <span
+              className={`pf-thread-state pf-state-${status}`}
+              title={thread.indicatorLabel ?? undefined}
+            >
+              {thread.indicator === "unread-error"
+                ? t("Сбой")
+                : thread.indicator === "waiting-for-input" ||
+                    thread.hasPendingInteraction
+                  ? t("Нужно ваше внимание")
+                  : [
+                        "runtime",
+                        "workflow",
+                        "background-agent",
+                        "background-command",
+                        "plan-mode",
+                        "goal",
+                      ].includes(thread.indicator)
+                    ? t("Работает")
+                    : thread.indicator === "unread-success" || thread.isUnread
+                      ? t("Непрочитано")
+                      : t("Неактивен")}
+            </span>
+          )}
+          {threadDisplay === "classic" ? (
+            <span
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                beginRename();
+              }}
+              className={
+                "pf-thread-title" + (thread.isUnread ? " pf-unread" : "")
+              }
+            >
+              {thread.title || thread.titleFallback}
+            </span>
+          ) : (
+            <span
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                beginRename();
+              }}
+              className={
+                "pf-thread-title pf-thread-title-status" +
+                (thread.isUnread ? " pf-unread" : "")
+              }
+            >
+              {thread.title || thread.titleFallback}
+            </span>
+          )}
           {worksIn && (
             <span className="pf-host-badge" title={worksIn.path}>
               {worksIn.label}
@@ -2076,6 +2169,12 @@ function Tree(props: PluginThreadListProps) {
   } | null>(null);
   const [regrouping, setRegrouping] = useState<Folder | null>(null);
   const { threads, projects, status } = experimental_useSidebarThreads();
+  const providersState = experimental_useProviders();
+  const providersById = new Map(
+    providersState.status === "ready"
+      ? providersState.providers.map((provider) => [provider.id, provider])
+      : [],
+  );
   const environmentKey = threads.map((t) => t.environment?.id ?? "").join("|");
   useEffect(refresh, [environmentKey, refresh]);
   const actions = experimental_useSidebarThreadActions();
@@ -2328,6 +2427,8 @@ function Tree(props: PluginThreadListProps) {
           <ThreadRow
             key={thread.id}
             thread={thread}
+            threadDisplay={listSettings.threadDisplay}
+            provider={providersById.get(thread.providerId)}
             active={props.activeThreadId}
             onNavigate={props.onNavigate}
             onMove={(chat) => {
@@ -4105,8 +4206,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                 role="tab"
                 aria-selected={detailsPane === "execution"}
                 className={
-                  "pf-tab" +
-                  (detailsPane === "execution" ? " pf-selected" : "")
+                  "pf-tab" + (detailsPane === "execution" ? " pf-selected" : "")
                 }
                 onClick={() => setDetailsPane("execution")}
               >
@@ -4118,8 +4218,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                   role="tab"
                   aria-selected={detailsPane === "session"}
                   className={
-                    "pf-tab" +
-                    (detailsPane === "session" ? " pf-selected" : "")
+                    "pf-tab" + (detailsPane === "session" ? " pf-selected" : "")
                   }
                   onClick={() => setDetailsPane("session")}
                 >
@@ -4221,28 +4320,28 @@ function Panel({ subPath }: PluginNavPanelProps) {
             !selGroup &&
             sessionPolicyAvailable &&
             detailsPane === "session" && (
-            <div className="pf-agents-rule">
-              <h3>
-                {t("Контекст сессии")}
-                <Help
-                  text={t(
-                    "Что загружается в сессию агента, начатую здесь: плагины BB, навыки, MCP-серверы и плагины CLI. Группа без своего значения наследуется: ближайший раздел выше, затем проект, затем настройки плагина.",
-                  )}
+              <div className="pf-agents-rule">
+                <h3>
+                  {t("Контекст сессии")}
+                  <Help
+                    text={t(
+                      "Что загружается в сессию агента, начатую здесь: плагины BB, навыки, MCP-серверы и плагины CLI. Группа без своего значения наследуется: ближайший раздел выше, затем проект, затем настройки плагина.",
+                    )}
+                  />
+                </h3>
+                <SessionPolicyEditor
+                  scope={
+                    selRoot
+                      ? { kind: "project", projectId: sel.projectId }
+                      : {
+                          kind: "folder",
+                          projectId: sel.projectId,
+                          folderId: sel.id,
+                        }
+                  }
                 />
-              </h3>
-              <SessionPolicyEditor
-                scope={
-                  selRoot
-                    ? { kind: "project", projectId: sel.projectId }
-                    : {
-                        kind: "folder",
-                        projectId: sel.projectId,
-                        folderId: sel.id,
-                      }
-                }
-              />
-            </div>
-          )}
+              </div>
+            )}
         </section>
       );
   if (action === "chat")
@@ -4486,7 +4585,11 @@ export default definePluginApp((app) => {
       // Renders nothing of its own: it puts the tree into BB's project chip,
       // where the choice of place belongs.
       { id: "project-chip", chrome: "bare", component: ComposerProjectChip },
-      { id: "section-picker", chrome: "bare", component: SectionComposerAction },
+      {
+        id: "section-picker",
+        chrome: "bare",
+        component: SectionComposerAction,
+      },
       { id: "section", chrome: "bare", component: ComposerSectionBanner },
     ],
   });

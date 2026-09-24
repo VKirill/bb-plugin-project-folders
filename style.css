@@ -124,6 +124,89 @@
   flex: none;
   width: 8px;
 }
+.pf-provider {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 650;
+}
+.pf-provider-logo,
+.pf-provider-glyph {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background-color: var(--pf-provider-brand, var(--muted-foreground));
+}
+.pf-provider-logo {
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+.pf-provider-glyph {
+  width: auto;
+  height: auto;
+  background: none;
+  color: var(--pf-provider-brand, var(--muted-foreground));
+}
+.pf-provider[data-provider-id="claude-code"] {
+  --pf-provider-brand: #d97757;
+}
+.pf-provider[data-provider-id="codex"] {
+  --pf-provider-brand: #10a37f;
+}
+.pf-provider[data-provider-id="pi"] {
+  --pf-provider-brand: #6a9fcc;
+}
+.pf-provider[data-provider-id="acp-hermes-agent"] {
+  --pf-provider-brand: #5050f4;
+}
+.pf-provider[data-provider-id="acp-opencode"] {
+  --pf-provider-brand: #a1ad1f;
+}
+.pf-provider[data-provider-id="acp-cursor"] {
+  --pf-provider-brand: var(--foreground);
+}
+.pf-provider[data-provider-id="acp-omp"] {
+  --pf-provider-brand: var(--muted-foreground);
+}
+.pf-thread-title-status {
+  flex: 1 1 auto !important;
+}
+.pf-thread-state {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+.pf-thread-state {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.pf-state-inactive {
+  color: color-mix(in srgb, var(--muted-foreground, #a1a8b3) 72%, transparent);
+}
+.pf-state-working {
+  color: #34a853;
+}
+.pf-state-waiting {
+  color: var(--warning-text, var(--warning, #f59e0b));
+}
+.pf-state-failed {
+  color: var(--destructive, #ef4444);
+}
+.pf-state-unread {
+  color: var(--primary, #3b82c4);
+}
 .pf-unread {
   font-weight: 650;
 }

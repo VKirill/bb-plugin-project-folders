@@ -358,5 +358,14 @@
   "инструменты: {n}": "outils : {n}",
   "навыки: {n}": "compétences : {n}",
   "выбирает по треду": "choisit par fil",
-  "в сессию ничего не добавляет": "n’ajoute rien aux sessions"
+  "в сессию ничего не добавляет": "n’ajoute rien aux sessions",
+  "Стиль отображения чатов": "Style d’affichage des fils",
+  "Показывать провайдера и текущий статус рядом с названием чата. Обычный вариант оставляет прежний вид списка.": "Afficher le fournisseur et le statut près du titre.",
+  "Обычный": "Classique",
+  "Провайдер и статус": "Fournisseur et statut",
+  "Сбой": "Échec",
+  "Нужно ваше внимание": "Votre attention requise",
+  "Работает": "En cours",
+  "Непрочитано": "Non lu",
+  "Неактивен": "Inactif"
 }

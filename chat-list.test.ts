@@ -83,13 +83,17 @@ describe("chat list order", () => {
       sort: "title",
       limit: 5,
       autoCollapseInactive: true,
+      threadDisplay: "classic",
     });
     expect(
-      parseSettings('{"sort":"activity","limit":10,"autoCollapseInactive":false}'),
+      parseSettings(
+        '{"sort":"activity","limit":10,"autoCollapseInactive":false}',
+      ),
     ).toEqual({
       sort: "activity",
       limit: 10,
       autoCollapseInactive: false,
+      threadDisplay: "classic",
     });
   });
 });
@@ -107,7 +111,9 @@ describe("auto-collapsing inactive sections", () => {
   it("parses collapse state from both legacy boolean and timestamped formats", () => {
     expect(parseCollapseState(null)).toEqual({});
     expect(parseCollapseState("invalid")).toEqual({});
-    expect(parseCollapseState(JSON.stringify({ sec1: true, sec2: false }))).toEqual({
+    expect(
+      parseCollapseState(JSON.stringify({ sec1: true, sec2: false })),
+    ).toEqual({
       sec1: { collapsed: true, at: 0 },
       sec2: { collapsed: false, at: 0 },
     });
@@ -148,12 +154,8 @@ describe("auto-collapsing inactive sections", () => {
     const open = { ...idle, id: "open" };
 
     expect(getThreadAccess(recent)).toBe(now - day);
-    expect(
-      isChatKeptVisible(idle, { hideIdleMs, now }),
-    ).toBe(false);
-    expect(
-      isChatKeptVisible(recent, { hideIdleMs, now }),
-    ).toBe(true);
+    expect(isChatKeptVisible(idle, { hideIdleMs, now })).toBe(false);
+    expect(isChatKeptVisible(recent, { hideIdleMs, now })).toBe(true);
     expect(isChatKeptVisible(pinned, { hideIdleMs, now })).toBe(true);
     expect(isChatKeptVisible(unread, { hideIdleMs, now })).toBe(true);
     expect(isChatKeptVisible(busy, { hideIdleMs, now })).toBe(true);
@@ -179,10 +181,12 @@ describe("auto-collapsing inactive sections", () => {
       }).map((c) => c.id),
     ).toEqual(["recent", "idle"]);
     expect(
-      visibleChats(
-        [recent, { ...recent, id: "r2" }, idle],
-        { expanded: false, limit: 1, hideIdleMs, now },
-      ).map((c) => c.id),
+      visibleChats([recent, { ...recent, id: "r2" }, idle], {
+        expanded: false,
+        limit: 1,
+        hideIdleMs,
+        now,
+      }).map((c) => c.id),
     ).toEqual(["recent"]);
   });
 
@@ -190,7 +194,11 @@ describe("auto-collapsing inactive sections", () => {
     expect(getThreadActivity({ createdAt: 10 })).toBe(10);
     expect(getThreadActivity({ createdAt: 10, updatedAt: 20 })).toBe(20);
     expect(
-      getThreadActivity({ createdAt: 10, updatedAt: 20, latestAttentionAt: 30 }),
+      getThreadActivity({
+        createdAt: 10,
+        updatedAt: 20,
+        latestAttentionAt: 30,
+      }),
     ).toBe(30);
     // When thread is simply read, updatedAt matches lastReadAt and does not count as conversation activity
     expect(
@@ -506,10 +514,7 @@ describe("auto-collapsing inactive sections", () => {
       { id: "busy", projectId: "p1", parentId: null, sort: 2 },
       { id: "reply", projectId: "p1", parentId: null, sort: 3 },
     ];
-    const tree = [
-      ...siblings,
-      { id: "sec1", projectId: "p1", parentId: null },
-    ];
+    const tree = [...siblings, { id: "sec1", projectId: "p1", parentId: null }];
     const threads = [
       {
         id: "t-idle",
