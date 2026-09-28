@@ -2,7 +2,7 @@
 title: Gotchas
 type: gotchas
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 status: active
 confidence: medium
 tags: [gotchas, constraints, operations]
@@ -33,11 +33,11 @@ TL;DR: The sharp edges are tied to the physical device behind each section, asyn
 
 ### Directory moves do not merge or overwrite occupied destinations
 
-**Problem:** The section move checks source and destination existence. If both exist, it calls host `inspect` and accepts the pair only when the source is a compatibility link from a completed move (`section-move.ts:211-234`).
+**Problem:** The section move checks source and destination existence. If both exist, it calls host `inspect` and accepts the pair only when the source is a compatibility link from a completed move (`section-move.ts:243-266`).
 
 **Risk:** A retry can stop with a persisted journal and require operator resolution of the two paths.
 
-**Workaround:** Inspect both folders and resolve the collision before retrying the pending move (`section-move.ts:211-234`). The section-move catch records the error in its journal and rethrows it (`section-move.ts:308-314`).
+**Workaround:** Inspect both folders and resolve the collision before retrying the pending move (`section-move.ts:243-266`). The section-move catch records the error in its journal and rethrows it (`section-move.ts:347-353`).
 
 ## High
 

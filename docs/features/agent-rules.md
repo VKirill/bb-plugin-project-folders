@@ -2,9 +2,9 @@
 title: Agent rules
 type: component
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 status: active
-confidence: high
+confidence: low
 tags: [agents-md, rules, templates]
 sources:
   - agents-template.ts
@@ -24,11 +24,12 @@ The rules editor supports shared and per-place templates, an own-file mode, cust
 ## How it works
 
 1. The editor reads the current file plus the stored mode, templates, custom text, target and startup instruction (`server.ts:424-439`, `server.ts:2694-2739`).
-2. Saving file content writes with the SHA read by the editor; if the file changed since that read, the handler reports a conflict and asks the editor to reopen before saving (`server.ts:441-448`, `server.ts:2740-2756`).
-3. Saving settings writes a project or folder rule row; session-only custom rules are not written to files, and manual mode leaves files untouched (`server.ts:449-460`, `server.ts:2760-2800`).
-4. `applyAgentsBlock` replaces only the managed block or appends it; `applyCustomBlock` similarly upserts/removes the custom block (`agents-template.ts:16-41`, `agents-template.ts:52-66`).
-5. New project roots, added project copies and new sections attempt to seed their applicable template blocks; failures are logged and do not undo creation. `agents_apply` separately walks project roots and non-group sections, skipping manual-mode records, and writes only changed eligible files (`server.ts:2410-2423`, `server.ts:2463-2472`, `server.ts:1657-1674`, `server.ts:3005-3053`).
-6. For a BB-created chat, session-targeted custom text is resolved from the nearest section, then project, then plugin settings and returned as BB agent instructions. Startup text resolves from the nearest section/project/global setting and is appended as an agent-only input to that chat’s first request (`server.ts:962-1003`, `server.ts:3115-3161`, `server.ts:3238-3261`).
+2. The plugin-wide `AgentsRulesEditor` separately loads `agents_config`; it edits automatic file creation, project and section templates, shared custom rules, the custom-rule target and startup text, then saves through `agents_config_save`. Read and save failures are shown in the editor (`agents-apply.tsx:55-106`, `agents-apply.tsx:108-145`, `server.ts:415-423`).
+3. Saving file content writes with the SHA read by the editor; if the file changed since that read, the handler reports a conflict and asks the editor to reopen before saving (`server.ts:441-448`, `server.ts:2740-2756`).
+4. Saving settings writes a project or folder rule row; session-only custom rules are not written to files, and manual mode leaves files untouched (`server.ts:449-460`, `server.ts:2760-2800`).
+5. `applyAgentsBlock` replaces only the managed block or appends it; `applyCustomBlock` similarly upserts/removes the custom block (`agents-template.ts:16-41`, `agents-template.ts:52-66`).
+6. New project roots, added project copies and new sections attempt to seed their applicable template blocks; failures are logged and do not undo creation. `agents_apply` separately walks project roots and non-group sections, skipping manual-mode records, and writes only changed eligible files (`server.ts:2410-2423`, `server.ts:2463-2472`, `server.ts:1657-1674`, `server.ts:3005-3053`).
+7. For a BB-created chat, session-targeted custom text is resolved from the nearest section, then project, then plugin settings and returned as BB agent instructions. Startup text resolves from the nearest section/project/global setting and is appended as an agent-only input to that chat’s first request (`server.ts:962-1003`, `server.ts:3115-3161`, `server.ts:3238-3261`).
 
 ## Modes
 
@@ -73,3 +74,4 @@ Custom rules target `file`, `session` or `both`; startup text is separate and li
 ## Referenced by
 
 - [API and commands](../api.md)
+- [Section archive and restore](archive-and-restore.md)

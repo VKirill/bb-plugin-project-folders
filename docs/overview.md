@@ -48,3 +48,8 @@ From the repository root, run `npm ci`, then `npm run typecheck`, `npm test`, an
 - [Data model](data-model.md) — stored tables, keys, ownership and cleanup.
 - [Features](features/project-tree.md) — user-facing behavior by capability.
 - [Gotchas](gotchas.md) — constraints and failure behavior.
+
+<!-- lane-pilot:backlinks -->
+## Referenced by
+
+- [Deployment](deployment.md)

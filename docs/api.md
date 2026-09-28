@@ -2,9 +2,9 @@
 title: API and commands
 type: component
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 status: active
-confidence: medium
+confidence: low
 tags: [api, rpc, cli, host]
 sources:
   - server.ts
@@ -16,6 +16,7 @@ sources:
   - move-files.ts
   - project-move.ts
   - section-move.ts
+  - project-delete.ts
   - execution.ts
   - session-policy-server.ts
   - github-remote.ts
@@ -67,6 +68,8 @@ The path column names each operation in the registered BB RPC contract; these ar
 | BB RPC | `copy_add`, `copy_remove`, `copy_edit` | Project card and copies dialog | Add, remove or repath a project copy | BB plugin RPC |
 
 Contract schemas: `server.ts:280-414`; project-copy checks and operations: `server.ts:2426-2513`.
+
+`project_delete` accepts `files: "keep" | "archive"`; the handler delegates to `deleteProject`, which performs pending-work, chat-activity and filesystem-ownership checks before removing plugin rows and the BB project (`server.ts:331-340`, `server.ts:2491`, `project-delete.ts:27-119`). See [Project and section tree](features/project-tree.md) for the deletion rules.
 
 ### Moves, placements and archives
 
@@ -163,7 +166,7 @@ The contract continues with the remaining RPC operations in the route tables abo
 2. Require the old source path to be absent and destination to be an existing real directory, not a symlink; require `realpath(destination)` to equal the path so no parent component is a symlink (`move-files.ts:109-117`).
 3. Create a directory symlink from the old source path to the destination and return both normalized paths with `moved: true` (`move-files.ts:116-118`).
 
-There is no fallback branch: validation errors or a symlink creation error reject the host call, and the caller’s move journal retains its error for retry (`move-files.ts:102-118`, `section-move.ts:308-314`).
+There is no fallback branch: validation errors or a symlink creation error reject the host call, and the caller’s move journal retains its error for retry (`move-files.ts:102-118`, `section-move.ts:347-353`).
 
 ### `sessionInventory` collection
 
@@ -204,7 +207,7 @@ Command definitions and argument parsing: `server.ts:3390-3475`, `server.ts:3476
 ## Failures
 
 - Zod validation rejects invalid RPC and CLI inputs before their handlers run (`server.ts:187-200`, `server.ts:3476-3552`).
-- BB and host SDK errors return through RPC/CLI error handling; filesystem moves preserve journals for retry (`section-move.ts:308-314`, `project-move.ts:228-246`).
+- BB and host SDK errors return through RPC/CLI error handling; filesystem moves preserve journals for retry (`section-move.ts:347-353`, `project-move.ts:228-246`).
 - Session-context settings can be stored even if the BB extension is unavailable, but no enforcement hook is installed (`session-policy-server.ts:52-68`).
 
 ## Business rules
@@ -231,4 +234,5 @@ Command definitions and argument parsing: `server.ts:3390-3475`, `server.ts:3476
 ## Referenced by
 
 - [Architecture](architecture.md)
+- [Deployment](deployment.md)
 - [Projects & Sections — Overview](overview.md)

@@ -11,6 +11,7 @@ sources:
   - server.ts
   - app.tsx
   - thread-move.ts
+  - project-delete.ts
   - README.md
 ---
 # Section archive and restore
@@ -38,10 +39,25 @@ Archives provide a reversible way to remove a section subtree from the active tr
 | `archived` | Section is in archive; eligible for restore or matching |
 | `restoring` | Restore operation journal exists |
 
+The same dialog also removes projects. It offers `keep` or `archive`; archiving project files requires exactly one local-path source and moves that folder to a generated sibling `.bb/archive/projects/<uuid>/folder` path before BB deletes the project (`app.tsx:948-985`, `app.tsx:560-563`, `project-delete.ts:62-119`). Project deletion checks and ownership rules are documented in [Project and section tree](project-tree.md).
+
+### Folder dialog entry points
+
+`FolderDialog` resets its fields when the action or target changes. Section creation loads available locations; project-level rules load device choices and read rules for the selected copy (`app.tsx:418-488`). Its folder browser lists directories on the selected host and represents a picked folder as a relative path inside the project or as an absolute path outside it (`app.tsx:496-527`, `app.tsx:695-739`).
+
 | Folder location | Archive behavior |
 |---|---|
 | Inside project root | Move the folder under `.bb/archive/sections/<id>/folder` |
 | Outside project root | Keep the directory in place; archive tree record and chats |
+
+| `FolderDialog` action | RPC path and result |
+|---|---|
+| Create | `archive_matches` first; then restore an archive match or call `create`, unless fresh creation is explicitly selected (`app.tsx:528-552`, `app.tsx:601-613`). |
+| Archive section | Calls `forget`, which archives the selected section (`app.tsx:557-559`, `app.tsx:938-946`). |
+| Remove project | Calls `project_delete` with `keep` or `archive` file behavior (`app.tsx:560-563`, `app.tsx:948-985`). |
+| Group, rename or rules | Calls the matching tree/rules RPC; details live on [Project and section tree](project-tree.md) and [Agent rules](agent-rules.md) (`app.tsx:553-590`). |
+
+The dialog catches RPC failures, displays the error, and clears its busy state in `finally` (`app.tsx:528-600`, `app.tsx:601-613`).
 
 State and location fields: `archive.ts:15-28`, `archive.ts:219-240`, `archive.ts:294-331`.
 
@@ -78,3 +94,4 @@ State and location fields: `archive.ts:15-28`, `archive.ts:219-240`, `archive.ts
 ## Referenced by
 
 - [Data model](../data-model.md)
+- [Project and section tree](project-tree.md)

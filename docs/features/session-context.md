@@ -2,7 +2,7 @@
 title: Session context
 type: component
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 status: active
 confidence: medium
 tags: [session-context, plugins, skills, mcp]
@@ -24,11 +24,13 @@ The server stores rules and supplies a resolved per-thread policy to BB core; th
 ## How it works
 
 1. The UI asks for capability, own settings, inherited settings and an inventory of names available in the selected scope (`server.ts:482-524`).
-2. The server reads and normalizes the `session_policies` JSON row for the global/project/folder key (`session-policy-server.ts:70-95`).
-3. For a thread, the server maps its host and environment path to the deepest real section folder, then gathers policy layers nearest first (`session-policy-server.ts:130-142`, `session-policy-server.ts:102-128`).
-4. Each group resolves independently. An `all` setting can lift a parent restriction; `allow` and `deny` carry selected names (`session-policy.ts:118-170`).
-5. The server converts the effective policy into the core format and sends `null` when there is no restriction (`session-policy.ts:172-202`).
-6. Inventory combines BB plugin metadata, project skills and host-discovered MCP/CLI plugins; failures from optional inventory sources return empty lists (`session-policy-server.ts:178-241`).
+2. `SessionPolicyEditor` loads the scope’s own policy and the selectable inventory separately; a failed policy read renders an alert, while an inventory failure leaves the inventory empty. Saving normalizes the draft, calls `session_policy_save`, reloads the saved state, and reports errors in the editor (`session-policy-ui.tsx:126-191`).
+3. `GroupRow` lets a scope inherit, allow only named entries, deny selected entries, or select all; for `allow`/`deny` it filters the combined inventory by name/label and accepts a custom name. Required items are sorted first and cannot be toggled (`session-policy-ui.tsx:313-423`).
+5. The server reads and normalizes the `session_policies` JSON row for the global/project/folder key (`session-policy-server.ts:70-95`).
+6. For a thread, the server maps its host and environment path to the deepest real section folder, then gathers policy layers nearest first (`session-policy-server.ts:130-142`, `session-policy-server.ts:102-128`).
+7. Each group resolves independently. An `all` setting can lift a parent restriction; `allow` and `deny` carry selected names (`session-policy.ts:118-170`).
+8. The server converts the effective policy into the core format and sends `null` when there is no restriction (`session-policy.ts:172-202`).
+9. Inventory combines BB plugin metadata, project skills and host-discovered MCP/CLI plugins; failures from optional inventory sources return empty lists (`session-policy-server.ts:178-241`).
 
 ## Modes
 

@@ -2,7 +2,7 @@
 title: Execution defaults
 type: component
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 status: active
 confidence: medium
 tags: [execution, provider, model, agent]
@@ -24,7 +24,7 @@ Execution defaults seed new chats with settings without replacing BB’s own def
 ## How it works
 
 1. `ExecutionEditor` derives a stable key for global, project or section scope, clears the prior view, then calls `execution_read`; while pending it displays loading, and a failed read displays an alert (`execution-ui.tsx:61-112`).
-2. A successful read seeds the draft from the scope’s own values and turns on the model group only when a complete model pin exists. It also retains effective/inherited values, host, fallback and agent catalog for display (`execution-ui.tsx:73-79`, `execution.ts:39-47`).
+2. `execution_read` returns the scope’s own values, effective and inherited resolutions, host, BB fallback values and agent catalog; the editor seeds its editable draft from `own` and enables the model group only when both provider and model are pinned (`server.ts:2977-3005`, `execution-ui.tsx:87-93`, `execution.ts:89-95`).
 3. The model switch controls whether the provider/model picker displays the draft or the inherited/fallback value. While off, picker reconciliation changes are ignored; switching it off clears the model, reasoning and tier fields so they are inherited (`execution-ui.tsx:85-153`, `execution-ui.tsx:181-226`).
 4. Permission mode has its own switch and picker; when not pinned it displays the inherited/fallback mode. Scope other than global exposes an agent selector with inherit, explicit no-agent, catalog agent IDs, and a retained option if the saved ID is no longer listed (`execution-ui.tsx:154-179`, `execution-ui.tsx:261-301`).
 5. Agent selection is disabled for global scope, while saving, or when CLI Agents is absent/unsupported. Save normalizes the draft, calls `execution_save`, reloads the saved state and shows success; RPC errors are shown as an alert and busy state is cleared (`execution-ui.tsx:138-153`, `execution-ui.tsx:303-323`).

@@ -1,11 +1,13 @@
 ---
 title: Projects & Sections — Project facts
-updated: 2026-09-27
+updated: 2026-09-28
 sources:
   - package.json
   - server.ts
   - app.tsx
   - host.ts
+  - project-delete.ts
+  - section-move.ts
   - docs/architecture.md
   - docs/gotchas.md
   - docs/api.md
@@ -28,7 +30,9 @@ sources:
 
 - Groups are organizational nodes without a working folder; use a real section for a chat environment (`section-tree.ts:8-11`, `server.ts:3340-3362`).
 - Select a section on the same host as the composer environment (`server.ts:3349-3352`).
-- Move journals are persisted before filesystem changes and retain errors for retry (`section-move.ts:237-241`, `section-move.ts:308-314`).
+- Filesystem section moves persist a journal before changing files; failures retain an error for retry (`section-move.ts:268-293`, `section-move.ts:347-353`).
+- Project deletion and its file-retention constraints: [project and section tree](docs/features/project-tree.md#how-it-works).
+- Section rename and path changes use separate operations: [project and section tree](docs/features/project-tree.md#how-it-works).
 - BB database history is canonical; `.bb/chats` files are exports (`server.ts:1770-1783`, `server.ts:1829-1839`).
 - Session-context filtering requires BB’s experimental extension (`session-policy-server.ts:52-68`).
 
@@ -42,7 +46,7 @@ sources:
 ## Common gotchas
 
 - A fallback chat relocation requires one agent turn and a provider with the `update_environment_directory` tool ([gotchas](docs/gotchas.md#critical), `thread-move.ts:138-168`).
-- Occupied move destinations are not merged or overwritten (`section-move.ts:211-234`).
+- Occupied move destinations are not merged or overwritten (`section-move.ts:255-266`).
 - Required session items cannot be excluded (`session-policy.ts:32-47`).
 
 ## Useful commands

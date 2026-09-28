@@ -2,8 +2,8 @@
 title: Project and section tree
 type: component
 created: 2026-09-27
-updated: 2026-09-27
-status: draft
+updated: 2026-09-28
+status: active
 confidence: low
 tags: [sections, projects, groups, feature]
 sources:
@@ -14,6 +14,7 @@ sources:
   - folder-files.ts
   - app.tsx
   - README.md
+  - project-delete.ts
 ---
 # Project and section tree
 
@@ -29,8 +30,9 @@ The tree organizes BB project chats by their working folder and supports nested 
 2. Creating a section validates its project/parent and relative path, then creates/selects the directory through the host filesystem API and persists a row in `folders` (`server.ts:612-629`, `server.ts:1640-1672`).
 3. Folder rows store parent identity and sort order. Reparenting changes the tree parent and sibling order; it does not move files (`server.ts:255-262`, `server.ts:2215-2223`).
 4. A group row is assigned an internal `@group/<id>` path and kind `group`; its descendants can contain real sections (`server.ts:234-240`, `server.ts:2100-2117`).
-5. `rename` changes the project or section label: a section updates `folders.name`, while a project updates the BB project name. It does not change the path; `section_move` is the separate filesystem relocation operation (`server.ts:2672-2686`, `server.ts:263-278`, `section-move.ts:211-261`).
+5. `rename` changes a section’s stored display name or the BB project name; it does not change a section path. `section_move` handles path changes: it moves/re-links distinct paths, while shared-source or occupied-destination sections update their path binding without moving files (`server.ts:2796-2810`, `server.ts:2287-2293`, `section-move.ts:227-241`, `section-move.ts:243-293`).
 6. `reorder` saves project or sibling section ordering; the app reloads the tree after a `changed` event (`server.ts:400-414`, `server.ts:3214-3225`).
+7. Project deletion rejects pending project moves or section archives, the personal inbox, and projects with active chats, queued work or activity. `keep` leaves files in place; `archive` requires exactly one local folder and moves it into the project archive before deleting the BB project and its plugin rows (`project-delete.ts:27-60`, `project-delete.ts:62-119`). See [Section archive and restore](archive-and-restore.md) for the dialog’s file-retention choices.
 
 ## Modes
 
@@ -46,6 +48,8 @@ These distinctions are encoded in `Folder.kind` and section-environment checks (
 
 | Failure | Result |
 |---|---|
+| Project has pending moves/archives, active work, or is the personal inbox | Deletion is rejected before plugin rows or the BB project are removed (`project-delete.ts:38-60`). |
+| Project file archive is selected with multiple/no local folders or another project/section sharing the path | Deletion is rejected; select keep-files or resolve the overlapping owner (`project-delete.ts:62-97`). |
 | Invalid, absolute or escaping section path | Creation is rejected before persistence (`server.ts:612-629`). |
 | Requested host is disconnected or lacks a project copy | Location is unavailable; section creation cannot proceed (`server.ts:2880-2940`, `server.ts:372-384`). |
 | Folder is registered/protected or not an empty directory | Host directory deletion is rejected (`folder-files.ts:22-38`). |
@@ -57,6 +61,7 @@ These distinctions are encoded in `Folder.kind` and section-environment checks (
 - A new section environment must belong to the selected project and host; a busy project/section move or archive blocks environment creation (`server.ts:3340-3362`).
 - Section depth is for display/inheritance; groups do not increment it (`section-tree.ts:8-11`, `app.tsx:115-128`).
 - The folder browser lists child directories and the host folder editor refuses path traversal, symlinks and registered folders (`folder-browser.tsx:9-68`, `folder-files.ts:3-41`).
+- Project deletion is irreversible from the plugin for BB chats; choose `keep` to leave the project directory or `archive` to move its single local folder before BB deletes the project (`app.tsx:948-985`, `project-delete.ts:99-119`).
 
 ### Folder browser behavior
 
@@ -77,7 +82,7 @@ The server forwards directory edits to the selected host; host validation can re
 
 | RPC or command | Purpose | Evidence |
 |---|---|---|
-| `list`, `machines`, `project_browse`, `project_create`, `project_delete` | Load tree and hosts, browse/create/remove BB projects | `server.ts:280-337` |
+| `list`, `machines`, `project_browse`, `project_create`, `project_delete` | Load tree and hosts, browse/create/remove BB projects; `project_delete` accepts a keep/archive file choice (`server.ts:331-340`, `server.ts:2491`, `project-delete.ts:27-119`) |
 | `create`, `group_create`, `group_delete`, `rename`, `reorder`, `section_reparent`, `folder_edit` | Change sections, groups, names, ordering and directories | `server.ts:234-310`, `server.ts:371-414` |
 | `locations`, `browse` | Select host/path for a new section | `server.ts:372-394` |
 | `sections_list` | Read-only section listing for other plugins; optional project filter | `server.ts:170-185`, `server.ts:3214-3228` |
@@ -86,7 +91,7 @@ The server forwards directory edits to the selected host; host validation can re
 ## Gotchas
 
 - A section can be on a different host or outside its parent’s folder, but it still requires the project to have a local folder on that host (`server.ts:2623-2644`).
-- Renaming the section changes only its display name; use the move workflow to relocate its files (`server.ts:2672-2686`, `server.ts:263-278`, `section-move.ts:211-261`).
+- Renaming a section changes its display name. For a path change, use `section_move`; shared paths can change binding without a filesystem move (`server.ts:2796-2810`, `server.ts:2287-2293`, `section-move.ts:227-241`).
 - Deleting a group is constrained to an empty group (`server.ts:2120-2131`).
 
 <!-- lane-pilot:backlinks -->
@@ -94,4 +99,5 @@ The server forwards directory edits to the selected host; host validation can re
 
 - [API and commands](../api.md)
 - [Architecture](../architecture.md)
+- [Section archive and restore](archive-and-restore.md)
 - [Projects & Sections — Overview](../overview.md)

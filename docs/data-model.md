@@ -2,9 +2,9 @@
 title: Data model
 type: data-model
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 status: active
-confidence: medium
+confidence: low
 tags: [data-model, sqlite, persistence]
 sources:
   - server.ts
@@ -160,7 +160,7 @@ Purpose: Section and group tree nodes for BB projects.
 | `sort` | Sibling ordering integer | Default `0` |
 | `kind` | `folder` or `group` | Default `folder` |
 
-Writers: section creation, group creation, move/repath, archive restore and reorder handlers (`server.ts:1640-1672`, `server.ts:2100-2120`, `section-move.ts:262-305`, `archive.ts:402-419`). Readers: tree/list, section environment validation, move/archive logic and appearance rules (`server.ts:778-790`, `server.ts:3328-3362`, `archive.ts:63-95`).
+Writers: section creation, group creation, move/repath, archive restore and reorder handlers (`server.ts:1640-1672`, `server.ts:2100-2120`, `section-move.ts:294-309`, `archive.ts:402-419`). Readers: tree/list, section environment validation, move/archive logic and appearance rules (`server.ts:778-790`, `server.ts:3328-3362`, `archive.ts:63-95`).
 
 ### `folder_rules`
 
@@ -311,7 +311,7 @@ Purpose: Retry journal for section folder moves and relinks.
 | `folderId` | Section being moved | Primary key / logical `folders.id` |
 | `data` | JSON move record | Source/destination, completion and error details |
 
-State-like lifecycle: absent → journaled before export drain → `complete=true` on path update; failure writes an error for retry (`section-move.ts:237-241`, `section-move.ts:262-314`). Writers/readers: section move module; project move and project cleanup read/remove journals (`server.ts:1924-1932`).
+State-like lifecycle: a metadata-only shared-path update writes a completed journal with the path binding; a filesystem move writes an incomplete journal before draining exports, then marks it complete after descendant paths, exports and archive manifests are rebased. A failure after journal creation stores an error for retry (`section-move.ts:227-241`, `section-move.ts:268-273`, `section-move.ts:294-353`). Writers/readers: section move module; project move and project cleanup read/remove journals (`server.ts:1924-1932`).
 
 ### `thread_moves`
 
@@ -345,7 +345,7 @@ Purpose: Last chat export path or persisted error.
 | `error` | Last export error | `NULL` on success, error text on failure |
 | `updatedAt` | Last state update, Unix milliseconds | Integer |
 
-State lifecycle: success stores a path and `error=NULL`; a non-transient export error stores `path=NULL` and an error; deleted threads remove the row; error rows older than one hour are pruned during `list` (`server.ts:1840-1844`, `server.ts:1866-1877`, `server.ts:2282-2289`). Writers/readers: export pipeline and move modules that rebase paths (`server.ts:1752-1849`, `section-move.ts:271-277`).
+State lifecycle: success stores a path and `error=NULL`; a non-transient export error stores `path=NULL` and an error; deleted threads remove the row; error rows older than one hour are pruned during `list` (`server.ts:1840-1844`, `server.ts:1866-1877`, `server.ts:2282-2289`). Writers/readers: export pipeline and move modules that rebase paths (`server.ts:1752-1849`, `section-move.ts:310-317`).
 
 ### `pending_exports`
 

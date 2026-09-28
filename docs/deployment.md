@@ -2,13 +2,12 @@
 title: Deployment
 type: deployment
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 status: active
 confidence: medium
 tags: [deployment, installation, development]
 sources:
   - package.json
-  - README.md
   - tsconfig.json
   - server.ts
   - host.ts
@@ -26,7 +25,7 @@ TL;DR: Install the plugin through the BB CLI; for repository development install
 
 ## Deploy procedure
 
-1. Install the published plugin from the repository URL: `bb plugin install https://github.com/VKirill/bb-plugin-project-folders.git --yes` (`README.md:5-9`).
+1. Install the plugin from the repository declared in the package metadata: `bb plugin install https://github.com/VKirill/bb-plugin-project-folders.git --yes` (`package.json:2-3`, `package.json:72-76`). See [Overview](overview.md) for the plugin’s identity and [API and commands](api.md) for its BB CLI surface.
 2. For local development, run `npm ci` from the repository root.
 3. Run `npm run typecheck` to execute `tsc --noEmit` (`package.json:80-83`).
 4. Run `npm test` to execute `vitest run` (`package.json:80-83`).
