@@ -477,6 +477,9 @@ export function sortFoldersByActivity<
   const list = [...folders];
   const manual = (a: TFolder, b: TFolder) =>
     (a.sort ?? 0) - (b.sort ?? 0) || a.id.localeCompare(b.id);
+  // The server already returns projects in the order saved by the Configure menu.
+  // Section activity ranking must never override that user-controlled order.
+  if (params.root) return list;
   if (!params.enabled) return list.sort(manual);
   return list.sort((a, b) => {
     const sa = folderActivity({

@@ -2293,18 +2293,8 @@ function Tree(props: PluginThreadListProps) {
     props.onNavigate();
   };
   /** One entry per project; per-device copies are opened from the card or composer machine control. */
-  const visibleRoots = sortFoldersByActivity(
-    data.roots.filter(
-      (r, i) => data.roots.findIndex((x) => x.projectId === r.projectId) === i,
-    ),
-    {
-      enabled: listSettings.sortSectionsByActivity,
-      root: true,
-      folders: data.folders,
-      bindings: data.bindings,
-      places: data.places,
-      threads,
-    },
+  const visibleRoots = data.roots.filter(
+    (r, i) => data.roots.findIndex((x) => x.projectId === r.projectId) === i,
   );
   const rows = (
     ts: readonly PluginSidebarThread[],
@@ -4236,8 +4226,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                 role="tab"
                 aria-selected={detailsPane === "execution"}
                 className={
-                  "pf-tab" +
-                  (detailsPane === "execution" ? " pf-selected" : "")
+                  "pf-tab" + (detailsPane === "execution" ? " pf-selected" : "")
                 }
                 onClick={() => setDetailsPane("execution")}
               >
@@ -4249,8 +4238,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                   role="tab"
                   aria-selected={detailsPane === "session"}
                   className={
-                    "pf-tab" +
-                    (detailsPane === "session" ? " pf-selected" : "")
+                    "pf-tab" + (detailsPane === "session" ? " pf-selected" : "")
                   }
                   onClick={() => setDetailsPane("session")}
                 >
@@ -4352,28 +4340,28 @@ function Panel({ subPath }: PluginNavPanelProps) {
             !selGroup &&
             sessionPolicyAvailable &&
             detailsPane === "session" && (
-            <div className="pf-agents-rule">
-              <h3>
-                {t("Контекст сессии")}
-                <Help
-                  text={t(
-                    "Что загружается в сессию агента, начатую здесь: плагины BB, навыки, MCP-серверы и плагины CLI. Группа без своего значения наследуется: ближайший раздел выше, затем проект, затем настройки плагина.",
-                  )}
+              <div className="pf-agents-rule">
+                <h3>
+                  {t("Контекст сессии")}
+                  <Help
+                    text={t(
+                      "Что загружается в сессию агента, начатую здесь: плагины BB, навыки, MCP-серверы и плагины CLI. Группа без своего значения наследуется: ближайший раздел выше, затем проект, затем настройки плагина.",
+                    )}
+                  />
+                </h3>
+                <SessionPolicyEditor
+                  scope={
+                    selRoot
+                      ? { kind: "project", projectId: sel.projectId }
+                      : {
+                          kind: "folder",
+                          projectId: sel.projectId,
+                          folderId: sel.id,
+                        }
+                  }
                 />
-              </h3>
-              <SessionPolicyEditor
-                scope={
-                  selRoot
-                    ? { kind: "project", projectId: sel.projectId }
-                    : {
-                        kind: "folder",
-                        projectId: sel.projectId,
-                        folderId: sel.id,
-                      }
-                }
-              />
-            </div>
-          )}
+              </div>
+            )}
         </section>
       );
   if (action === "chat")
@@ -4621,7 +4609,11 @@ export default definePluginApp((app) => {
       // Renders nothing of its own: it puts the tree into BB's project chip,
       // where the choice of place belongs.
       { id: "project-chip", chrome: "bare", component: ComposerProjectChip },
-      { id: "section-picker", chrome: "bare", component: SectionComposerAction },
+      {
+        id: "section-picker",
+        chrome: "bare",
+        component: SectionComposerAction,
+      },
       { id: "section", chrome: "bare", component: ComposerSectionBanner },
     ],
   });
