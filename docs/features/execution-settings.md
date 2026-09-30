@@ -2,7 +2,7 @@
 title: Execution defaults
 type: component
 created: 2026-09-27
-updated: 2026-09-28
+updated: 2026-09-30
 status: active
 confidence: medium
 tags: [execution, provider, model, agent]
@@ -28,7 +28,7 @@ Execution defaults seed new chats with settings without replacing BB’s own def
 3. The model switch controls whether the provider/model picker displays the draft or the inherited/fallback value. While off, picker reconciliation changes are ignored; switching it off clears the model, reasoning and tier fields so they are inherited (`execution-ui.tsx:85-153`, `execution-ui.tsx:181-226`).
 4. Permission mode has its own switch and picker; when not pinned it displays the inherited/fallback mode. Scope other than global exposes an agent selector with inherit, explicit no-agent, catalog agent IDs, and a retained option if the saved ID is no longer listed (`execution-ui.tsx:154-179`, `execution-ui.tsx:261-301`).
 5. Agent selection is disabled for global scope, while saving, or when CLI Agents is absent/unsupported. Save normalizes the draft, calls `execution_save`, reloads the saved state and shows success; RPC errors are shown as an alert and busy state is cleared (`execution-ui.tsx:138-153`, `execution-ui.tsx:303-323`).
-6. For new chats, server-side resolution combines independently inherited field groups with BB fallback settings. A pinned agent is bound before spawn; if it cannot be applied, chat creation fails and the error identifies the project or section where the pin came from (`server.ts:1012-1057`, `server.ts:1230-1294`, `server.ts:3115-3137`).
+6. For new chats, server-side resolution combines independently inherited field groups with BB fallback settings. Before `threads.spawn`, the server binds an applicable pinned agent; failures name the project or section that supplied it. A hand-picked composer agent or Lane Pilot profile takes precedence, and non-CLI-agent providers skip this binding (`server.ts:1303-1367`, `server.ts:3254-3278`).
 
 ### Execution editor states
 
@@ -68,14 +68,14 @@ Schemas and hierarchy: `execution.ts:13-55`, `execution.ts:97-129`; scope key co
 |---|---|
 | Invalid scope or execution value | Zod validation rejects the RPC request (`server.ts:462-480`). |
 | Provider does not support native agents or catalog read fails | Catalog reports support/error state and no usable agent list (`execution.ts:164-183`). |
-| Pinned agent cannot be applied | `spawn` fails during pinned-agent binding and identifies the project or section that supplied the pin (`server.ts:1230-1294`, `server.ts:3115-3123`). |
+| Pinned agent cannot be applied | Chat creation fails during binding and the error names the project or section that supplied the pin (`server.ts:1303-1367`, `server.ts:3257-3262`). |
 
 ## Business rules
 
 - Provider and model are a single pin group: both must be present for the place to own that group (`execution.ts:39-47`, `execution.ts:89-95`).
 - An explicit `agentMode: "none"` overrides an inherited agent (`execution.ts:49-55`, `execution.ts:122-128`).
 - If no place pins a group, the plugin leaves that field absent so BB’s remembered project defaults remain in effect (`execution.ts:3-12`, `execution.ts:150-162`).
-- A pinned agent that cannot be applied blocks chat creation and reports which project or section supplied it (`server.ts:1230-1294`, `server.ts:3115-3123`).
+- A pinned agent that cannot be applied blocks chat creation and reports which project or section supplied it (`server.ts:1303-1367`, `server.ts:3257-3262`).
 - CLI agent discovery supports Claude Code, Codex and OpenCode through the optional CLI Agents plugin (`execution.ts:25-34`).
 
 ## Public API

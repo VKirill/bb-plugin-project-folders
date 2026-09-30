@@ -2,7 +2,7 @@
 title: Chat list and activity
 type: component
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-30
 status: active
 confidence: high
 tags: [chat-list, activity, sidebar]
@@ -64,7 +64,7 @@ Values and defaults come from `preferences.ts:66-115`; collapsed-list sorting an
 | `list` | Threads’ associated sections, manual placements and tree state | `server.ts:280-292` |
 | `thread_place`, `thread_place_clear` | File a chat in a list without changing its workspace | `server.ts:242-253` |
 | `prefs_get`, `prefs_save` | Read/save shared list and view preferences | `server.ts:578-593` |
-| `reorder` | Persist project and sibling section ordering | `server.ts:400-414` |
+| `reorder` | Persist project and sibling section ordering | `server.ts:3089-3135` |
 
 ## Gotchas
 

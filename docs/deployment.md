@@ -2,7 +2,7 @@
 title: Deployment
 type: deployment
 created: 2026-09-27
-updated: 2026-09-28
+updated: 2026-09-30
 status: active
 confidence: medium
 tags: [deployment, installation, development]
@@ -10,6 +10,7 @@ sources:
   - package.json
   - tsconfig.json
   - server.ts
+  - app.tsx
   - host.ts
   - session-policy-server.ts
 ---
@@ -41,8 +42,8 @@ Session-context filtering appears only when BB provides `experimental_vkSessionP
 ## Verify
 
 - Confirm the package build exits successfully with `npm run build` (`package.json:80-84`).
-- In BB, confirm the plugin appears in navigation and the project/section list can load; the server registers the RPC contract and emits `changed` events through its handlers (`server.ts:3214-3225`).
-- For session context, inspect the feature capability shown by the plugin; the server exposes the core-extension availability flag (`server.ts:482-485`).
+- In BB, confirm the management page loads the project/section list; the app refreshes on `changed`, and the server registers the main and read-only section-list RPC contracts (`app.tsx:359`, `server.ts:3359-3382`).
+- For session context, read `session_policy_capability`; its handler returns the session-policy subsystem's availability value (`server.ts:2094-2096`).
 
 ## Rollback
 
@@ -51,7 +52,7 @@ The repository defines no rollback script or automated database downgrade (`pack
 ## Troubleshooting
 
 - `bb plugin build` fails: verify BB CLI availability and SDK engine compatibility (`package.json:5-7`, `package.json:80-84`).
-- A project section cannot be used for a chat: confirm it belongs to the selected project and host and is not a group, moving or archived (`server.ts:3328-3362`).
+- A project section cannot be used for a chat: confirm it belongs to the selected project, has a path on the selected host and is not a group, moving or being archived (`server.ts:3485-3522`).
 - Session-context settings are unavailable: the running BB build does not expose the experimental session-policy extension (`session-policy-server.ts:52-68`).
 
 <!-- lane-pilot:backlinks -->

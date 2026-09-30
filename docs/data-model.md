@@ -2,9 +2,9 @@
 title: Data model
 type: data-model
 created: 2026-09-27
-updated: 2026-09-28
+updated: 2026-09-30
 status: active
-confidence: low
+confidence: medium
 tags: [data-model, sqlite, persistence]
 sources:
   - server.ts
@@ -139,7 +139,7 @@ Project and thread IDs in these tables point to BB-owned entities; the BB record
 | Path blocking | Record is not in `archived` state and canonicalized path is under its folder path | Returns true; completed archives do not block (`archive.ts:89-95`). |
 | Serialized operation | Previous queue operation succeeded or failed | Runs the new operation; its own error is returned to caller, but does not poison later queue entries (`archive.ts:96-101`). |
 
-The coordinator receives no cleanup policy for completed rows here; restore/delete lifecycle is owned by the archive operations page (`archive.ts:332-345`, `archive.ts:402-430`).
+The coordinator receives no cleanup policy for completed rows here; restore/delete lifecycle is owned by the archive operations page (`archive.ts:360-375`, `archive.ts:439-463`).
 
 ## Tables
 
@@ -160,7 +160,7 @@ Purpose: Section and group tree nodes for BB projects.
 | `sort` | Sibling ordering integer | Default `0` |
 | `kind` | `folder` or `group` | Default `folder` |
 
-Writers: section creation, group creation, move/repath, archive restore and reorder handlers (`server.ts:1640-1672`, `server.ts:2100-2120`, `section-move.ts:294-309`, `archive.ts:402-419`). Readers: tree/list, section environment validation, move/archive logic and appearance rules (`server.ts:778-790`, `server.ts:3328-3362`, `archive.ts:63-95`).
+Writers: section creation, group creation, move/repath, archive restore and reorder handlers (`server.ts:1657-1729`, `server.ts:2152-2178`, `section-move.ts:294-309`, `archive.ts:439-453`, `server.ts:3089-3135`). Readers: tree/list, section environment validation, move/archive logic and appearance rules (`server.ts:778-790`, `server.ts:3485-3535`, `archive.ts:63-95`).
 
 ### `folder_rules`
 
@@ -175,15 +175,15 @@ Purpose: Per-section rules mode and template configuration.
 | `customTarget` | Where custom text goes | `file`, `session`, `both`; default `file` |
 | `startup` | One-time first-message text | UTF-8 text, max 4,000 at RPC |
 
-Writers/readers: rules settings handlers store/read by `folderId`; apply/startup paths read the row (`server.ts:886-898`, `server.ts:2760-2800`, `server.ts:1630-1740`).
+Writers/readers: rules settings handlers store/read by `folderId`; apply/startup paths read the row (`server.ts:970-975`, `server.ts:2818-2866`, `server.ts:2890-2929`, `server.ts:3137-3160`).
 
 Mode lifecycle (the same transition behavior applies to `project_rules.mode`):
 
 | From | To | Function and condition |
 |---|---|---|
-| absent or any saved mode | `manual` | `rules_settings_save` saves the selection and performs no template-file write (`server.ts:2758-2797`) |
-| absent or any saved mode | `inherit` | Saves mode; updates/removes file custom rules while the stored template continues to resolve through inheritance (`server.ts:886-912`, `server.ts:2758-2800`, `server.ts:2817-2821`) |
-| absent or any saved mode | `custom` | Saves mode and stamps the selected template/custom blocks (`server.ts:2758-2816`) |
+| absent or any saved mode | `manual` | `rules_settings_save` persists the selection and returns before template/custom block writes (`server.ts:2890-2929`) |
+| absent or any saved mode | `inherit` | Saves mode; updates/removes the custom file block, while the effective template resolves through inheritance (`server.ts:996-1011`, `server.ts:2890-2953`) |
+| absent or any saved mode | `custom` | Saves mode and stamps the selected project/section template plus file-targeted custom block (`server.ts:2890-2948`) |
 
 ### `project_rules`
 
@@ -283,13 +283,13 @@ State lifecycle:
 | From | To | Function and condition |
 |---|---|---|
 | absent | `archiving` | `archive` saves the journal after preflight and chat sync (`archive.ts:219-240`) |
-| `archiving` | `archived` | Files/chats complete and tree rows are removed (`archive.ts:332-340`) |
-| `archiving` | `archiving` + error | Any operation failure stores its message for retry (`archive.ts:341-345`) |
+| `archiving` | `archived` | Files/chats complete, folder/path rows are removed and the error is cleared (`archive.ts:360-370`) |
+| `archiving` | `archiving` + error | Any operation failure stores its message and publishes a change for retry (`archive.ts:371-375`) |
 | `archived` | `restoring` | `restore` begins a restore operation (`archive.ts:349-391`) |
 | `restoring` | removed | Restore completes and deletes the archive row (`archive.ts:409-423`) |
-| `restoring` | `restoring` + error | Failed restore stores the error and leaves the journal retryable (`archive.ts:424-428`) |
+| `restoring` | `restoring` + error | Failed restore stores the error and leaves the journal retryable (`archive.ts:459-463`) |
 
-Writers/readers: `makeArchives` writes and parses manifests; project/section moves rebase paths; project deletion removes owned manifests (`archive.ts:63-72`, `project-move.ts:123-145`, `server.ts:1913-1921`).
+Writers/readers: `makeArchives` writes and parses manifests; project/section moves rebase paths; project deletion removes owned manifests (`archive.ts:63-72`, `project-move.ts:123-145`, `server.ts:1971-1974`).
 
 ### `project_moves`
 
@@ -359,17 +359,17 @@ Writers: lifecycle enqueue inserts an ID; queue settlement deletes it. Startup r
 
 ## Invariants
 
-- Folder uniqueness is `(projectId, hostId, path)`; group paths are synthetic and must not be treated as disk paths (`server.ts:686`, `server.ts:2100-2117`).
-- There are no SQL foreign-key constraints; handlers clean dependent records when projects, folders or threads are removed (`server.ts:684-718`, `server.ts:1897-1932`, `server.ts:2282-2317`).
+- Folder uniqueness is `(projectId, hostId, path)`; group paths are synthetic and must not be treated as disk paths (`server.ts:686`, `server.ts:2152-2178`).
+- There are no SQL foreign-key constraints; handlers clean dependent records when projects, folders or threads are removed (`server.ts:684-718`, `server.ts:1953-1992`, `server.ts:2282-2317`).
 - Scope keys are shared across execution and session policy: `g`, `p:<projectId>`, `f:<folderId>` (`server.ts:713-716`, `session-policy-server.ts:70-75`).
 - BB owns canonical thread history; the export tables track file snapshots and outcomes only (`server.ts:1770-1783`, `server.ts:1840-1844`).
 
 ## Retention and cleanup
 
 - Export errors older than the configured threshold are deleted; thread placements whose folder no longer exists are removed, and BB thread existence is checked (`server.ts:2282-2317`).
-- Project deletion removes its folders, ordering, placements, rules, item style, execution defaults, matching archives and move journals (`server.ts:1897-1932`).
+- Project deletion removes its folders, ordering, placements, rules, item style, execution defaults, matching archives and move journals (`server.ts:1953-1992`).
 - Automatic export pending IDs persist so the server can restore queued work on startup; successful/settled work removes the pending row (`server.ts:3280-3305`).
-- Completed archive records remain available for restore until that restore deletes the record (`archive.ts:332-345`, `archive.ts:402-430`).
+- Completed archive records remain available for restore until that restore deletes the record (`archive.ts:360-370`, `archive.ts:439-463`).
 
 ## Related pages
 

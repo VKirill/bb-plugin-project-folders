@@ -2,9 +2,9 @@
 title: Gotchas
 type: gotchas
 created: 2026-09-27
-updated: 2026-09-28
+updated: 2026-09-30
 status: active
-confidence: medium
+confidence: high
 tags: [gotchas, constraints, operations]
 sources:
   - server.ts
@@ -47,7 +47,7 @@ TL;DR: The sharp edges are tied to the physical device behind each section, asyn
 
 **Risk:** Persisted settings do not enforce session filtering on a BB build without this hook.
 
-**Workaround:** Check the capability before relying on a session restriction (`server.ts:482-485`).
+**Workaround:** Read `session_policy_capability`; it returns the availability value from the session-policy subsystem (`server.ts:2094-2096`).
 
 ### Required plugins and MCP servers cannot be excluded
 
@@ -61,11 +61,11 @@ TL;DR: The sharp edges are tied to the physical device behind each section, asyn
 
 ### A group has no folder and cannot own a chat or rules
 
-**Problem:** A group is represented in the section tree but has no filesystem location (`server.ts:234-240`, `section-tree.ts:8-11`). Section-environment validation refuses it (`server.ts:3340-3348`).
+**Problem:** A group stores a synthetic path that is not a filesystem location (`server.ts:2152-2178`, `section-tree.ts:8-11`). Section-environment validation refuses it, and the rules handlers reject group nodes (`server.ts:3485-3509`, `server.ts:2818-2827`, `server.ts:2890-2895`).
 
 **Risk:** Passing a group ID where a section ID is required fails instead of starting a chat.
 
-**Workaround:** Select a real section nested under the group (`server.ts:3340-3348`).
+**Workaround:** Select a real section nested under the group (`server.ts:3485-3509`).
 
 ### Archiving blocks active work and keeps external folders in place
 

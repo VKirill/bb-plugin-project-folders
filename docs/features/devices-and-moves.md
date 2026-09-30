@@ -2,7 +2,7 @@
 title: Device copies and moves
 type: component
 created: 2026-09-27
-updated: 2026-09-28
+updated: 2026-09-30
 status: active
 confidence: medium
 tags: [devices, moves, filesystem]
@@ -34,6 +34,24 @@ The feature keeps project and section paths aligned with BB metadata across devi
 6. A chat move accepts only an idle or error chat in the same project and on the same host, then journals both workspace and chat-storage paths (`thread-move.ts:66-120`).
 7. If BB’s directory update works, the chat storage moves immediately. Otherwise the server files the chat in the destination and asks the chat agent to switch; the move settles after that turn (`thread-move.ts:138-185`, `thread-move.ts:216-269`).
 
+### `makeSectionMoves`
+
+1. The factory opens `section_moves`, creates a client for `moveHostContract`, and exposes the pending-journal list and a project-busy predicate. `move` rejects a concurrent invocation, unknown section, pending project move or pending archive; it resolves the requested destination and permits an unfinished journal only when host and destination match (`section-move.ts:28-90`).
+2. Equal source/destination returns complete without filesystem work. Nested source/destination paths reject. The operation identifies same-project descendants and tree ancestors, then checks whether another real section already owns the source or destination path (`section-move.ts:91-127`).
+3. It rejects section overlap with unrelated sections, project roots, other projects’ roots and other-project environments. A detached-section check can allow a destination outside the project root; otherwise the destination must remain within that root on the selected host (`section-move.ts:128-185`).
+4. For a real filesystem operation it inventories this project’s archived and live hidden threads in batches of 200 for environments at the source or destination. Active/starting/stopping/pending status, queued work or positive activity rejects. It first runs the check without stopping, persists the journal and emits `changed`, drains exports, then rechecks and stops idle relevant threads (`section-move.ts:186-225`, `section-move.ts:268-273`).
+5. Path existence chooses the host operation: source only invokes `inspect` then `move`; destination only invokes `link`; both are accepted only when host inspection recognizes the old path as the compatibility link from a completed move. Neither path rejects (`section-move.ts:243-293`).
+6. If source is shared or destination already belongs to a section, it changes only the selected row and its host path binding, completes the journal and returns. Otherwise it rebases descendant folder paths, per-host bindings, export paths and matching archive manifests in one database transaction, then completes the journal (`section-move.ts:227-241`, `section-move.ts:294-346`).
+7. Caught errors are rethrown; when a journal row exists, the operation stores the error and emits `changed`. The process-local `running` flag clears in `finally` (`section-move.ts:347-356`).
+
+| Branch | Condition | Outcome |
+|---|---|---|
+| Metadata-only binding | Source shared by a section or destination already assigned to a real section | Repoint only the selected section record; no host filesystem call or descendant rebase (`section-move.ts:114-127`, `section-move.ts:227-241`). |
+| Move files | Source exists and destination is absent | Host inspects then moves folder, leaving a compatibility link at the old path (`section-move.ts:251-293`, `move-files.ts:74-91`). |
+| Re-link renamed folder | Source absent and destination exists | Host creates an old-path compatibility link to destination (`section-move.ts:251-293`, `move-files.ts:94-118`). |
+| Resume completed filesystem step | Both paths exist and inspection reports `moved: true` | Continue metadata rebasing without moving files again (`section-move.ts:255-267`, `section-move.ts:274-293`). |
+| Invalid or occupied filesystem state | Neither path exists, or both exist without recognized compatibility link | Reject; paths are not merged or overwritten (`section-move.ts:251-266`). |
+
 ## Modes
 
 | Operation | Scope | Filesystem effect | Retry state |
@@ -48,7 +66,7 @@ Project and section move journals are set before filesystem work (`project-move.
 
 Section moves have two metadata-only branches: when the source is shared by another section or the destination is already assigned to one, only the selected section’s `folders.path` and `folder_paths` binding change; otherwise the host filesystem operation runs and descendant paths, exports and archive manifests are rebased (`section-move.ts:114-127`, `section-move.ts:227-241`, `section-move.ts:274-344`).
 
-`copy_remove` requires an existing source, at least one other project source, and no section rows or environments for the project on that host; it deletes only the BB source record, not the directory (`server.ts:2475-2513`).
+`copy_remove` requires an existing source, at least one other project source, and no section rows or environments for the project on that host; it deletes only the BB source record, not the directory (`server.ts:2541-2579`).
 
 ## Failures
 

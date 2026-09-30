@@ -2,9 +2,9 @@
 title: Architecture
 type: architecture
 created: 2026-09-27
-updated: 2026-09-28
+updated: 2026-09-30
 status: active
-confidence: low
+confidence: medium
 tags: [architecture, bb-plugin, runtime]
 sources:
   - package.json
@@ -22,7 +22,7 @@ sources:
 ---
 # Architecture
 
-TL;DR: The React app calls the server through typed BB RPC; the server coordinates BB projects, threads, environments and storage, and dispatches filesystem-specific work to host handlers on connected devices (`server.ts:3214-3225`, `host.ts:7-16`).
+TL;DR: The React app calls the server through typed BB RPC; the server coordinates BB projects, threads, environments and storage, and dispatches filesystem-specific work to host handlers on connected devices (`server.ts:3359-3382`, `host.ts:7-16`).
 
 ## System Context
 
@@ -70,7 +70,7 @@ C4Container
 1. `plugin(bb)` declares legacy rule-setting descriptors for migration, opens BB’s SQLite storage, and applies the plugin schema migrations for tree rows, rule records, move/archive/export state and preferences (`server.ts:631-718`).
 2. It reads the migrated shared agent settings from `preferences`; if absent, it reads the legacy BB settings, validates each known value against its schema, stores the result, and logs a warning if legacy settings cannot be read (`server.ts:719-776`).
 3. It defines the database-backed tree and rules helpers and constructs the move/archive/export subsystems; those helpers become dependencies of the RPC handlers (`server.ts:777-1003`, `server.ts:1884-1890`, `server.ts:3263-3305`).
-4. It registers the main RPC contract and separate read-only section-list contract, then configures BB agent instructions and CLI commands (`server.ts:3214-3261`, `server.ts:3390-3475`).
+4. It registers the main RPC contract and separate read-only section-list contract, then configures BB agent instructions and CLI commands (`server.ts:3359-3382`, `server.ts:3383-3407`, `server.ts:3537-3632`).
 5. Runtime integrations branch on BB capabilities: session policy enforcement is registered only when the experimental hook exists; unsupported/absent capability leaves stored policy available but unenforced (`session-policy-server.ts:52-68`, `session-policy-server.ts:144-150`).
 
 | Initialization branch | Condition | Outcome/failure |
@@ -78,7 +78,7 @@ C4Container
 | Legacy settings migration | No `preferences` row under `agents` | Attempts read, logs failure, validates defaults/values and stores one shared record (`server.ts:743-776`). |
 | Existing settings | `agents` row exists | Parses saved JSON into defaults plus schema-valid values (`server.ts:743-764`). |
 | Session-policy extension | BB provides `experimental_vkSessionPolicy` | Installs the resolver; otherwise capability is reported unavailable and no hook is installed (`session-policy-server.ts:52-68`, `session-policy-server.ts:144-150`). |
-| RPC registration | Plugin initialization reaches registrations | Binds both typed contracts; registration/SDK failures reject plugin initialization (`server.ts:3214-3228`). |
+| RPC registration | Plugin initialization reaches registrations | Registers the main handlers and discoverable read-only section-list contract (`server.ts:3359-3382`). |
 
 ## Key Flows
 
@@ -95,7 +95,7 @@ sequenceDiagram
   Server-->>BB: selected folder path, ownsPath=false
 ```
 
-The server validates that the section belongs to the chosen project and device, is a real folder rather than a group, and is not being moved or archived (`server.ts:3328-3388`).
+The registered section environment checks that the selected section exists, belongs to the chosen project, is not a group, has a folder binding on the selected host, and is not moving or being archived (`server.ts:3485-3522`).
 
 ### Move a section
 
@@ -141,19 +141,19 @@ For distinct paths, the move implementation checks relevant chats, records a jou
 
 ### Archive a section
 
-The archive module inventories matching chats and files, saves chat exports, records an `archiving` journal, archives chats and moves files unless the section points outside the project, then marks the record `archived` (`archive.ts:119-240`, `archive.ts:285-345`).
+The archive module inventories matching chats and files, saves chat exports, records an `archiving` journal, archives chats and moves files unless the section points outside the project, then removes tree/path rows and marks the record `archived`; operation failures keep the journal with an error (`archive.ts:119-240`, `archive.ts:322-375`).
 
 ## Invariants
 
-- A group is a tree organizer with no filesystem path of its own (`server.ts:234-240`, `section-tree.ts:8-11`).
-- Section environment selection must match project and host and rejects groups or folders covered by an active move/archive (`server.ts:3328-3362`).
+- A group stores a synthetic path that is not a filesystem path (`server.ts:2152-2178`, `section-tree.ts:8-11`).
+- Section environment selection must match project and host and rejects groups or folders covered by an active move/archive (`server.ts:3485-3509`).
 - Project, section and chat moves persist operation state so retries can resume without overwriting occupied destinations (`project-move.ts:26-31`, `section-move.ts:268-293`, `section-move.ts:243-266`, `thread-move.ts:108-136`).
 - Chat history in BB remains canonical; exported files are snapshots written beneath the section folder (`server.ts:1770-1783`, `server.ts:1829-1839`).
 - Session-context enforcement registers only when BB exposes the experimental extension (`session-policy-server.ts:52-68`, `session-policy-server.ts:144-150`).
 
 ## Cross-cutting concerns
 
-RPC input/output shapes are Zod-backed contracts registered with BB’s plugin RPC service (`server.ts:187-602`, `server.ts:3214-3225`). The host entry separates device-specific operations from the central server (`host.ts:7-16`). Move and archive errors are persisted in journals; history export records errors and retries through a queue (`section-move.ts:347-353`, `archive.ts:341-345`, `export-queue.ts:27-45`).
+RPC input/output shapes are Zod-backed contracts registered with BB’s plugin RPC service (`server.ts:187-621`, `server.ts:3359-3382`). The server publishes `changed` after state updates (`server.ts:1570`); the host entry separates device-specific operations from the central server (`host.ts:7-16`). Move and archive errors are persisted in journals; history export records errors and retries through a queue (`section-move.ts:347-353`, `archive.ts:371-375`, `export-queue.ts:27-45`).
 
 <!-- lane-pilot:backlinks -->
 ## Referenced by
