@@ -1863,3 +1863,6 @@
   gap: 6px;
   align-items: center;
 }
+
+/* A hidden project or section drawn while «Show hidden» is on. */
+.pf-hidden > :first-child { opacity: 0.55; }

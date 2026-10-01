@@ -364,5 +364,10 @@
   "навыки: {n}": "compétences : {n}",
   "выбирает по треду": "choisit par fil",
   "в сессию ничего не добавляет": "n’ajoute rien aux sessions",
-  "нужен BB, всегда подключён": "requis par BB, toujours chargé"
+  "нужен BB, всегда подключён": "requis par BB, toujours chargé",
+  "Скрыть из дерева": "Masquer de l’arborescence",
+  "Показать в дереве": "Afficher dans l’arborescence",
+  "Показывать скрытые проекты и разделы": "Afficher les projets et sections masqués",
+  "Скрытые проекты и разделы": "Projets et sections masqués",
+  "Ничего не скрыто": "Rien n’est masqué"
 }

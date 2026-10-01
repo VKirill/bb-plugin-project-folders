@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.21 — Hide projects and sections from the tree
+
+- **Hide from the tree** in the menu of any project or section takes it out of the sidebar on every device; its chats and the work in it go on as before.
+- **Show hidden projects and sections** in Chat list settings brings them back, dimmed, with **Show in the tree** in their menu; the same settings list everything hidden by name, each with a way back.
+
 ## 0.6.20 — Archive every device copy on project delete
 
 - **Move files to the archive** now archives each local working copy, not only a single-folder project.

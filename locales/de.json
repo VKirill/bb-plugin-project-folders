@@ -364,5 +364,10 @@
   "навыки: {n}": "Skills: {n}",
   "выбирает по треду": "wählt pro Thread",
   "в сессию ничего не добавляет": "fügt Sitzungen nichts hinzu",
-  "нужен BB, всегда подключён": "von BB benötigt, immer geladen"
+  "нужен BB, всегда подключён": "von BB benötigt, immer geladen",
+  "Скрыть из дерева": "Im Baum ausblenden",
+  "Показать в дереве": "Im Baum anzeigen",
+  "Показывать скрытые проекты и разделы": "Ausgeblendete Projekte und Bereiche anzeigen",
+  "Скрытые проекты и разделы": "Ausgeblendete Projekte und Bereiche",
+  "Ничего не скрыто": "Nichts ist ausgeblendet"
 }

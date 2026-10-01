@@ -5,9 +5,12 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "./components/ui/dropdown-menu";
+import { useEffect, useState } from "react";
+import { useRpc } from "@get-bb/plugin-sdk/app";
 import { Icon } from "./components/ui/icon";
 import { t } from "./i18n";
 import { usePrefs } from "./prefs-store";
+import type { rpcContract } from "./server";
 import type { Prefs } from "./preferences";
 import { SettingRow, SettingsGroup, Switch } from "./settings-ui";
 
@@ -263,6 +266,18 @@ export function ChatSettings() {
             onChange={(boldUnread) => update({ boldUnread })}
           />
         </SettingRow>
+        <SettingRow
+          label={t("Показывать скрытые проекты и разделы")}
+          htmlFor="pf-set-show-hidden"
+        >
+          <Switch
+            id="pf-set-show-hidden"
+            label={t("Показывать скрытые проекты и разделы")}
+            checked={prefs.view.showHidden}
+            onChange={(showHidden) => view({ showHidden })}
+          />
+        </SettingRow>
+        <HiddenList />
       </SettingsGroup>
     </>
   );
@@ -320,5 +335,55 @@ export function SectionSortMenu() {
         </DropdownMenuRadioGroup>
       </DropdownMenuSubContent>
     </DropdownMenuSub>
+  );
+}
+
+/** What is hidden from the tree, by name, each with a way back. */
+function HiddenList() {
+  const rpc = useRpc<typeof rpcContract>();
+  const { items, saveItem } = usePrefs();
+  const [names, setNames] = useState<Record<string, string>>({});
+  const keys = Object.keys(items).filter((key) => items[key]?.hidden);
+  useEffect(() => {
+    if (!keys.length) return;
+    rpc.call("list").then(
+      (d) => {
+        const projects = new Map(d.roots.map((r) => [r.projectId, r.name]));
+        const out: Record<string, string> = {};
+        for (const r of d.roots) out[`p:${r.projectId}`] = r.name;
+        for (const f of d.folders)
+          out[`f:${f.id}`] = `${projects.get(f.projectId) ?? ""} / ${f.name}`;
+        setNames(out);
+      },
+      () => undefined,
+    );
+  }, [rpc, keys.join("|")]);
+  return (
+    <div className="pf-hidden-list" data-testid="pf-hidden-list">
+      <div className="text-xs font-medium">{t("Скрытые проекты и разделы")}</div>
+      {keys.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{t("Ничего не скрыто")}</p>
+      ) : (
+        <ul className="space-y-1">
+          {keys.map((key) => (
+            <li key={key} className="flex items-center justify-between gap-2 text-sm">
+              <span>{names[key] ?? key}</span>
+              <button
+                type="button"
+                className="pf-link"
+                onClick={() =>
+                  void saveItem(key, { ...items[key], hidden: undefined }).catch(
+                    () => undefined,
+                  )
+                }
+              >
+                <Icon name="Eye" />
+                {t("Показать в дереве")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

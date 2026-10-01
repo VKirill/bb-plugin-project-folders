@@ -1,5 +1,10 @@
 // English fallback and Russian translation catalog. User content is never translated.
 export const english = {
+  "Скрыть из дерева": "Hide from the tree",
+  "Показать в дереве": "Show in the tree",
+  "Показывать скрытые проекты и разделы": "Show hidden projects and sections",
+  "Скрытые проекты и разделы": "Hidden projects and sections",
+  "Ничего не скрыто": "Nothing is hidden",
   "Переместить в подраздел…": "Move to section…",
   "Перенос чата…": "Moving chat…",
   "Сейчас здесь": "Currently here",

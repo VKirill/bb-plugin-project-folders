@@ -364,5 +364,10 @@
   "навыки: {n}": "habilidades: {n}",
   "выбирает по треду": "escolhe por conversa",
   "в сессию ничего не добавляет": "não adiciona nada às sessões",
-  "нужен BB, всегда подключён": "exigido pelo BB, sempre carregado"
+  "нужен BB, всегда подключён": "exigido pelo BB, sempre carregado",
+  "Скрыть из дерева": "Ocultar da árvore",
+  "Показать в дереве": "Mostrar na árvore",
+  "Показывать скрытые проекты и разделы": "Mostrar projetos e seções ocultos",
+  "Скрытые проекты и разделы": "Projetos e seções ocultos",
+  "Ничего не скрыто": "Nada está oculto"
 }

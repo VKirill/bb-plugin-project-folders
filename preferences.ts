@@ -61,6 +61,8 @@ export const itemStyleSchema = styleSchema.extend({
   cascade: z.boolean().optional(),
   sort: z.enum(CHAT_SORTS).optional(),
   limit: z.number().int().min(1).max(100).optional(),
+  /** Left out of the sidebar tree unless «Show hidden» is on; its chats and work go on. */
+  hidden: z.boolean().optional(),
 });
 export type ItemStyle = z.infer<typeof itemStyleSchema>;
 export const prefsSchema = z.object({
@@ -77,6 +79,8 @@ export const prefsSchema = z.object({
   view: z.object({
     density: z.enum(["comfortable", "compact"]),
     indent: z.number().int().min(0).max(32),
+    /** Hidden projects and sections show up again, dimmed, with «Show» in their menu. */
+    showHidden: z.boolean(),
   }),
   appearance: z.object({
     colorBy: z.enum(["level", "project"]),
@@ -102,7 +106,7 @@ export const defaultPrefs: Prefs = {
     hideIdleHours: 48,
     boldUnread: true,
   },
-  view: { density: "comfortable", indent: 8 },
+  view: { density: "comfortable", indent: 8, showHidden: false },
   appearance: {
     colorBy: "level",
     levels: {

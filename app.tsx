@@ -21,6 +21,8 @@ import {
   useFolderLook,
 } from "./appearance";
 import { Help, RuleFields, type RuleDraft } from "./agents-apply";
+import { usePrefs } from "./prefs-store";
+import { folderKey, projectKey } from "./preferences";
 import {
   SessionPolicyEditor,
   useSessionPolicyAvailable,
@@ -1857,9 +1859,14 @@ function FolderHeading({
   onRelocate,
   onRemove,
   onArchive,
+  hidden = false,
+  onToggleHidden,
 }: {
   folder: Folder;
   root: boolean;
+  /** Hidden from the tree; drawn only while «Show hidden» is on. */
+  hidden?: boolean;
+  onToggleHidden?: () => void;
   closed: boolean;
   unread?: boolean;
   highlighted: boolean;
@@ -2021,6 +2028,12 @@ function FolderHeading({
             <Icon name="Edit" />
             {t("Переименовать")}
           </DropdownMenuItem>
+          {onToggleHidden && (
+            <DropdownMenuItem onSelect={onToggleHidden}>
+              <Icon name={hidden ? "Eye" : "EyeOff"} />
+              {hidden ? t("Показать в дереве") : t("Скрыть из дерева")}
+            </DropdownMenuItem>
+          )}
           {onMoveToGroup && (
             <DropdownMenuItem onSelect={onMoveToGroup}>
               <Icon name="MoveTo" />
@@ -2072,6 +2085,20 @@ function Tree(props: PluginThreadListProps) {
   const { rpc, data, error, refresh } = useTree();
   const { prefs, look } = useFolderLook(data.folders);
   const listSettings = prefs.chatList;
+  // Hidden projects and sections stay out of the tree unless «Show hidden» is on; their chats keep working.
+  const { items, saveItem } = usePrefs();
+  const showHidden = prefs.view.showHidden;
+  const hiddenKey = (f: Folder, root: boolean) =>
+    root ? projectKey(f.projectId) : folderKey(f.id);
+  const isHidden = (f: Folder, root: boolean) =>
+    items[hiddenKey(f, root)]?.hidden === true;
+  const toggleHidden = (f: Folder, root: boolean) => {
+    const key = hiddenKey(f, root);
+    void saveItem(key, {
+      ...(items[key] ?? {}),
+      hidden: isHidden(f, root) ? undefined : true,
+    }).catch((e) => alert(String(e)));
+  };
   const [styling, setStyling] = useState<{
     projectId: string;
     folder: Folder | null;
@@ -2295,7 +2322,9 @@ function Tree(props: PluginThreadListProps) {
   /** One entry per project; per-device copies are opened from the card or composer machine control. */
   const visibleRoots = sortFoldersByActivity(
     data.roots.filter(
-      (r, i) => data.roots.findIndex((x) => x.projectId === r.projectId) === i,
+      (r, i) =>
+        data.roots.findIndex((x) => x.projectId === r.projectId) === i &&
+        (showHidden || !isHidden(r, true)),
     ),
     {
       enabled: listSettings.sortSectionsByActivity,
@@ -2390,7 +2419,9 @@ function Tree(props: PluginThreadListProps) {
     const children = sortFoldersByActivity(
       data.folders.filter(
         (c) =>
-          c.projectId === f.projectId && c.parentId === (root ? null : f.id),
+          c.projectId === f.projectId &&
+          c.parentId === (root ? null : f.id) &&
+          (showHidden || !isHidden(c, false)),
       ),
       {
         enabled: listSettings.sortSectionsByActivity,
@@ -2418,10 +2449,18 @@ function Tree(props: PluginThreadListProps) {
     });
     const folderLook = look(f.projectId, root ? null : f);
     return (
-      <div key={f.id} className={root ? "pf-project" : "pf-folder"}>
+      <div
+        key={f.id}
+        className={
+          (root ? "pf-project" : "pf-folder") +
+          (isHidden(f, root) ? " pf-hidden" : "")
+        }
+      >
         <FolderHeading
           folder={f}
           root={root}
+          hidden={isHidden(f, root)}
+          onToggleHidden={() => toggleHidden(f, root)}
           closed={folderClosed}
           unread={folderUnread && listSettings.boldUnread}
           highlighted={dropTarget === f.id}
