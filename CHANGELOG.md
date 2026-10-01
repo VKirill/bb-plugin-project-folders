@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.20 — Archive every device copy on project delete
+
+- **Move files to the archive** now archives each local working copy, not only a single-folder project.
+
 ## 0.6.19 — Project-root chats stay at the project
 
 - A section that points at the project folder no longer steals chats started at the project. Those chats stay at the root unless you file them into the section.

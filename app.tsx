@@ -963,7 +963,7 @@ function FolderDialog({
                     {t("Не трогать файлы")}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {t("Папка на диске останется на месте.")}
+                    {t("Папки проекта на всех устройствах останутся на месте.")}
                   </span>
                 </label>
                 <label className="pf-field">
@@ -978,7 +978,7 @@ function FolderDialog({
                   </span>
                   <span className="text-sm text-muted-foreground">
                     {t(
-                      "Папка переедет в скрытый архив рядом с проектом, в .bb/archive/projects/.",
+                      "Каждая копия папки переедет в скрытый архив рядом с ней, в .bb/archive/projects/.",
                     )}
                   </span>
                 </label>

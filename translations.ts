@@ -191,11 +191,11 @@ export const english = {
   "Проект пропадёт из дерева BB. Его чаты будут удалены из BB. Это нельзя отменить из плагина.":
     "The project will leave the BB tree. Its chats will be deleted from BB. The plugin cannot undo this.",
   "Не трогать файлы": "Leave files in place",
-  "Папка на диске останется на месте.":
-    "The folder on disk will stay where it is.",
+  "Папки проекта на всех устройствах останутся на месте.":
+    "The project folders on every device will stay where they are.",
   "Перенести файлы в архив": "Move files to the archive",
-  "Папка переедет в скрытый архив рядом с проектом, в .bb/archive/projects/.":
-    "The folder will move to a hidden archive next to the project, in .bb/archive/projects/.",
+  "Каждая копия папки переедет в скрытый архив рядом с ней, в .bb/archive/projects/.":
+    "Each copy moves to a hidden archive next to it, in .bb/archive/projects/.",
   "Рабочие копии": "Working copies",
   "У проекта может быть своя рабочая папка на каждом устройстве.":
     "Each device can hold its own working copy of the project.",

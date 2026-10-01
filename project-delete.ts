@@ -62,56 +62,61 @@ export async function deleteProject(
   const sources = project.sources.filter((s) => s.type === "local_path");
   let archivePath: string | null = null;
   if (input.files === "archive") {
-    if (sources.length !== 1)
+    if (sources.length < 1)
       throw new Error(
-        "Moving files to the archive needs exactly one local project folder. Choose keep files instead.",
+        "Moving files to the archive needs a local project folder. Choose keep files instead.",
       );
-    const source = sources[0];
     const others = await bb.sdk.projects.list();
-    if (
-      others.some(
-        (p) =>
-          p.id !== project.id &&
-          p.sources.some(
-            (s) =>
-              s.type === "local_path" &&
-              s.hostId === source.hostId &&
-              within(s.path, source.path),
-          ),
-      )
-    )
-      throw new Error(
-        "Another BB project lives inside this folder. Choose keep files or move that project first.",
-      );
-    if (
-      deps
-        .folders()
-        .some(
-          (f) =>
-            f.projectId !== project.id &&
-            f.hostId === source.hostId &&
-            f.path === source.path,
+    for (const source of sources) {
+      if (
+        others.some(
+          (p) =>
+            p.id !== project.id &&
+            p.sources.some(
+              (s) =>
+                s.type === "local_path" &&
+                s.hostId === source.hostId &&
+                within(s.path, source.path),
+            ),
         )
-    )
-      throw new Error(
-        "This folder is also a section of another project. Choose keep files or archive that section.",
+      )
+        throw new Error(
+          "Another BB project lives inside this folder. Choose keep files or move that project first.",
+        );
+      if (
+        deps
+          .folders()
+          .some(
+            (f) =>
+              f.projectId !== project.id &&
+              f.hostId === source.hostId &&
+              f.path === source.path,
+          )
+      )
+        throw new Error(
+          "This folder is also a section of another project. Choose keep files or archive that section.",
+        );
+    }
+    const archiveId = randomUUID();
+    for (const source of sources) {
+      const dest = path.join(
+        path.dirname(source.path),
+        ".bb/archive/projects",
+        archiveId,
+        "folder",
       );
-    archivePath = path.join(
-      path.dirname(source.path),
-      ".bb/archive/projects",
-      randomUUID(),
-      "folder",
-    );
-    await bb.sdk.files.mkdir({
-      hostId: source.hostId,
-      path: path.dirname(archivePath),
-      recursive: true,
-    });
-    await bb.sdk.files.move({
-      hostId: source.hostId,
-      sourcePath: source.path,
-      destinationPath: archivePath,
-    });
+      await bb.sdk.files.mkdir({
+        hostId: source.hostId,
+        path: path.dirname(dest),
+        recursive: true,
+      });
+      await bb.sdk.files.move({
+        hostId: source.hostId,
+        sourcePath: source.path,
+        destinationPath: dest,
+      });
+      archivePath ??= dest;
+    }
   }
   deps.dropProjectRows(project.id);
   await bb.sdk.projects.delete({ projectId: project.id });
