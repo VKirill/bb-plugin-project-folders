@@ -2960,6 +2960,19 @@ function Panel({ subPath }: PluginNavPanelProps) {
   );
   const [copyRoot, setCopyRoot] = useState<Folder | null>(null);
   const { look } = useFolderLook(data.folders);
+  // Hide/show from the management page, the same flag the sidebar menu sets.
+  const { items: itemStyles, saveItem: saveItemStyle } = usePrefs();
+  const panelHiddenKey = (f: Folder, root: boolean) =>
+    root ? projectKey(f.projectId) : folderKey(f.id);
+  const panelHidden = (f: Folder, root: boolean) =>
+    itemStyles[panelHiddenKey(f, root)]?.hidden === true;
+  const togglePanelHidden = (f: Folder, root: boolean) => {
+    const key = panelHiddenKey(f, root);
+    void saveItemStyle(key, {
+      ...(itemStyles[key] ?? {}),
+      hidden: panelHidden(f, root) ? undefined : true,
+    }).catch((e) => alert(String(e)));
+  };
   const [styling, setStyling] = useState<{
     projectId: string;
     folder: Folder | null;
@@ -3388,6 +3401,10 @@ function Panel({ subPath }: PluginNavPanelProps) {
               >
                 <Icon name="Palette" />
                 {t("Оформление")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => togglePanelHidden(f, root)}>
+                <Icon name={panelHidden(f, root) ? "Eye" : "EyeOff"} />
+                {panelHidden(f, root) ? t("Показать в дереве") : t("Скрыть из дерева")}
               </DropdownMenuItem>
               {root && (
                 <DropdownMenuItem onSelect={() => setNewProject(true)}>
@@ -4180,6 +4197,16 @@ function Panel({ subPath }: PluginNavPanelProps) {
             >
               <Icon name="Palette" />
               {t("Оформление")}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="pf-ghost-muted"
+              data-testid="pf-toggle-hidden"
+              onClick={() => togglePanelHidden(sel, selRoot)}
+            >
+              <Icon name={panelHidden(sel, selRoot) ? "Eye" : "EyeOff"} />
+              {panelHidden(sel, selRoot) ? t("Показать в дереве") : t("Скрыть из дерева")}
             </Button>
             {!selRoot &&
               reparentTargets(data.folders, sel, data.roots).length > 0 && (

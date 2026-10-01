@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.22 — Hide from the management page too
+
+- **Hide from the tree / Show in the tree** is also a button on the project and section page, next to Rename and Appearance, and an item of the page's tree menu; 0.6.21 had it only in the sidebar menu.
+
 ## 0.6.21 — Hide projects and sections from the tree
 
 - **Hide from the tree** in the menu of any project or section takes it out of the sidebar on every device; its chats and the work in it go on as before.
