@@ -1,0 +1,5 @@
+{
+  "$comment": "VK core functions this plugin calls. required: the hub build must have them. optional: feature-tested, the plugin degrades without them.",
+  "required": ["experimental_vkSessionPolicy", "experimental_vkContextContributions"],
+  "optional": []
+}
