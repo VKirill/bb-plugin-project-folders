@@ -2,7 +2,7 @@
 title: Project and section tree
 type: component
 created: 2026-09-27
-updated: 2026-09-30
+updated: 2026-10-01
 status: active
 confidence: medium
 tags: [sections, projects, groups, feature]
@@ -28,16 +28,18 @@ The tree organizes BB project chats by their working folder and supports nested 
 
 ### Plugin initialization
 
-1. `plugin(bb)` declares legacy rule settings for migration, opens BB’s SQLite database and passes the schema migrations to `bb.storage.migrate`. These create the tree, move/archive journals, rule settings, preferences, placements, execution defaults and session policies, then rebuild `folders` with `kind` and initialize per-host folder paths (`server.ts:650-743`).
-2. It reads shared agent settings from `preferences`. If the row is absent, it attempts a one-time read of the legacy declarative settings; a settings read error is logged, defaults are used for missing or invalid values, and the resulting configuration is saved (`server.ts:744-801`).
-3. It builds database-backed helpers for folder rows, per-host path bindings, host-specific folder resolution and GitHub metadata cache/refresh (`server.ts:802-924`). Later in initialization it constructs feature handlers over those helpers and registers plugin RPC, the discoverable read-only section contract and the agent configuration hook (`server.ts:3359-3407`).
+1. `plugin(bb)` defines the legacy rule-setting descriptors used only for migration, opens BB storage and passes the schema changes to `bb.storage.migrate`. The migrations create the folder, export, archive and move tables, add rule and preference state, then migrate folder kinds and host path bindings (`server.ts:650-743`). A storage migration error propagates and stops plugin initialization (`server.ts:703-743`).
+2. It loads the shared `agents` record from `preferences`. If present, `parseAgents` starts from defaults and keeps only values that pass each field schema. If absent, it reads the legacy declarative settings once; a rejected read is logged, then valid values plus defaults are saved as the new record (`server.ts:744-801`).
+3. It builds readers for folder rows and per-host paths, folder binding/resolution helpers, and an in-memory GitHub metadata cache. For connected hosts it requests remotes for selected folder paths; a failed host read is caught so the tree listing remains available (`server.ts:802-924`).
+4. Initialization constructs the project/archive coordinators and other domain helpers, builds the handlers, registers the main plugin RPC and separate discoverable read-only section-list contract, configures BB agent instructions, then registers the CLI command group (`server.ts:1941-1952`, `server.ts:2005-2038`, `server.ts:3359-3407`, `server.ts:3537-3632`).
 
 | Initialization branch | Condition | Result or failure |
 |---|---|---|
 | Existing preferences row | `preferences` contains key `agents` | Parse each known setting against its field schema and use defaults for invalid/missing fields (`server.ts:760-789`). |
 | First settings migration | No `agents` row exists | Read legacy fields once; read rejection is logged, then defaults/valid legacy fields are persisted (`server.ts:790-801`). |
 | GitHub refresh | Connected host and section paths are selected | Host remote lookup refreshes metadata; read errors are caught so tree listing stays available (`server.ts:875-924`). |
-| Registration | Initialization reaches registration calls | Register typed RPC and cross-plugin section listing, then configure BB’s agent hook (`server.ts:3359-3407`). |
+| Storage migration | `bb.storage.migrate` rejects | Initialization rejects before preference loading and handler registration (`server.ts:703-743`). |
+| Registration | Initialization reaches registration calls | Register the main typed RPC and separate cross-plugin section listing, configure BB’s agent hook, then register CLI commands (`server.ts:3359-3407`, `server.ts:3537-3632`). |
 
 Database migration and ordinary initialization errors propagate to the plugin loader; only the legacy settings read and GitHub metadata refresh have local recovery paths in these steps (`server.ts:703-743`, `server.ts:790-801`, `server.ts:875-924`).
 
@@ -47,7 +49,7 @@ Database migration and ordinary initialization errors propagate to the plugin lo
 4. `group_create` stores a synthetic `@group/<id>` path and kind `group`; the path is not a filesystem location, and a section can be created beneath a group (`server.ts:2152-2178`, `server.ts:1657-1674`).
 5. `rename` changes a section’s stored display name or the BB project name; it does not change a section path. `section_move` handles path changes: it moves/re-links distinct paths, while shared-source or occupied-destination sections update their path binding without moving files (`server.ts:2796-2810`, `server.ts:2287-2293`, `section-move.ts:227-241`, `section-move.ts:243-293`).
 6. `reorder` saves the full project order or sibling-section order and publishes `changed`; the management app refreshes on that event (`server.ts:3089-3135`, `server.ts:1570`, `app.tsx:359`).
-7. Project deletion rejects pending project moves or section archives, the personal inbox, and projects with active chats, queued work or activity. `keep` leaves files in place; `archive` moves every local folder into that copy’s project archive before deleting the BB project and its plugin rows (`project-delete.ts:27-60`, `project-delete.ts:62-124`). See [Section archive and restore](archive-and-restore.md) for the dialog’s file-retention choices.
+7. Project deletion rejects pending project moves or section archives, the personal inbox, and projects with active chats, queued work or activity. `keep` leaves all local copies in place; `archive` moves every local-path source into a sibling project archive on its host. All copies in that deletion share one archive UUID. The plugin then removes its project rows and deletes the BB project (`project-delete.ts:27-60`, `project-delete.ts:62-124`). See [Section archive and restore](archive-and-restore.md) for the dialog’s file-retention choices.
 
 ## Modes
 
@@ -65,6 +67,7 @@ These distinctions are encoded in `Folder.kind` and section-environment checks (
 |---|---|
 | Project has pending moves/archives, active work, or is the personal inbox | Deletion is rejected before plugin rows or the BB project are removed (`project-delete.ts:38-60`). |
 | Project file archive is selected with no local folders or another project/section sharing a path | Deletion is rejected; select keep-files or resolve the overlapping owner (`project-delete.ts:62-99`). |
+| Creating an archive directory or moving one of several project copies fails | The RPC rejects before project rows or the BB project are deleted. Copies moved earlier in the loop stay in the archive; deletion has no rollback for those moves (`project-delete.ts:100-124`). |
 | Relative section path escapes its parent or enters `.bb`/`.git` | Path resolution rejects it before directory creation (`server.ts:631-648`). |
 | Requested host is disconnected or has no project/parent folder | The location response marks it unavailable; section creation cannot resolve a folder on that host (`server.ts:2741-2775`, `server.ts:1657-1668`). |
 | Folder is registered/protected or not an empty directory | Host directory deletion is rejected (`folder-files.ts:22-38`). |
@@ -76,13 +79,14 @@ These distinctions are encoded in `Folder.kind` and section-environment checks (
 - A new section environment must belong to the selected project and have a folder binding on the selected host; a busy move or archive blocks environment creation (`server.ts:3485-3509`).
 - Section depth is for display/inheritance; groups do not increment it (`section-tree.ts:8-11`, `app.tsx:115-128`).
 - The folder browser lists child directories and the host folder editor refuses path traversal, symlinks and registered folders (`folder-browser.tsx:9-68`, `folder-files.ts:3-41`).
-- Project deletion is irreversible from the plugin for BB chats; choose `keep` to leave project directories or `archive` to move each local folder before BB deletes the project (`app.tsx:948-985`, `project-delete.ts:99-124`).
+- Project deletion is irreversible from the plugin for BB chats; choose `keep` to leave all project directories or `archive` to move every local-path source before BB deletes the project. The archive option requires at least one local source and uses a shared UUID for the project’s copies (`app.tsx:948-985`, `project-delete.ts:62-124`).
+- After a successful archive, the RPC’s `archivePath` identifies the first source’s archive destination; later copy destinations use the same UUID under their own parent paths (`project-delete.ts:100-124`, `server.ts:331-340`).
 
 ### Folder browser behavior
 
 1. The browser receives the selected host, current path, parent path, directory entries, loading state and navigation/refresh callbacks. It disables controls while loading or while a folder edit is in flight (`folder-browser.tsx:9-31`).
 2. The toolbar navigates to the parent only when one exists and opens a new-folder form. Directory rows navigate into a child or open an empty-folder deletion confirmation (`folder-browser.tsx:41-68`, `folder-browser.tsx:132-174`).
-3. Create submits a trimmed non-empty name on Enter or the check button; delete requires the confirmation button. Both call `folder_edit` with the current path as parent, then clear the form and refresh on success (`folder-browser.tsx:32-39`, `folder-browser.tsx:69-130`, `folder-browser.tsx:175-205`).
+3. Create opens an inline form; Enter or the check button calls `edit("create", trimmedName)`. Delete opens a confirmation; its destructive button calls `edit("delete", selectedName)`. The shared `edit` function sends `folder_edit` with the component’s `hostId` and current `path` as `parent`; on success it closes both forms, clears the name and refreshes the directory list (`folder-browser.tsx:73-84`, `folder-browser.tsx:100-120`, `folder-browser.tsx:183-199`, `folder-browser.tsx:40-49`).
 
 | Browser state | Inputs/condition | Outcome |
 |---|---|---|

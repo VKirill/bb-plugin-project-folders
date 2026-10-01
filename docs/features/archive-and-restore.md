@@ -2,7 +2,7 @@
 title: Section archive and restore
 type: component
 created: 2026-09-27
-updated: 2026-09-30
+updated: 2026-10-01
 status: active
 confidence: medium
 tags: [archive, restore, sections]
@@ -28,25 +28,27 @@ Archives provide a reversible way to remove a section subtree from the active tr
 2. It inventories project threads and environments, rejects active work, external project overlap, child threads outside the subtree and sections that cross ownership boundaries (`archive.ts:128-218`).
 3. It syncs selected chat histories, records archive paths, subtree members and thread IDs with state `archiving` (`archive.ts:219-240`).
 4. After checking for late chats, it stops and archives eligible threads; internal section folders move under `<project>/.bb/archive/sections/<id>/folder`, while external folders stay in place (`archive.ts:242-331`).
-5. It removes archived folder and path rows, marks the record `archived`, clears the prior error and publishes a change; failures keep the journal, save the error and publish a change for retry (`archive.ts:360-375`).
+5. In one database transaction, it removes each archived member’s folder and path rows, sets the journal state to `archived` and clears its prior error (`archive.ts:360-368`). The change notification follows the transaction (`archive.ts:369`); a caught failure stores its error, notifies listeners and rethrows (`archive.ts:371-375`).
 6. Restore checks the saved state and destination, moves owned files back, recreates tree rows, and restores threads listed in `restoreThreadIds` (`archive.ts:349-430`).
 
 ### `makeArchives` coordinator
 
-1. The factory binds BB storage to archive list/write helpers, plus injected folder, canonical-path, project-move, root, sync, pending-operation and change-notification functions (`archive.ts:50-72`). Rows are loaded newest first and parsed through `archiveSchema`; malformed JSON or a schema mismatch rejects the read (`archive.ts:15-28`, `archive.ts:61-67`).
-2. `matches` returns only archived entries for the same project and host whose saved folder name or path basename matches the trimmed query after NFC normalization and case folding. `blocked` checks whether a thread ID appears in any archive record. `moving` checks non-archived records on the same host against the canonical path (`archive.ts:68-91`).
-3. Archive and restore operations enter one promise queue. A rejected operation reaches its caller, while the internal queue catches that rejection so a later operation can still run (`archive.ts:92-103`).
-4. Before the archive journal exists, the operation checks section existence, nested project/environment ownership, selected chat and child-thread boundaries, active work and subtree membership; it syncs selected histories before persisting the `archiving` row (`archive.ts:104-240`).
-5. Once journaled, it drains pending exports, merges eligible late chats, stops/archives the saved chats, and either moves an internal directory or keeps an external/shared directory in place. It then removes folder rows transactionally and marks the archive complete (`archive.ts:242-370`).
-6. On any caught archive failure, it stores the error on the journal, notifies listeners and rethrows. This leaves a record the `archiving` retry branch can resume (`archive.ts:104-126`, `archive.ts:371-377`).
+1. The factory binds the database to archive reads and writes and receives callbacks for folders, canonical paths, project moves, project roots, history sync, pending exports and change notifications. `list` reads newest-first and parses each JSON record with `archiveSchema`; malformed JSON or an invalid record rejects the read (`archive.ts:50-72`).
+2. Its lookup predicates have separate scopes: `matches` finds completed archives for the same project and host by normalized name or basename; `blocked` checks whether any archive record contains a thread ID; `moving` checks whether a canonicalized path is under a non-completed archive path (`archive.ts:73-95`).
+3. Archive and restore calls run through one promise queue. The caller receives a rejected operation, while the queue absorbs that rejection internally so its next operation can run. Thread inventory reads hidden and visible threads in both archived states, in pages of 200 (`archive.ts:96-117`).
+4. For a new archive, the coordinator resolves the section and project root, rejects a nested BB project or a ready foreign-project environment, and selects threads whose environments lie under the section. When another section shares the same host path, only threads manually placed in the selected section are included. A selected thread with a child outside the selection, busy status, queued work or positive activity rejects the request; so does a child section outside the archived subtree. Selected histories are synced before the `archiving` record is written (`archive.ts:119-240`, `archive.ts:241-268`).
+5. An existing record for the same folder in `archiving` state resumes with its saved members and thread IDs. After journaling, the coordinator drains pending exports, rescans for late chats, rejects late busy work, records eligible late threads, and stops/archives threads that were not already archived. An internal unshared directory moves under the project archive with a manifest; an external or shared directory stays in place. Both source and destination existing, or neither existing, rejects without replacing a folder (`archive.ts:119-126`, `archive.ts:250-268`, `archive.ts:270-358`).
+6. Finalization runs in a database transaction: it removes each member’s folder-path and folder rows, sets `state` to `archived` and clears the journal error (`archive.ts:360-368`). The change notification follows the transaction (`archive.ts:369`). Failures before the journal is written reject without an archive retry record; failures caught after journaling save the error and notify listeners, leaving an `archiving` record for retry (`archive.ts:238-268`, `archive.ts:371-377`).
 
 | Branch | Condition | Outcome |
 |---|---|---|
-| Resume archive | Existing record has the same folder and `archiving` state | Reuse its saved members, thread IDs and paths; continue at pending-work checks (`archive.ts:104-126`). |
-| New archive | No unfinished archive record for the folder | Recompute ownership, chats and members, sync histories, then persist a new journal (`archive.ts:126-240`). |
+| Resume archive | Existing record has the same folder and `archiving` state | Reuse its saved members, thread IDs and paths; continue at pending-work checks (`archive.ts:119-126`). |
+| New archive | No unfinished archive record for the folder | Recompute ownership, chats and members, sync histories, then persist a new journal (`archive.ts:119-240`, `archive.ts:241-268`). |
+| Shared folder path | Another real section uses the same host and path | Select only threads manually placed in this section; leave the shared directory in place (`archive.ts:176-189`, `archive.ts:241-259`). |
 | Internal folder | Folder lies under the project root and is not shared | Move it into the project’s section archive tree (`archive.ts:294-331`). |
 | External/shared folder | Folder is outside the root or shares a path with another section | Keep files at their current path; archive the tree membership and chats (`archive.ts:294-311`, `archive.ts:322-324`). |
-| Blocked/invalid subtree | Project/env overlap, child thread outside, active work or child section outside subtree | Reject before the corresponding irreversible move; once journaled, persist the error for retry (`archive.ts:128-218`, `archive.ts:371-375`). |
+| Preflight or history-sync failure | Ownership, thread boundaries, activity checks or a history sync fails before the journal write | Reject without creating an archive retry record (`archive.ts:128-240`, `archive.ts:251-268`). |
+| Post-journal failure | Pending export drain, late-chat check, thread archive, path check or filesystem operation fails | Save the error on the `archiving` record; a later archive call can resume it (`archive.ts:270-377`). |
 
 ## Modes
 
@@ -56,7 +58,7 @@ Archives provide a reversible way to remove a section subtree from the active tr
 | `archived` | Section is in archive; eligible for restore or matching |
 | `restoring` | Restore operation journal exists |
 
-The same dialog also removes projects. It offers `keep` or `archive`; archiving project files moves each local-path source to a sibling `.bb/archive/projects/<uuid>/folder` path on that host, using one UUID across copies, before deleting the BB project (`app.tsx:948-985`, `app.tsx:560-563`, `project-delete.ts:62-124`). Project deletion checks and ownership rules are documented in [Project and section tree](project-tree.md).
+The same dialog also removes projects. It offers `keep` or `archive`; `keep` leaves every project copy in place, while `archive` moves each local-path source to a sibling `.bb/archive/projects/<uuid>/folder` path on its host, using one UUID across copies, before deleting the BB project (`app.tsx:948-985`, `app.tsx:560-563`, `project-delete.ts:62-124`). Project deletion checks and ownership rules are documented in [Project and section tree](project-tree.md).
 
 ### Folder dialog entry points
 
@@ -89,7 +91,7 @@ State and location fields: `archive.ts:15-28`, `archive.ts:219-240`, `archive.ts
 
 ## Business rules
 
-- The operation rejects active, starting, stopping or pending chats, queued work and nonzero activity (`archive.ts:182-193`).
+- The operation rejects selected chats whose status is active, starting, stopping or pending, or that have queued work or positive activity (`archive.ts:185-211`).
 - It rejects folders containing another BB project or a ready environment from another project (`archive.ts:128-156`).
 - Restore never overwrites an occupied destination; errors remain on the archive record for retry (`archive.ts:392-406`, `archive.ts:462-466`).
 - Groups nested beneath archived members are stored and restored as part of the subtree (`archive.ts:30-48`).

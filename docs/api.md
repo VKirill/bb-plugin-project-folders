@@ -2,7 +2,7 @@
 title: API and commands
 type: component
 created: 2026-09-27
-updated: 2026-09-30
+updated: 2026-10-01
 status: active
 confidence: medium
 tags: [api, rpc, cli, host]
@@ -29,10 +29,10 @@ TL;DR: The plugin exposes typed BB plugin RPC, a read-only section-list RPC for 
 
 ## How it works
 
-1. The server defines request and response schemas with Zod-backed `defineRpcContract` and registers the handlers with BB (`server.ts:187-621`, `server.ts:3359-3382`).
+1. The server defines the main plugin methods in `rpcContract` and registers their handlers with BB. Its `list` operation returns the plugin’s tree, placement and machine state for plugin surfaces (`server.ts:284-297`, `server.ts:3359`). A different `sectionsContract` exposes section metadata through discoverable read-only `sections_list` for other plugins; it does not replace the plugin’s `list` result (`server.ts:170-190`, `server.ts:3360-3382`).
 2. Plugin UI surfaces call those RPC operations through the BB SDK (`app.tsx:60-70`, `composer-chip.tsx:154-180`).
 3. Cross-plugin integrations use the separate `sections_list` contract, which returns section metadata and accepts an optional project ID (`server.ts:170-185`, `server.ts:3360-3382`).
-4. The server dispatches device-specific filesystem and inventory work to the host entry under `moveHostContract` (`server.ts:1884-1890`, `host.ts:5-16`).
+4. Server handlers and move coordinators dispatch device-specific filesystem, remote and inventory work through `moveHostContract`, with a target host ID in BB call options (`server.ts:878-880`, `server.ts:2439-2441`, `project-move.ts:172-175`, `session-policy-server.ts:221-224`, `host.ts:5-16`).
 5. BB registers the CLI command group `project-folders`; its handler validates args and calls the same domain operations (`server.ts:3537-3632`, `server.ts:3633-3810`).
 
 ## Modes
@@ -48,7 +48,7 @@ TL;DR: The plugin exposes typed BB plugin RPC, a read-only section-list RPC for 
 
 ### Plugin RPC operations
 
-The path column names each operation in the registered plugin RPC contract; these are contract calls, not literal HTTP URL paths. This statement applies to the plugin RPC operations in this table. The cross-plugin section-list contract, host contract and CLI are separate surfaces below (`server.ts:187-621`, `server.ts:3359-3360`).
+The path column names each operation in the registered plugin RPC contract; these are contract calls, not literal HTTP URL paths. This statement applies to the plugin RPC operations in this table. The cross-plugin section-list contract, host contract and CLI are separate surfaces below (`server.ts:170-190`, `server.ts:3360-3382`, `move-contract.ts:1-56`, `server.ts:3537-3632`).
 
 ### Tree, projects and devices
 
@@ -141,9 +141,9 @@ The host contract operations are typed in `move-contract.ts:1-56`.
 
 ### `moveHostContract` dispatch
 
-1. The server creates a host client with `moveHostContract` and dispatches an operation to the selected host ID; `host.ts` maps each contract key to its host-side handler (`project-move.ts:45-46`, `host.ts:5-16`).
-2. Zod validates each operation’s input and output: `folder_edit` carries optional protected paths, parent, name and create/delete action; `inspect`, `move` and `link` use absolute-path strings at the contract boundary; `session_inventory` validates a nullable cwd; `github_remotes` accepts path strings (`move-contract.ts:7-55`).
-3. `folder_edit` creates or deletes a directory; `inspect` only plans/checks; `move` relocates a directory and leaves a compatibility link; `link` creates a compatibility link when the directory was moved outside BB. Inventory and remote calls return names/or URLs and their source metadata (`host.ts:7-16`, `folder-files.ts:3-41`, `move-files.ts:14-118`, `session-inventory.ts:26-97`, `github-remote.ts:1-30`).
+1. A server handler or move coordinator creates a client from `moveHostContract`. The contract payload carries operation inputs; callers select the target machine separately through BB’s `{ hostId }` call options (`server.ts:878-880`, `server.ts:2439-2441`, `project-move.ts:45-50`, `project-move.ts:172-175`).
+2. BB dispatches each typed contract key through `host.ts` to its host-side handler. The contract validates operation input and output shapes; host IDs are not fields in the operation payload (`move-contract.ts:10-56`, `host.ts:7-16`).
+3. The selected key determines the branch: `folder_edit` creates or deletes a directory, `inspect` checks a path move, `move` relocates it and creates a compatibility link, `link` links a directory moved outside BB, `session_inventory` reads local CLI configuration names, and `github_remotes` resolves GitHub remotes for supplied paths (`folder-files.ts:3-41`, `move-files.ts:14-118`, `session-inventory.ts:26-96`, `github-remote.ts:1-30`).
 
 | Operation branch | Conditions and result | Failures |
 |---|---|---|
@@ -151,17 +151,18 @@ The host contract operations are typed in `move-contract.ts:1-56`.
 | `inspect` | Returns normalized source/destination and whether a compatible link proves the move is already complete (`move-contract.ts:20-26`, `move-files.ts:14-73`). | Rejects unsupported OS, non-absolute/control-character paths, nested paths, symbolic-link parents, absent/non-real source, protected roots, occupied destination, cross-volume destination and linked worktrees (`move-files.ts:14-73`). |
 | `move` | Runs the same inspection; already-moved plans return without another rename. Otherwise it renames source, then creates a compatibility link (`move-files.ts:74-95`). | If linking fails it attempts to roll the rename back only if the original path remains absent; then returns an inspection instruction as error (`move-files.ts:82-93`). |
 | `link` | Requires an absent old path and existing real destination, then creates the compatibility symlink (`move-files.ts:96-118`). | Rejects invalid/nested paths, occupied source, non-real destination or symbolic-link parents (`move-files.ts:102-118`). |
-| `session_inventory`, `github_remotes` | Inventory gathers configured names by CLI source; remote lookup returns each path and nullable URL (`session-inventory.ts:26-97`, `github-remote.ts:1-30`). | Missing/unreadable inventory files contribute no names; host dispatch or remote resolution errors propagate (`session-inventory.ts:99-109`, `host.ts:7-16`). |
+| `session_inventory`, `github_remotes` | Inventory returns MCP server and native-plugin names with their configured CLI source labels; remote lookup returns each input path and nullable URL (`session-inventory.ts:6-22`, `session-inventory.ts:26-96`, `github-remote.ts:1-30`). | Missing or unreadable inventory files are treated as empty text and contribute no names; handler or host-call errors reject (`session-inventory.ts:99-124`, `host.ts:7-16`). |
 
-The host contract is created once by the host entry and maps each typed key to a handler. Its branches are filesystem folder editing, path inspection/move/link, session inventory, and GitHub remote lookup; the host SDK validates input and output shapes at the boundary (`host.ts:1-16`, `move-contract.ts:1-56`).
+The host contract is declared once and consumed by central-server callers and the host entry. A caller supplies the target `hostId` in BB call options; the host entry maps the typed operation key to its handler, and BB validates the payload against the contract (`move-contract.ts:1-56`, `host.ts:5-16`, `server.ts:2439-2441`). The modes and handler outcomes are listed above.
 
 | Step | Behavior and branch | Failure or result |
 |---|---|---|
-| 1 | `folder_edit` validates parent, name, action and optional protected paths, then creates a directory or deletes an empty one (`move-contract.ts:10-18`, `folder-files.ts:3-41`). | Protected, registered, symlink or non-empty paths reject; filesystem errors propagate (`folder-files.ts:10-41`). |
-| 2 | `inspect` resolves absolute source/destination paths and determines whether the destination already represents a completed move (`move-files.ts:14-73`). | Unsupported OS, invalid/nested paths, symlink parents, missing/non-directory source, protected roots, existing destination, cross-volume paths and linked worktrees reject (`move-files.ts:14-72`). |
-| 3 | `move` reuses inspection; an already-complete result returns directly. Otherwise it renames the source and creates a compatibility link at the old path (`move-files.ts:74-91`). | If link creation fails, it restores the rename only when the old path is still absent, then rejects with a recovery instruction (`move-files.ts:82-89`). |
-| 4 | `link` handles an already-relocated folder: the old path must be absent and the destination must be an existing real directory; it creates the compatibility symlink (`move-files.ts:94-118`). | Invalid/nested paths, occupied old path, non-directory or symlink destination, symlink parents and link errors reject (`move-files.ts:100-117`). |
-| 5 | `session_inventory` and `github_remotes` gather host-local configured names and resolve remote metadata for supplied paths (`session-inventory.ts:26-97`, `github-remote.ts:1-30`). | Missing inventory files contribute no names; handler or host-call errors reject the call (`session-inventory.ts:99-124`, `host.ts:7-16`). |
+| 1 | A server or move coordinator chooses a contract key and supplies the target host in BB call options; the host entry routes that key to its mapped handler (`server.ts:878-880`, `server.ts:2439-2441`, `project-move.ts:172-175`, `host.ts:7-16`). | Disconnected-host and dispatch failures reject the call to the invoking code (`server.ts:2439-2441`, `project-move.ts:172-176`). |
+| 2 | `folder_edit` validates parent, name, action and optional protected paths, then creates a directory or deletes an empty one (`move-contract.ts:10-18`, `folder-files.ts:3-41`). | Protected, registered, symlink or non-empty paths reject; filesystem errors propagate (`folder-files.ts:10-41`). |
+| 3 | `inspect` resolves absolute source/destination paths and determines whether the destination already represents a completed move (`move-files.ts:14-73`). | Unsupported OS, invalid/nested paths, symlink parents, missing/non-directory source, protected roots, existing destination, cross-volume paths and linked worktrees reject (`move-files.ts:14-72`). |
+| 4 | `move` reuses inspection; an already-complete result returns directly. Otherwise it renames the source and creates a compatibility link at the old path (`move-files.ts:74-91`). | If link creation fails, it restores the rename only when the old path is still absent, then rejects with a recovery instruction (`move-files.ts:82-89`). |
+| 5 | `link` handles an already-relocated folder: the old path must be absent and the destination must be an existing real directory; it creates the compatibility symlink (`move-files.ts:94-118`). | Invalid/nested paths, occupied old path, non-directory or symlink destination, symlink parents and link errors reject (`move-files.ts:100-117`). |
+| 6 | `session_inventory` and `github_remotes` read host-local configured names and resolve remote metadata for supplied paths (`session-inventory.ts:26-96`, `github-remote.ts:1-30`). | Missing inventory files contribute no names; handler or host-call errors reject the call (`session-inventory.ts:99-124`, `host.ts:7-16`). |
 
 ### `makeProjectMoves`
 
@@ -170,7 +171,7 @@ The host contract is created once by the host entry and maps each typed key to a
 3. Before filesystem work it rejects overlapping project source trees, other-project environments inside the source, same-project environments outside the source, and non-archived section archive records. It asks the host to inspect the move and inventories all hidden, archived and unarchived project threads in pages of 200 (`project-move.ts:78-139`).
 4. The preflight rejects active/starting/stopping/pending threads, queued work and positive activity. It then writes the journal as a barrier, emits `changed`, drains pending exports, repeats the thread check while stopping idle threads, and asks the host to move the directory (`project-move.ts:140-177`).
 5. After the host move it updates the BB project source path. It rebases archive manifests, section paths and export paths in the plugin database, marks the journal complete, clears its error, emits `changed` and returns the journal (`project-move.ts:178-227`).
-6. Any failure is rethrown. If the journal was already persisted, the catch stores the error and emits `changed`; the `finally` block clears the in-memory running guard. A failure before journaling has no retry record (`project-move.ts:228-246`).
+6. Any failure is rethrown. The catch stores the error only when the journal is already present in persistent storage; the `finally` block always clears the in-memory running guard. Since the journal is first persisted after preflight, a failure before that write leaves no retry record (`project-move.ts:70-80`, `project-move.ts:166-169`, `project-move.ts:234-243`).
 
 | Branch | Condition | Outcome |
 |---|---|---|
@@ -205,7 +206,7 @@ The host contract is created once by the host entry and maps each typed key to a
 | `project_move` | Project ID, host ID and non-empty destination | Destination and completion flag; handler/host errors propagate through RPC (`server.ts:215-222`). |
 | `pending_moves` | `null` only | Array of project, host, destination and nullable error records (`server.ts:223-233`). |
 | `group_create` | Target schema and trimmed name of 1–120 characters | Created folder schema; schema or handler rejects invalid targets (`server.ts:234-237`). |
-| `group_delete` | Non-empty folder ID | Literal `{ok:true}` after deletion (`server.ts:238-240`). |
+| `group_delete` | Non-empty folder ID | Returns `{ok:true}` after deleting an empty group; rejects a missing/non-group ID or a group with children (`server.ts:242-245`, `server.ts:2180-2192`). |
 | `thread_place` | Non-empty thread/project IDs and nullable folder ID | Literal `{ok:true}` after placement (`server.ts:242-250`). |
 
 The contract continues with the remaining RPC operations in the route tables above; handler registration binds the full contract as one typed surface (`server.ts:187-621`, `server.ts:3359-3360`).
@@ -222,7 +223,7 @@ There is no fallback branch: validation errors or a symlink creation error rejec
 
 1. Start with empty maps for MCP server names and native plugin names. A `cwd` adds Claude project config and `.mcp.json` sources; global Claude config is always read (`session-inventory.ts:29-45`).
 2. Add only enabled Claude plugins and their shipped MCP entries, then parse Codex config-table headers under `CODEX_HOME` or `~/.codex` (`session-inventory.ts:46-82`).
-3. Read OpenCode `opencode.json` and `opencode.jsonc` under `XDG_CONFIG_HOME` or `~/.config`, merge names by source, sort source labels and names, and return separate MCP and native-plugin lists (`session-inventory.ts:84-97`).
+3. Read OpenCode `opencode.json` and `opencode.jsonc` under `XDG_CONFIG_HOME` or `~/.config`, merge names by source, sort source labels and names, and return separate MCP and native-plugin lists (`session-inventory.ts:84-97`). The output contains configured names and source labels, not commands, URLs or secrets (`session-inventory.ts:6-22`, `session-inventory.ts:92-97`).
 
 | Source branch | Input | Collected values |
 |---|---|---|
@@ -230,7 +231,7 @@ There is no fallback branch: validation errors or a symlink creation error rejec
 | Codex | `config.toml` section headers | Names from `[mcp_servers.<name>]` and `[plugins.<name>]` (`session-inventory.ts:72-82`). |
 | OpenCode | `opencode.json` and `.jsonc` config files | Keys under `mcp` (`session-inventory.ts:84-90`). |
 
-Missing or unreadable files become empty input; JSON parsing accepts line comments and trailing commas. The output contains configured names and source labels, not commands, URLs or secrets (`session-inventory.ts:99-124`).
+Missing or unreadable files become empty input, and JSON parsing accepts line comments and trailing commas (`session-inventory.ts:99-124`). The output schema contains only configured names and source labels, not commands, URLs or secrets (`session-inventory.ts:6-22`, `session-inventory.ts:92-96`).
 
 ## CLI commands
 
@@ -265,7 +266,7 @@ Command definitions and argument parsing: `server.ts:3537-3632`, `server.ts:3633
 - Every RPC operation is registered against a typed input/output contract (`server.ts:187-621`, `server.ts:3359-3360`).
 - `sections_list` is separate and read-only; its optional `projectId` filters the result (`server.ts:170-185`, `server.ts:3360-3382`).
 - CLI commands validate required arguments and call the domain handlers; `--json` is removed from the argument list before parsing (`server.ts:3633-3810`).
-- Host-specific commands require a host ID and are dispatched through the host contract (`move-contract.ts:10-56`, `host.ts:7-16`).
+- Host operations target a host through BB call options; the host ID is not part of the `moveHostContract` operation payload (`project-move.ts:172-175`, `server.ts:2439-2441`, `move-contract.ts:10-56`).
 
 ## Gotchas
 
