@@ -369,5 +369,12 @@
   "Показать в дереве": "Im Baum anzeigen",
   "Показывать скрытые проекты и разделы": "Ausgeblendete Projekte und Bereiche anzeigen",
   "Скрытые проекты и разделы": "Ausgeblendete Projekte und Bereiche",
-  "Ничего не скрыто": "Nichts ist ausgeblendet"
+  "Ничего не скрыто": "Nichts ist ausgeblendet",
+  "Удалить раздел": "Bereich löschen",
+  "Убрать из дерева": "Aus dem Baum nehmen",
+  "Папка на диске останется. Раздел пропадёт из дерева вместе с чатами, которые в нём открывались. Эти чаты уйдут в архив чатов BB.": "Der Ordner bleibt auf der Festplatte. Der Bereich verschwindet aus dem Baum samt dort geöffneter Chats. Diese Chats landen im BB-Chatarchiv.",
+  "В архив проекта": "Projektarchiv",
+  "Папка, вложенные разделы и история переедут в скрытый архив. Чаты тоже архивируются. Потом можно восстановить.": "Ordner, Unterbereiche und Verlauf wandern ins versteckte Archiv. Chats werden ebenfalls archiviert. Später wiederherstellbar.",
+  "Удалить полностью": "Endgültig löschen",
+  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.": "Bereich und Chats sind unwiderruflich weg. Der Ordner wird gelöscht, außer ein anderer Bereich teilt ihn oder ein anderes BB-Projekt liegt darin."
 }

@@ -21,6 +21,16 @@ export const english = {
   "Правила работы": "Working rules",
   Переименовать: "Rename",
   "Архивировать раздел": "Archive section",
+  "Удалить раздел": "Delete section",
+  "Убрать из дерева": "Remove from the tree",
+  "Папка на диске останется. Раздел пропадёт из дерева вместе с чатами, которые в нём открывались. Эти чаты уйдут в архив чатов BB.":
+    "The folder stays on disk. The section leaves the tree together with chats opened in it. Those chats go to BB’s chat archive.",
+  "В архив проекта": "Project archive",
+  "Папка, вложенные разделы и история переедут в скрытый архив. Чаты тоже архивируются. Потом можно восстановить.":
+    "The folder, nested sections and history move to the hidden archive. Chats are archived too. You can restore them later.",
+  "Удалить полностью": "Delete completely",
+  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.":
+    "The section and its chats are gone for good. The folder is deleted unless another section shares it or another BB project lives inside.",
   Устройство: "Device",
   "Загрузка устройств…": "Loading devices…",
   "Выберите устройство": "Choose device",
@@ -43,8 +53,7 @@ export const english = {
     "Different sections can use the same folder.",
   "У раздела может быть своя папка на каждом устройстве.":
     "A section can have its own folder on each device.",
-  "Пути раздела на этой машине нет":
-    "The section has no folder on this device",
+  "Пути раздела на этой машине нет": "The section has no folder on this device",
   "Добавить путь": "Add path",
   "Убрать путь": "Remove path",
   "Разделы внутри группы можно создавать на любом устройстве, где у проекта есть папка.":

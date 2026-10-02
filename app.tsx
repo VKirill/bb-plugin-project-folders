@@ -406,6 +406,9 @@ function FolderDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [projectFiles, setProjectFiles] = useState<"keep" | "archive">("keep");
+  const [sectionMode, setSectionMode] = useState<
+    "archive" | "unbind" | "purge"
+  >("unbind");
   /** Rules tabs: which device's copy of the project root is being edited. */
   const [rulesHost, setRulesHost] = useState<string | null>(null);
   const [machines, setMachines] = useState<
@@ -451,6 +454,7 @@ function FolderDialog({
     setClaude(null);
     setDialogRules(null);
     setProjectFiles("keep");
+    setSectionMode("unbind");
     setLoading(false);
     // Root rules wait for the rules tab (rulesHost); sections load right away.
     if (
@@ -556,9 +560,13 @@ function FolderDialog({
         await rpc.call("group_create", { ...modal.target, name });
       else if (modal.action === "rename")
         await rpc.call("rename", { ...modal.target, name });
-      else if (modal.action === "forget")
-        await rpc.call("forget", modal.target);
-      else if (modal.action === "remove")
+      else if (modal.action === "forget") {
+        if (!modal.target.folderId) throw new Error("Section not found.");
+        await rpc.call("section_remove", {
+          folderId: modal.target.folderId,
+          mode: sectionMode,
+        });
+      } else if (modal.action === "remove")
         await rpc.call("project_delete", {
           projectId: modal.target.projectId,
           files: projectFiles,
@@ -627,7 +635,7 @@ function FolderDialog({
               ? t("Переименовать")
               : modal?.action === "remove"
                 ? t("Удалить проект")
-                : t("Архивировать раздел");
+                : t("Удалить раздел");
   return (
     <Dialog
       open={!!modal}
@@ -835,9 +843,7 @@ function FolderDialog({
                   {t(
                     "Новая папка создастся по названию раздела. Кнопка папки позволяет выбрать существующую.",
                   )}{" "}
-                  {t(
-                    "Разные разделы могут указывать на одну папку.",
-                  )}{" "}
+                  {t("Разные разделы могут указывать на одну папку.")}{" "}
                   {t(
                     "Папку можно выбрать и вне проекта, например папку сайта на сервере.",
                   )}
@@ -938,14 +944,60 @@ function FolderDialog({
               </>
             )}
             {modal?.action === "forget" && (
-              <p className="text-sm mb-4">
-                {t(
-                  "Папка вместе с вложенными разделами, правилами и историей переместится в скрытый архив проекта .bb/archive/sections/. Чаты будут архивированы. Всё можно восстановить на странице «Проекты и разделы».",
-                )}{" "}
-                {t(
-                  "Если папка раздела лежит вне папки проекта, файлы останутся на месте: в архив уйдут только чаты и запись раздела.",
-                )}
-              </p>
+              <fieldset className="pf-choices">
+                {(
+                  [
+                    {
+                      mode: "unbind" as const,
+                      icon: "EyeOff" as const,
+                      title: t("Убрать из дерева"),
+                      hint: t(
+                        "Папка на диске останется. Раздел пропадёт из дерева вместе с чатами, которые в нём открывались. Эти чаты уйдут в архив чатов BB.",
+                      ),
+                    },
+                    {
+                      mode: "archive" as const,
+                      icon: "Archive" as const,
+                      title: t("В архив проекта"),
+                      hint: t(
+                        "Папка, вложенные разделы и история переедут в скрытый архив. Чаты тоже архивируются. Потом можно восстановить.",
+                      ),
+                    },
+                    {
+                      mode: "purge" as const,
+                      icon: "Trash2" as const,
+                      title: t("Удалить полностью"),
+                      hint: t(
+                        "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.",
+                      ),
+                      danger: true,
+                    },
+                  ] as const
+                ).map((choice) => (
+                  <label
+                    key={choice.mode}
+                    className={
+                      "pf-choice" +
+                      (sectionMode === choice.mode ? " pf-choice-on" : "") +
+                      ("danger" in choice && choice.danger
+                        ? " pf-choice-danger"
+                        : "")
+                    }
+                  >
+                    <span className="pf-choice-head">
+                      <input
+                        type="radio"
+                        name="section-remove"
+                        checked={sectionMode === choice.mode}
+                        onChange={() => setSectionMode(choice.mode)}
+                      />
+                      <Icon name={choice.icon} />
+                      <span className="pf-choice-title">{choice.title}</span>
+                    </span>
+                    <span className="pf-choice-hint">{choice.hint}</span>
+                  </label>
+                ))}
+              </fieldset>
             )}
             {modal?.action === "remove" && (
               <fieldset className="mb-4 space-y-3">
@@ -992,7 +1044,12 @@ function FolderDialog({
               </Button>
               <Button
                 type="submit"
-                variant={modal?.action === "remove" ? "destructive" : "default"}
+                variant={
+                  modal?.action === "remove" ||
+                  (modal?.action === "forget" && sectionMode === "purge")
+                    ? "destructive"
+                    : "default"
+                }
                 disabled={
                   busy ||
                   loading ||
@@ -1009,7 +1066,11 @@ function FolderDialog({
                         ? t("Создать новый, не восстанавливая")
                         : t("Создать")
                       : modal?.action === "forget"
-                        ? t("Архивировать")
+                        ? sectionMode === "unbind"
+                          ? t("Убрать из дерева")
+                          : sectionMode === "purge"
+                            ? t("Удалить полностью")
+                            : t("Архивировать")
                         : modal?.action === "remove"
                           ? t("Удалить")
                           : t("Сохранить")}
@@ -2068,8 +2129,8 @@ function FolderHeading({
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem variant="destructive" onSelect={onArchive}>
-                  <Icon name="Archive" />
-                  {t("Архивировать")}
+                  <Icon name="Trash2" />
+                  {t("Удалить")}
                 </DropdownMenuItem>
               )}
             </>
@@ -3404,7 +3465,9 @@ function Panel({ subPath }: PluginNavPanelProps) {
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => togglePanelHidden(f, root)}>
                 <Icon name={panelHidden(f, root) ? "Eye" : "EyeOff"} />
-                {panelHidden(f, root) ? t("Показать в дереве") : t("Скрыть из дерева")}
+                {panelHidden(f, root)
+                  ? t("Показать в дереве")
+                  : t("Скрыть из дерева")}
               </DropdownMenuItem>
               {root && (
                 <DropdownMenuItem onSelect={() => setNewProject(true)}>
@@ -3493,8 +3556,8 @@ function Panel({ subPath }: PluginNavPanelProps) {
                     })
                   }
                 >
-                  <Icon name="Archive" />
-                  {t("В архив")}
+                  <Icon name="Trash2" />
+                  {t("Удалить")}
                 </DropdownMenuItem>
               )}
               {root && (
@@ -3631,17 +3694,17 @@ function Panel({ subPath }: PluginNavPanelProps) {
         : []
     : [];
   const cardHost =
-    (sel &&
-      cardMachines.find((id) => id === (cardHostState ?? sel.hostId))) ||
+    (sel && cardMachines.find((id) => id === (cardHostState ?? sel.hostId))) ||
     sel?.hostId ||
     "";
   /** The copy on the open device tab, or null when that machine has none yet. */
   const cardCopy = selRoot
     ? (cardCopies.find((c) => c.hostId === cardHost) ?? null)
     : null;
-  const cardSectionPath = !selRoot && !selGroup
-    ? (sectionPaths.find((p) => p.hostId === cardHost)?.path ?? null)
-    : null;
+  const cardSectionPath =
+    !selRoot && !selGroup
+      ? (sectionPaths.find((p) => p.hostId === cardHost)?.path ?? null)
+      : null;
   const online = (id: string) =>
     data.machines.find((m) => m.id === id)?.connected ?? false;
   useEffect(() => {
@@ -4206,7 +4269,9 @@ function Panel({ subPath }: PluginNavPanelProps) {
               onClick={() => togglePanelHidden(sel, selRoot)}
             >
               <Icon name={panelHidden(sel, selRoot) ? "Eye" : "EyeOff"} />
-              {panelHidden(sel, selRoot) ? t("Показать в дереве") : t("Скрыть из дерева")}
+              {panelHidden(sel, selRoot)
+                ? t("Показать в дереве")
+                : t("Скрыть из дерева")}
             </Button>
             {!selRoot &&
               reparentTargets(data.folders, sel, data.roots).length > 0 && (
@@ -4258,8 +4323,8 @@ function Panel({ subPath }: PluginNavPanelProps) {
                   })
                 }
               >
-                <Icon name="Archive" />
-                {t("В архив")}
+                <Icon name="Trash2" />
+                {t("Удалить")}
               </Button>
             )}
             {selRoot && (
@@ -4302,8 +4367,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                 role="tab"
                 aria-selected={detailsPane === "execution"}
                 className={
-                  "pf-tab" +
-                  (detailsPane === "execution" ? " pf-selected" : "")
+                  "pf-tab" + (detailsPane === "execution" ? " pf-selected" : "")
                 }
                 onClick={() => setDetailsPane("execution")}
               >
@@ -4315,8 +4379,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                   role="tab"
                   aria-selected={detailsPane === "session"}
                   className={
-                    "pf-tab" +
-                    (detailsPane === "session" ? " pf-selected" : "")
+                    "pf-tab" + (detailsPane === "session" ? " pf-selected" : "")
                   }
                   onClick={() => setDetailsPane("session")}
                 >
@@ -4418,28 +4481,28 @@ function Panel({ subPath }: PluginNavPanelProps) {
             !selGroup &&
             sessionPolicyAvailable &&
             detailsPane === "session" && (
-            <div className="pf-agents-rule">
-              <h3>
-                {t("Контекст сессии")}
-                <Help
-                  text={t(
-                    "Что загружается в сессию агента, начатую здесь: плагины BB, навыки, MCP-серверы и плагины CLI. Группа без своего значения наследуется: ближайший раздел выше, затем проект, затем настройки плагина.",
-                  )}
+              <div className="pf-agents-rule">
+                <h3>
+                  {t("Контекст сессии")}
+                  <Help
+                    text={t(
+                      "Что загружается в сессию агента, начатую здесь: плагины BB, навыки, MCP-серверы и плагины CLI. Группа без своего значения наследуется: ближайший раздел выше, затем проект, затем настройки плагина.",
+                    )}
+                  />
+                </h3>
+                <SessionPolicyEditor
+                  scope={
+                    selRoot
+                      ? { kind: "project", projectId: sel.projectId }
+                      : {
+                          kind: "folder",
+                          projectId: sel.projectId,
+                          folderId: sel.id,
+                        }
+                  }
                 />
-              </h3>
-              <SessionPolicyEditor
-                scope={
-                  selRoot
-                    ? { kind: "project", projectId: sel.projectId }
-                    : {
-                        kind: "folder",
-                        projectId: sel.projectId,
-                        folderId: sel.id,
-                      }
-                }
-              />
-            </div>
-          )}
+              </div>
+            )}
         </section>
       );
   if (action === "chat")
@@ -4687,7 +4750,11 @@ export default definePluginApp((app) => {
       // Renders nothing of its own: it puts the tree into BB's project chip,
       // where the choice of place belongs.
       { id: "project-chip", chrome: "bare", component: ComposerProjectChip },
-      { id: "section-picker", chrome: "bare", component: SectionComposerAction },
+      {
+        id: "section-picker",
+        chrome: "bare",
+        component: SectionComposerAction,
+      },
       { id: "section", chrome: "bare", component: ComposerSectionBanner },
     ],
   });

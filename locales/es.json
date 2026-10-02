@@ -369,5 +369,12 @@
   "Показать в дереве": "Mostrar en el árbol",
   "Показывать скрытые проекты и разделы": "Mostrar proyectos y secciones ocultos",
   "Скрытые проекты и разделы": "Proyectos y secciones ocultos",
-  "Ничего не скрыто": "No hay nada oculto"
+  "Ничего не скрыто": "No hay nada oculto",
+  "Удалить раздел": "Eliminar sección",
+  "Убрать из дерева": "Quitar del árbol",
+  "Папка на диске останется. Раздел пропадёт из дерева вместе с чатами, которые в нём открывались. Эти чаты уйдут в архив чатов BB.": "La carpeta permanece en el disco. La sección desaparece del árbol junto con los chats abiertos en ella. Esos chats van al archivo de chats de BB.",
+  "В архив проекта": "Archivo del proyecto",
+  "Папка, вложенные разделы и история переедут в скрытый архив. Чаты тоже архивируются. Потом можно восстановить.": "La carpeta, las subsecciones y el historial se mueven al archivo oculto. Los chats también se archivan. Luego se pueden restaurar.",
+  "Удалить полностью": "Eliminar por completo",
+  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.": "La sección y sus chats desaparecen para siempre. La carpeta se borra salvo que otra sección la comparta o haya otro proyecto BB dentro."
 }

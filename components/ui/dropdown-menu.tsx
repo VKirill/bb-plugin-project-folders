@@ -649,7 +649,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
         <div
           ref={ref as React.RefCallback<HTMLDivElement> | null}
           className={cn(
-            "px-2 py-1.5 text-xs font-medium text-muted-foreground",
+            "flex items-center gap-2 px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground [&_svg]:size-4 [&_svg]:shrink-0",
             inset && "pl-8",
             className,
           )}

@@ -114,15 +114,14 @@ it("sends new chats on a project to the plugin composer with the section tree", 
   ).toBe(false);
   view.lifecycle.unmount();
 });
-it("opens the section menu on right-click with archive instead of delete", async () => {
+it("opens the section menu on right-click with delete, not new project", async () => {
   const view = mount();
   fireEvent.contextMenu(await view.findByText("Section"));
   expect(
     await view.findByRole("menuitem", { name: /New section/ }),
   ).toBeTruthy();
-  expect(view.getByRole("menuitem", { name: /^Archive$/ })).toBeTruthy();
+  expect(view.getByRole("menuitem", { name: /^Delete$/ })).toBeTruthy();
   expect(view.queryByRole("menuitem", { name: /New project/ })).toBeNull();
-  expect(view.queryByRole("menuitem", { name: /^Delete$/ })).toBeNull();
   view.lifecycle.unmount();
 });
 it("hides a chat idle for over 48 hours under Show all", async () => {

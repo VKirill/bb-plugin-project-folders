@@ -49,7 +49,7 @@ it("shows the selected section details with allowed actions", async () => {
   await view.findByDisplayValue("/work/Section");
   expect(view.baseElement.textContent).toContain("New section");
   expect(view.baseElement.textContent).toContain("Rules");
-  expect(view.baseElement.textContent).toContain("Archive");
+  expect(view.baseElement.textContent).toContain("Delete");
   view.lifecycle.unmount();
 });
 

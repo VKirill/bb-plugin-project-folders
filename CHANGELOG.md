@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.25 — Sort headers on phones
+
+- In the ⋯ menu on a phone, **Chat sorting** and **Section sorting** headers keep the icon on the same line as the text, at the size of other items.
+
+## 0.6.24 — Delete-section dialog spacing
+
+- Choice cards in **Delete section** have more padding, a title row for the radio, and an indented hint.
+
+## 0.6.23 — Delete a section without always archiving
+
+- **Delete** in the section menu opens a choice: remove from the tree (files stay, chats go to BB’s chat archive), archive into the project, or delete files and chats.
+
 ## 0.6.22 — Hide from the management page too
 
 - **Hide from the tree / Show in the tree** is also a button on the project and section page, next to Rename and Appearance, and an item of the page's tree menu; 0.6.21 had it only in the sidebar menu.

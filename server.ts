@@ -22,6 +22,7 @@ import {
   sessionPolicySchema,
 } from "./session-policy";
 import { deleteProject } from "./project-delete";
+import { removeSection, sectionRemoveMode } from "./section-remove";
 import {
   AGENTS_BLOCK_END,
   AGENTS_BLOCK_START,
@@ -128,9 +129,7 @@ const folderSchema = z.object({
   githubUrl: z.string().nullable().optional(),
   githubPrivate: z.boolean().nullable().optional(),
   /** Folder on each device; the home host+path stay on the row. */
-  paths: z
-    .array(z.object({ hostId: z.string(), path: z.string() }))
-    .optional(),
+  paths: z.array(z.object({ hostId: z.string(), path: z.string() })).optional(),
 });
 export type Folder = z.infer<typeof folderSchema>;
 const targetSchema = z.object({
@@ -386,6 +385,16 @@ export const rpcContract = defineRpcContract({
     output: z.object({ archives: z.array(archiveSchema) }),
   },
   archive: { input: z.object({ folderId: z.string() }), output: archiveSchema },
+  section_remove: {
+    input: z.object({
+      folderId: z.string().min(1),
+      mode: z.enum(sectionRemoveMode),
+    }),
+    output: z.object({
+      ok: z.literal(true),
+      mode: z.enum(sectionRemoveMode),
+    }),
+  },
   restore: { input: z.object({ id: z.string() }), output: folderSchema },
   create: { input: createSchema, output: folderSchema },
   locations: {
@@ -1691,7 +1700,11 @@ export default async function plugin(bb: BbPluginApi) {
       hostId: parent.hostId,
       parentId: input.folderId,
       name: input.name,
-      path: external ?? (sameAsParent ? parent.path : resolveFolderPath(parent.path, relativePath)),
+      path:
+        external ??
+        (sameAsParent
+          ? parent.path
+          : resolveFolderPath(parent.path, relativePath)),
       kind: "folder",
       sort:
         (
@@ -2319,6 +2332,59 @@ export default async function plugin(bb: BbPluginApi) {
       if (archived) forgetGithub(archived.hostId, archived.path);
       return archives.archive(folderId);
     },
+    section_remove: (input) =>
+      removeSection(
+        bb,
+        {
+          folders,
+          root: (projectId, hostId) =>
+            target({ projectId, hostId, folderId: null }),
+          canonical: canonicalPath,
+          sync,
+          pending: () => Promise.allSettled([...syncing.values()]),
+          pendingArchives: (projectId) =>
+            archives
+              .list()
+              .some(
+                (a) =>
+                  a.folder.projectId === projectId && a.state !== "archived",
+              ),
+          sectionMoving: (folderId) =>
+            sectionMoves
+              .list()
+              .some((m) => m.folderId === folderId && !m.complete),
+          chatMoving: () => threadMoves.any(),
+          dropMembers: (members) => {
+            db.transaction(() => {
+              for (const m of members) {
+                db.prepare("DELETE FROM folder_paths WHERE folderId=?").run(
+                  m.id,
+                );
+                db.prepare("DELETE FROM folders WHERE id=?").run(m.id);
+                db.prepare("DELETE FROM folder_rules WHERE folderId=?").run(
+                  m.id,
+                );
+                db.prepare("DELETE FROM item_styles WHERE key=?").run(
+                  `f:${m.id}`,
+                );
+                db.prepare("DELETE FROM execution_defaults WHERE key=?").run(
+                  `f:${m.id}`,
+                );
+                db.prepare("DELETE FROM thread_places WHERE folderId=?").run(
+                  m.id,
+                );
+                db.prepare("DELETE FROM section_moves WHERE folderId=?").run(
+                  m.id,
+                );
+              }
+            })();
+          },
+          forgetGithub,
+          changed,
+          archive: (folderId) => archives.archive(folderId),
+        },
+        input,
+      ),
     restore: ({ id }) => {
       const a = archives.list().find((a) => a.id === id);
       if (a && moves.busy(a.folder.projectId))
@@ -2710,9 +2776,10 @@ export default async function plugin(bb: BbPluginApi) {
       if (folder.hostId === input.hostId)
         db.prepare("UPDATE folders SET path=? WHERE id=?").run(p, folder.id);
       forgetGithub(input.hostId, p);
-      await seedAgents({ ...folder, hostId: input.hostId, path: p }, null).catch(
-        (e) => bb.log.warn(`AGENTS.md template for ${p}: ${String(e)}`),
-      );
+      await seedAgents(
+        { ...folder, hostId: input.hostId, path: p },
+        null,
+      ).catch((e) => bb.log.warn(`AGENTS.md template for ${p}: ${String(e)}`));
       changed();
       return { ok: true as const, path: p };
     },
@@ -2733,7 +2800,10 @@ export default async function plugin(bb: BbPluginApi) {
         folder.id,
         input.hostId,
       );
-      forgetGithub(input.hostId, listed.find((r) => r.hostId === input.hostId)?.path ?? "");
+      forgetGithub(
+        input.hostId,
+        listed.find((r) => r.hostId === input.hostId)?.path ?? "",
+      );
       changed();
       return { ok: true as const };
     },
@@ -3377,7 +3447,8 @@ export default async function plugin(bb: BbPluginApi) {
     },
     {
       experimental_discoverable: true,
-      experimental_description: "Project sections with their folders, for plugins that work per section.",
+      experimental_description:
+        "Project sections with their folders, for plugins that work per section.",
     },
   );
   bb.agents.configure((ctx) => {
@@ -3613,6 +3684,13 @@ export default async function plugin(bb: BbPluginApi) {
         usage: "bb project-folders forget <folder-id>",
       },
       {
+        name: "remove-section",
+        summary:
+          "Remove a section: archive, unbind from the tree, or delete files and chats",
+        usage:
+          "bb project-folders remove-section <folder-id> archive|unbind|purge",
+      },
+      {
         name: "delete-project",
         summary: "Remove a project from BB; keep files or move them to archive",
         usage: "bb project-folders delete-project <project-id> keep|archive",
@@ -3716,6 +3794,11 @@ export default async function plugin(bb: BbPluginApi) {
           if (threadMoves.any())
             throw new Error("Finish pending chat moves first.");
           value = await archives.archive(z.string().min(1).parse(args[1]));
+        } else if (args[0] === "remove-section") {
+          value = await handlers.section_remove({
+            folderId: z.string().min(1).parse(args[1]),
+            mode: z.enum(sectionRemoveMode).parse(args[2]),
+          });
         } else if (args[0] === "restore") {
           value = await archives.restore(z.string().min(1).parse(args[1]));
         } else if (args[0] === "archives") {
