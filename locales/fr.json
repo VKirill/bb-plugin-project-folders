@@ -376,5 +376,14 @@
   "В архив проекта": "Archive du projet",
   "Папка, вложенные разделы и история переедут в скрытый архив. Чаты тоже архивируются. Потом можно восстановить.": "Le dossier, les sous-sections et l’historique passent dans l’archive masquée. Les discussions sont aussi archivées. Vous pourrez tout restaurer.",
   "Удалить полностью": "Supprimer définitivement",
-  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.": "La section et ses discussions disparaissent définitivement. Le dossier est effacé sauf s’il est partagé ou contient un autre projet BB."
+  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.": "La section et ses discussions disparaissent définitivement. Le dossier est effacé sauf s’il est partagé ou contient un autre projet BB.",
+  "Экспорт всего": "Tout exporter",
+  "Импорт всего": "Tout importer",
+  "Экспортировать всё": "Tout exporter",
+  "Импортировать всё…": "Tout importer…",
+  "Полный файл содержит разделы, правила, архивы, оформление и настройки. Очереди экспорта чатов и незавершённые переносы в него не входят.": "Le fichier complet contient les sections, règles, archives, apparence et réglages. Les files d’export de discussions et les déplacements inachevés n’y figurent pas.",
+  "При импорте объединить с уже существующими записями": "Fusionner avec les enregistrements existants à l’import",
+  "Все данные импортированы.": "Toutes les données ont été importées.",
+  "Заменить все данные плагина содержимым файла? Текущие разделы, правила и архивы будут удалены.": "Remplacer toutes les données du plugin par ce fichier ? Les sections, règles et archives actuelles seront supprimées.",
+  "Перенос настроек, оформления и всех данных плагина через файл.": "Transférer les réglages, l’apparence et toutes les données du plugin via un fichier."
 }

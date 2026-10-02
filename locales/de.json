@@ -376,5 +376,14 @@
   "В архив проекта": "Projektarchiv",
   "Папка, вложенные разделы и история переедут в скрытый архив. Чаты тоже архивируются. Потом можно восстановить.": "Ordner, Unterbereiche und Verlauf wandern ins versteckte Archiv. Chats werden ebenfalls archiviert. Später wiederherstellbar.",
   "Удалить полностью": "Endgültig löschen",
-  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.": "Bereich und Chats sind unwiderruflich weg. Der Ordner wird gelöscht, außer ein anderer Bereich teilt ihn oder ein anderes BB-Projekt liegt darin."
+  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.": "Bereich und Chats sind unwiderruflich weg. Der Ordner wird gelöscht, außer ein anderer Bereich teilt ihn oder ein anderes BB-Projekt liegt darin.",
+  "Экспорт всего": "Alles exportieren",
+  "Импорт всего": "Alles importieren",
+  "Экспортировать всё": "Alles exportieren",
+  "Импортировать всё…": "Alles importieren…",
+  "Полный файл содержит разделы, правила, архивы, оформление и настройки. Очереди экспорта чатов и незавершённые переносы в него не входят.": "Die vollständige Datei enthält Bereiche, Regeln, Archive, Erscheinungsbild und Einstellungen. Chat-Exportwarteschlangen und unerledigte Verschiebungen gehören nicht dazu.",
+  "При импорте объединить с уже существующими записями": "Beim Import mit vorhandenen Einträgen zusammenführen",
+  "Все данные импортированы.": "Alle Daten importiert.",
+  "Заменить все данные плагина содержимым файла? Текущие разделы, правила и архивы будут удалены.": "Alle Plugindaten durch diese Datei ersetzen? Aktuelle Bereiche, Regeln und Archive werden gelöscht.",
+  "Перенос настроек, оформления и всех данных плагина через файл.": "Einstellungen, Erscheinungsbild und alle Plugindaten per Datei übertragen."
 }

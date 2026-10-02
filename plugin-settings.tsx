@@ -65,7 +65,7 @@ const meta = (section: SettingsSection) =>
     transfer: {
       icon: "Download",
       title: t("Импорт и экспорт"),
-      hint: t("Перенос настроек и оформления через файл."),
+      hint: t("Перенос настроек, оформления и всех данных плагина через файл."),
     },
   })[section];
 

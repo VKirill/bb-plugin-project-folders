@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "full-backup-restore",
+  "task_sha256": "84cae727a3b870a11e4487cc307f9ef097fd542d62ce858078e3bdb75bcb4e26",
+  "attempt": 1,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "705593eb16847a6c2fb2b1f4086e8f8cc360718eb519c6280aa4922b80faf766",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "not_required",
+  "accepted": true,
+  "accepted_at": "2026-10-02T22:13:27.161Z",
+  "model": "grok-4.6"
+}

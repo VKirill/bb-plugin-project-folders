@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.27 — Full backup of plugin data
+
+- Export and import every durable table plus plugin settings as one JSON file: RPC `backup_export` / `backup_import`, CLI `bb project-folders backup` and `restore <file> [--merge]`, and **Export everything** / **Import everything** in plugin settings.
+- Row ids are kept. Import runs in one transaction and is refused while a move or archive is in progress. Appearance-only export and import are unchanged.
+
 ## 0.6.26 — Parent keeps chats when a child shares the folder
 
 - If a section and a child (or deeper descendant) point at the same folder, chats there belong to the parent. A chat filed into the child stays there. Sibling sections that share a folder still stay unbound.

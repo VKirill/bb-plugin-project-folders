@@ -488,4 +488,17 @@ export const english = {
   "выбирает по треду": "picks per thread",
   "в сессию ничего не добавляет": "adds nothing to sessions",
   "нужен BB, всегда подключён": "required by BB, always loaded",
+  "Экспорт всего": "Export everything",
+  "Импорт всего": "Import everything",
+  "Экспортировать всё": "Export everything",
+  "Импортировать всё…": "Import everything…",
+  "Полный файл содержит разделы, правила, архивы, оформление и настройки. Очереди экспорта чатов и незавершённые переносы в него не входят.":
+    "The full file holds sections, rules, archives, appearance and settings. Chat export queues and unfinished moves are not included.",
+  "При импорте объединить с уже существующими записями":
+    "Merge with existing records on import",
+  "Все данные импортированы.": "All data imported.",
+  "Заменить все данные плагина содержимым файла? Текущие разделы, правила и архивы будут удалены.":
+    "Replace all plugin data with this file? Current sections, rules and archives will be deleted.",
+  "Перенос настроек, оформления и всех данных плагина через файл.":
+    "Transfer settings, appearance and all plugin data through a file.",
 } as const;
