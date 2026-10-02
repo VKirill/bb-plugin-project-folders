@@ -6,8 +6,19 @@ import { makeProjectMoves } from "./project-move";
 import { makeSectionMoves } from "./section-move";
 import { within } from "./move-files";
 import { createHash, randomUUID } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { makeExportQueue } from "./export-queue";
 import path from "node:path";
+import {
+  BACKUP_KIND,
+  BACKUP_VERSION,
+  backupImportModeSchema,
+  backupImportResultSchema,
+  backupPayloadSchema,
+  exportTables,
+  importTables,
+  parseBackup,
+} from "./backup";
 import {
   defineRpcContract,
   type BbPluginApi,
@@ -627,7 +638,23 @@ export const rpcContract = defineRpcContract({
     }),
     output: z.object({ ok: z.literal(true) }),
   },
+  backup_export: {
+    input: z.null(),
+    output: backupPayloadSchema,
+  },
+  backup_import: {
+    input: z.object({
+      backup: z.json(),
+      mode: backupImportModeSchema.optional(),
+    }),
+    output: backupImportResultSchema,
+  },
 });
+const pluginVersion = (
+  JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
+    version: string;
+  }
+).version;
 const safeJson = (text: string): unknown => {
   try {
     return JSON.parse(text);
@@ -3448,6 +3475,29 @@ export default async function plugin(bb: BbPluginApi) {
       bb.realtime.publish("prefs", {});
       return { ok: true as const };
     },
+    backup_export: () => ({
+      kind: BACKUP_KIND,
+      version: BACKUP_VERSION,
+      exportedAt: Date.now(),
+      pluginVersion,
+      settings: {},
+      tables: exportTables(db),
+    }),
+    backup_import: ({ backup, mode }) => {
+      const parsed = parseBackup(backup);
+      const counts = importTables(db, parsed.tables, mode ?? "replace");
+      const agentsRow = db
+        .prepare("SELECT data FROM preferences WHERE key='agents'")
+        .get() as { data: string } | undefined;
+      shared = agentsRow
+        ? parseAgents(safeJson(agentsRow.data))
+        : agentsDefaults;
+      changed();
+      bb.realtime.publish("prefs", {});
+      return Object.keys(parsed.settings).length > 0
+        ? { ...counts, settingsNotRestored: true }
+        : counts;
+    },
   };
   bb.rpc.register(rpcContract, handlers);
   // Read-only section tree for other plugins (Lane Pilot scopes its settings by section).
@@ -3628,6 +3678,28 @@ export default async function plugin(bb: BbPluginApi) {
     },
     remove: async () => ({ status: "removed" as const }),
   });
+  const resolveCliPath = (file: string, cwd?: string) =>
+    path.isAbsolute(file) ? file : path.resolve(cwd ?? process.cwd(), file);
+  const isBackupRestoreArg = (
+    file: string | undefined,
+    raw: string[],
+    cwd?: string,
+  ) => {
+    if (raw.includes("--merge")) return true;
+    if (!file) return false;
+    if (file.endsWith(".json") || file.includes("/") || file.includes("\\"))
+      return true;
+    try {
+      const dest = resolveCliPath(file, cwd);
+      if (!existsSync(dest)) return false;
+      const data = JSON.parse(readFileSync(dest, "utf8")) as {
+        kind?: string;
+      };
+      return data.kind === BACKUP_KIND;
+    } catch {
+      return false;
+    }
+  };
   bb.cli.register({
     name: "project-folders",
     summary: "Project sections and chat history",
@@ -3667,8 +3739,15 @@ export default async function plugin(bb: BbPluginApi) {
       },
       {
         name: "restore",
-        summary: "Restore a section and its chats from the archive",
-        usage: "bb project-folders restore <archive-id>",
+        summary:
+          "Restore a section from the archive, or plugin data from a backup file",
+        usage:
+          "bb project-folders restore <archive-id|file> [--merge]",
+      },
+      {
+        name: "backup",
+        summary: "Export all plugin data to a JSON backup",
+        usage: "bb project-folders backup [--out file]",
       },
       {
         name: "list",
@@ -3731,9 +3810,15 @@ export default async function plugin(bb: BbPluginApi) {
         summary: "Export chat history: sync <thread-id>",
       },
     ],
-    async run(argv) {
+    async run(argv, ctx) {
       try {
-        const args = argv.filter((a) => a !== "--json");
+        const args = argv.filter(
+          (a, i) =>
+            a !== "--json" &&
+            a !== "--merge" &&
+            a !== "--out" &&
+            argv[i - 1] !== "--out",
+        );
         let value: unknown;
         if (args[0] === "place-chat") {
           value = await handlers.thread_place({
@@ -3823,7 +3908,23 @@ export default async function plugin(bb: BbPluginApi) {
             mode: z.enum(sectionRemoveMode).parse(args[2]),
           });
         } else if (args[0] === "restore") {
-          value = await archives.restore(z.string().min(1).parse(args[1]));
+          const target = z.string().min(1).parse(args[1]);
+          if (isBackupRestoreArg(target, argv, ctx.cwd)) {
+            const dest = resolveCliPath(target, ctx.cwd);
+            value = handlers.backup_import({
+              backup: JSON.parse(readFileSync(dest, "utf8")),
+              mode: argv.includes("--merge") ? "merge" : "replace",
+            });
+          } else value = await archives.restore(target);
+        } else if (args[0] === "backup") {
+          const payload = handlers.backup_export(null);
+          const outAt = argv.indexOf("--out");
+          const out = outAt === -1 ? undefined : argv[outAt + 1];
+          if (out) {
+            const dest = resolveCliPath(out, ctx.cwd);
+            writeFileSync(dest, JSON.stringify(payload, null, 2));
+            value = { path: dest };
+          } else value = payload;
         } else if (args[0] === "archives") {
           value = archives.list();
         } else if (args[0] === "delete-project") {
@@ -3916,7 +4017,7 @@ export default async function plugin(bb: BbPluginApi) {
           return {
             exitCode: 0,
             stdout:
-              "bb project-folders list | create <project-id> <parent-id-or-dash> <name> <relative-path> [host-id] | rules show|set <project-id> <folder-id-or-dash> [flags] | sync <thread-id> | archives | archive <folder-id> | restore <archive-id> | place-chat <thread-id> <project-id> <folder-id-or-dash> | unplace-chat <thread-id> | move-section <folder-id> <absolute-path> | delete-project <project-id> keep|archive",
+              "bb project-folders list | create <project-id> <parent-id-or-dash> <name> <relative-path> [host-id] | rules show|set <project-id> <folder-id-or-dash> [flags] | sync <thread-id> | archives | archive <folder-id> | restore <archive-id|file> [--merge] | backup [--out file] | place-chat <thread-id> <project-id> <folder-id-or-dash> | unplace-chat <thread-id> | move-section <folder-id> <absolute-path> | delete-project <project-id> keep|archive",
           };
         return { exitCode: 0, stdout: JSON.stringify(value, null, 2) };
       } catch (e) {

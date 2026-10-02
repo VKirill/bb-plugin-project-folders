@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useRpc } from "@get-bb/plugin-sdk/app";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
   AiBrain01Icon,
@@ -133,6 +134,7 @@ import {
 } from "./components/ui/dialog";
 import { usePrefs } from "./prefs-store";
 import { SettingRow, SettingsGroup, Switch } from "./settings-ui";
+import type { rpcContract } from "./server";
 import {
   COLOR_TOKENS,
   FILLS,
@@ -923,9 +925,13 @@ export function AppearanceSettings() {
 
 export function TransferSettings() {
   const { prefs, items, savePrefs } = usePrefs();
+  const rpc = useRpc<typeof rpcContract>();
   const [withItems, setWithItems] = useState(true);
+  const [merge, setMerge] = useState(false);
   const [message, setMessage] = useState("");
+  const [fullMessage, setFullMessage] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const fullFileRef = useRef<HTMLInputElement>(null);
   const exportJson = () => {
     const blob = new Blob(
       [JSON.stringify(exportPayload(prefs, items), null, 2)],
@@ -937,6 +943,23 @@ export function TransferSettings() {
     a.download = "project-folders-settings.json";
     a.click();
     URL.revokeObjectURL(url);
+  };
+  const exportEverything = async () => {
+    try {
+      const payload = await rpc.call("backup_export", null);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "project-folders-backup.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      setFullMessage("");
+    } catch (err) {
+      setFullMessage(String(err));
+    }
   };
   return (
     <>
@@ -1003,6 +1026,80 @@ export function TransferSettings() {
         {message && (
           <p className="text-sm" role="status">
             {message}
+          </p>
+        )}
+      </SettingsGroup>
+      <SettingsGroup
+        title={t("Экспорт всего")}
+        hint={t(
+          "Полный файл содержит разделы, правила, архивы, оформление и настройки. Очереди экспорта чатов и незавершённые переносы в него не входят.",
+        )}
+        actions={
+          <Button size="sm" variant="outline" onClick={() => void exportEverything()}>
+            <Icon name="Download" />
+            {t("Экспортировать всё")}
+          </Button>
+        }
+      >
+        {null}
+      </SettingsGroup>
+      <SettingsGroup
+        title={t("Импорт всего")}
+        actions={
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fullFileRef.current?.click()}
+          >
+            <Icon name="FolderExport" />
+            {t("Импортировать всё…")}
+          </Button>
+        }
+      >
+        <SettingRow
+          label={t("При импорте объединить с уже существующими записями")}
+          htmlFor="pf-set-import-merge"
+        >
+          <Switch
+            id="pf-set-import-merge"
+            label={t("При импорте объединить с уже существующими записями")}
+            checked={merge}
+            onChange={setMerge}
+          />
+        </SettingRow>
+        <input
+          ref={fullFileRef}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            if (
+              !merge &&
+              !confirm(
+                t(
+                  "Заменить все данные плагина содержимым файла? Текущие разделы, правила и архивы будут удалены.",
+                ),
+              )
+            )
+              return;
+            try {
+              const backup = JSON.parse(await file.text());
+              await rpc.call("backup_import", {
+                backup,
+                mode: merge ? "merge" : "replace",
+              });
+              setFullMessage(t("Все данные импортированы."));
+            } catch (err) {
+              setFullMessage(String(err));
+            }
+          }}
+        />
+        {fullMessage && (
+          <p className="text-sm" role="status">
+            {fullMessage}
           </p>
         )}
       </SettingsGroup>

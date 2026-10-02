@@ -376,5 +376,14 @@
   "В архив проекта": "Archivo del proyecto",
   "Папка, вложенные разделы и история переедут в скрытый архив. Чаты тоже архивируются. Потом можно восстановить.": "La carpeta, las subsecciones y el historial se mueven al archivo oculto. Los chats también se archivan. Luego se pueden restaurar.",
   "Удалить полностью": "Eliminar por completo",
-  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.": "La sección y sus chats desaparecen para siempre. La carpeta se borra salvo que otra sección la comparta o haya otro proyecto BB dentro."
+  "Раздел и его чаты исчезнут безвозвратно. Папка на диске удалится, если её не делит другой раздел и внутри нет другого проекта BB.": "La sección y sus chats desaparecen para siempre. La carpeta se borra salvo que otra sección la comparta o haya otro proyecto BB dentro.",
+  "Экспорт всего": "Exportar todo",
+  "Импорт всего": "Importar todo",
+  "Экспортировать всё": "Exportar todo",
+  "Импортировать всё…": "Importar todo…",
+  "Полный файл содержит разделы, правила, архивы, оформление и настройки. Очереди экспорта чатов и незавершённые переносы в него не входят.": "El archivo completo incluye secciones, reglas, archivos, apariencia y ajustes. Las colas de exportación de chats y los traslados pendientes no entran.",
+  "При импорте объединить с уже существующими записями": "Combinar con los registros existentes al importar",
+  "Все данные импортированы.": "Se importaron todos los datos.",
+  "Заменить все данные плагина содержимым файла? Текущие разделы, правила и архивы будут удалены.": "¿Reemplazar todos los datos del complemento con este archivo? Se eliminarán las secciones, reglas y archivos actuales.",
+  "Перенос настроек, оформления и всех данных плагина через файл.": "Transferir ajustes, apariencia y todos los datos del complemento mediante un archivo."
 }
