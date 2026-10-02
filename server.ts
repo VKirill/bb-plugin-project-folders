@@ -860,6 +860,28 @@ export default async function plugin(bb: BbPluginApi) {
         ((f.hostId === hostId && f.path === p) || ids.has(f.id)),
     );
   };
+  const isAncestorOf = (ancestorId: string, node: Folder) => {
+    const visited = new Set<string>();
+    let cur: Folder | undefined = node;
+    while (cur?.parentId && !visited.has(cur.id)) {
+      visited.add(cur.id);
+      cur = folders().find((x) => x.id === cur!.parentId);
+      if (cur?.id === ancestorId) return true;
+    }
+    return false;
+  };
+  /** Unique match, or the ancestor when a section and its descendants share a folder. */
+  const sectionForMatches = (matches: Folder[]): Folder | null => {
+    if (matches.length <= 1) return matches[0] ?? null;
+    return (
+      matches.find((candidate) =>
+        matches.every(
+          (other) =>
+            other.id === candidate.id || isAncestorOf(candidate.id, other),
+        ),
+      ) ?? null
+    );
+  };
   const GITHUB_CACHE_TTL_MS = 6 * 60 * 1000;
   const githubCache = new Map<
     string,
@@ -1767,7 +1789,7 @@ export default async function plugin(bb: BbPluginApi) {
       placed ??
       (atProject
         ? root
-        : (foldersAt(env.hostId, env.path ?? "", t.projectId)[0] ?? null));
+        : sectionForMatches(foldersAt(env.hostId, env.path ?? "", t.projectId)));
     if (!f)
       throw new Error("The chat working folder is not registered in the tree.");
     return { t, f };
@@ -1788,7 +1810,7 @@ export default async function plugin(bb: BbPluginApi) {
     );
     if (root?.path === workspace) return null;
     const matches = foldersAt(env.hostId, env.path ?? "", t.projectId);
-    return matches.length === 1 ? matches[0].id : null;
+    return sectionForMatches(matches)?.id ?? null;
   }
   const syncing = new Map<string, Promise<{ path: string }>>();
   const exportedHeads = new Map<string, { digest: string; snapshot: string }>();
@@ -2408,7 +2430,8 @@ export default async function plugin(bb: BbPluginApi) {
         )
           continue;
         const matches = foldersAt(e.hostId, e.path ?? "", e.projectId);
-        if (matches.length === 1) bindings[e.id] = matches[0].id;
+        const bound = sectionForMatches(matches);
+        if (bound) bindings[e.id] = bound.id;
       }
       // Export failures re-record themselves while they keep failing; drop stale rows.
       db.prepare(
