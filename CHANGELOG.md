@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.26 — Parent keeps chats when a child shares the folder
+
+- If a section and a child (or deeper descendant) point at the same folder, chats there belong to the parent. A chat filed into the child stays there. Sibling sections that share a folder still stay unbound.
+
 ## 0.6.25 — Sort headers on phones
 
 - In the ⋯ menu on a phone, **Chat sorting** and **Section sorting** headers keep the icon on the same line as the text, at the size of other items.

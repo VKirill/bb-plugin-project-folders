@@ -2282,6 +2282,78 @@ it("lets several sections share one folder and add a path on another device", as
   }
 });
 
+it("keeps chats on the parent when a child shares its folder", async () => {
+  const h = await setup();
+  const call = h.harness.behavior.callRpc;
+  try {
+    const site = (await call("create", {
+      projectId: "p1",
+      folderId: null,
+      name: "Site",
+      relativePath: "site",
+    })) as { id: string; path: string };
+    const drafts = (await call("create", {
+      projectId: "p1",
+      folderId: site.id,
+      name: "Drafts",
+      relativePath: "/work/site",
+    })) as { id: string; path: string };
+    expect(drafts.path).toBe(site.path);
+    const docs = (await call("create", {
+      projectId: "p1",
+      folderId: null,
+      name: "Docs",
+      relativePath: "docs",
+    })) as { id: string };
+    h.harness.inspection.sdk.stub("environments.list", async () => [
+      { id: "e-site", projectId: "p1", hostId: "h1", path: "/work/site" },
+      { id: "e-docs", projectId: "p1", hostId: "h1", path: "/work/docs" },
+      { id: "e-root", projectId: "p1", hostId: "h1", path: "/work" },
+    ]);
+    h.harness.inspection.sdk.stub("threads.get", async () =>
+      makeThreadResponse({ id: "t1", projectId: "p1", environmentId: "e-site" }),
+    );
+    h.harness.inspection.sdk.stub("environments.get", async () => ({
+      projectId: "p1",
+      hostId: "h1",
+      path: "/work/site",
+    }));
+    const listed = (await call("list", null)) as {
+      bindings: Record<string, string>;
+      places: Record<string, string>;
+    };
+    expect(listed.bindings["e-site"]).toBe(site.id);
+    expect(listed.bindings["e-docs"]).toBe(docs.id);
+    expect(listed.bindings["e-root"]).toBeUndefined();
+    const parentLabel = (await call("thread_section", { threadId: "t1" })) as {
+      section: { compactLabel: string } | null;
+    };
+    expect(parentLabel.section?.compactLabel).toBe("Site");
+    await call("thread_place", {
+      threadId: "t1",
+      projectId: "p1",
+      folderId: site.id,
+    });
+    expect(
+      ((await call("list", null)) as { places: Record<string, string> }).places,
+    ).toEqual({});
+    await call("thread_place", {
+      threadId: "t1",
+      projectId: "p1",
+      folderId: drafts.id,
+    });
+    expect(
+      ((await call("list", null)) as { places: Record<string, string> }).places,
+    ).toEqual({ t1: drafts.id });
+    const childLabel = (await call("thread_section", { threadId: "t1" })) as {
+      section: { compactLabel: string } | null;
+    };
+    expect(childLabel.section?.compactLabel).toBe("Drafts");
+  } finally {
+    await h.harness.lifecycle.dispose();
+  }
+});
+
 describe("githubUrl on list", () => {
   type Listed = {
     folders: { path: string; kind?: string; githubUrl: string | null }[];
