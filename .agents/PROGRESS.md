@@ -3,6 +3,7 @@
 - Place chats in sections from their working folders, preserving explicit placements and resolving shared ancestor/child folders to the parent section.
 - Manage projects, sections, and chats with moves, visibility controls, archives, restore, and history exports.
 - Configure per-place agent rules, execution defaults, appearance, language, and optional session-context filtering.
+- Export and restore all durable plugin data and settings as JSON, preserving IDs across replace or merge imports.
 
 ## Blocked
 - None.
@@ -12,7 +13,7 @@
 
 ## Last verify
 - command: `npm run typecheck && npm test && npm run build`
-- result: green (accepted writer report; 219 tests)
+- result: green (accepted writer report; 224 tests)
 - when: 2026-10-02
 
 ## Pointers
