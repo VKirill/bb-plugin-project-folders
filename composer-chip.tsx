@@ -33,6 +33,7 @@ import {
   type SectionTree,
 } from "./section-tree";
 import { t, useLanguage } from "./i18n";
+import { managedWorktreeEnvironment } from "./execution";
 
 /** The class marking the span a replacement chip is portalled into. */
 export const NATIVE_SLOT_CLASS = "pf-native-project-slot";
@@ -254,14 +255,33 @@ export function ComposerProjectChip() {
           folderId: folder.id,
         });
       } else rememberPick(null);
+      let worktree = false;
+      if (folder && entry.kind !== "group") {
+        try {
+          const read = await rpc.call("execution_read", {
+            scope:
+              entry.kind === "section"
+                ? {
+                    kind: "folder" as const,
+                    projectId: entry.projectId,
+                    folderId: folder.id,
+                  }
+                : { kind: "project" as const, projectId: entry.projectId },
+          });
+          worktree = read.effective.environment?.value === "worktree";
+        } catch {
+          worktree = false;
+        }
+      }
       await composer.experimental_setSelection({
         projectId: entry.projectId,
         // A project BB knows and the plugin has no folder for keeps BB's own
         // environment: there is nothing here to point it at.
         ...(folder
           ? {
-              environment:
-                entry.kind === "section"
+              environment: worktree
+                ? managedWorktreeEnvironment(folder.hostId)
+                : entry.kind === "section"
                   ? {
                       type: "provider" as const,
                       environmentProviderId: SECTION_ENVIRONMENT_ID,

@@ -3333,10 +3333,15 @@ export default async function plugin(bb: BbPluginApi) {
         );
         if (copy) f = copy;
       }
+      const managedWorktree =
+        req.environment.type === "host" &&
+        req.environment.workspace.type === "managed-worktree"
+          ? req.environment.workspace
+          : null;
       if (
         req.environment.type === "host" &&
         ((req.environment.hostId && req.environment.hostId !== f.hostId) ||
-          req.environment.workspace.type !== "unmanaged")
+          (req.environment.workspace.type !== "unmanaged" && !managedWorktree))
       )
         throw new Error(
           "A section chat uses that section’s device and folder. Select a working copy on its device.",
@@ -3395,8 +3400,13 @@ export default async function plugin(bb: BbPluginApi) {
         ...req,
         input: startupInput,
         projectId: f.projectId,
-        environment:
-          req.environment.type === "provider"
+        environment: managedWorktree
+          ? {
+              type: "host" as const,
+              hostId: f.hostId,
+              workspace: managedWorktree,
+            }
+          : req.environment.type === "provider"
             ? {
                 ...req.environment,
                 inputs: {

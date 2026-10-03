@@ -229,6 +229,64 @@ describe("the chip in BB's own New thread composer", () => {
     ).toBe(false);
     view.lifecycle.unmount();
   });
+  it("starts the chat in a managed worktree when the place pins one", async () => {
+    nativeChip();
+    const view = renderSlot(
+      { id: "chip", component: chipSlot().component },
+      {},
+      {
+        composer: { scope: { kind: "new-thread", projectId: "p1" } },
+        sidebarThreads: { projects: sidebarProjects, status: "ready" },
+        rpc: {
+          list,
+          section_pick: () => ({ ok: true }),
+          execution_read: () => ({
+            own: {},
+            effective: {
+              model: null,
+              permissionMode: null,
+              environment: {
+                value: "worktree",
+                origin: { scope: "project", folderId: null },
+              },
+              agent: null,
+            },
+            inherited: {
+              model: null,
+              permissionMode: null,
+              environment: null,
+              agent: null,
+            },
+            hostId: "h1",
+            fallback: null,
+            agents: {
+              installed: false,
+              supported: false,
+              agents: [],
+              error: null,
+            },
+          }),
+        },
+      },
+    );
+    await openChip(view);
+    fireEvent.click(await view.findByRole("menuitem", { name: /^Project/ }));
+    await waitFor(() =>
+      expect(view.inspection.composer.selections).toHaveLength(1),
+    );
+    expect(view.inspection.composer.selections[0]).toEqual({
+      projectId: "p1",
+      environment: {
+        type: "host",
+        hostId: "h1",
+        workspace: {
+          type: "managed-worktree",
+          baseBranch: { kind: "default" },
+        },
+      },
+    });
+    view.lifecycle.unmount();
+  });
   it("still names the section after applying it remounted the composer", async () => {
     nativeChip();
     // No project yet: choosing a section is what sets one, and that is the

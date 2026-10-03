@@ -154,12 +154,57 @@ describe("execution inheritance", () => {
       mode: "none",
       origin: { scope: "folder", folderId: "f1" },
     });
+    expect(resolved.environment).toBeNull();
+  });
+  it("resolves the environment group nearest-first, apart from the others", () => {
+    const resolved = resolveExecution([
+      {
+        origin: { scope: "folder", folderId: "f1" },
+        value: { environmentMode: "folder" },
+      },
+      {
+        origin: { scope: "project", folderId: null },
+        value: {
+          providerId: "claude-code",
+          model: "opus",
+          environmentMode: "worktree",
+        },
+      },
+      {
+        origin: { scope: "global", folderId: null },
+        value: { environmentMode: "worktree" },
+      },
+    ]);
+    expect(resolved.environment).toMatchObject({
+      value: "folder",
+      origin: { scope: "folder", folderId: "f1" },
+    });
+    expect(resolved.model).toMatchObject({
+      providerId: "claude-code",
+      origin: { scope: "project" },
+    });
+    expect(
+      resolveExecution([
+        { origin: { scope: "folder", folderId: "f1" }, value: {} },
+        {
+          origin: { scope: "project", folderId: null },
+          value: { environmentMode: "worktree" },
+        },
+      ]).environment,
+    ).toMatchObject({
+      value: "worktree",
+      origin: { scope: "project" },
+    });
+    expect(resolveExecution([]).environment).toBeNull();
   });
   it("keeps only the groups a place really pins", () => {
     expect(
       normalizeExecution({ model: "opus", reasoningLevel: "high" }),
     ).toEqual({});
     expect(normalizeExecution({ agentMode: "agent" })).toEqual({});
+    expect(normalizeExecution({ environmentMode: "worktree" })).toEqual({
+      environmentMode: "worktree",
+    });
     expect(
       normalizeExecution({
         providerId: "codex",
@@ -207,6 +252,9 @@ describe("execution inheritance", () => {
       expect(read.inherited).toMatchObject({
         model: { providerId: "claude-code", origin: { scope: "project" } },
       });
+      expect(
+        (read.effective as { environment: unknown }).environment,
+      ).toBeNull();
       expect(read.hostId).toBe("h1");
     } finally {
       await h.harness.lifecycle.dispose();
@@ -233,6 +281,67 @@ describe("execution inheritance", () => {
         ((await call(h)("execution_read", { scope })) as Record<string, never>)
           .own,
       ).toEqual({ permissionMode: "auto" });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("saves an environment pin and shows a section what it inherits", async () => {
+    const h = await setup();
+    try {
+      const id = await section(h, "Website");
+      await call(h)("execution_save", {
+        scope: { kind: "project", projectId: "p1" },
+        value: { environmentMode: "worktree" },
+      });
+      const unread = (await call(h)("execution_read", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+      })) as {
+        own: unknown;
+        effective: { environment: { value: string; origin: { scope: string } } };
+        inherited: { environment: { value: string; origin: { scope: string } } };
+      };
+      expect(unread.own).toEqual({});
+      expect(unread.effective.environment).toMatchObject({
+        value: "worktree",
+        origin: { scope: "project" },
+      });
+      expect(unread.inherited.environment).toMatchObject({
+        value: "worktree",
+        origin: { scope: "project" },
+      });
+      await call(h)("execution_save", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+        value: { environmentMode: "folder" },
+      });
+      const pinned = (await call(h)("execution_read", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+      })) as {
+        own: { environmentMode: string };
+        effective: { environment: { value: string; origin: { scope: string } } };
+      };
+      expect(pinned.own).toEqual({ environmentMode: "folder" });
+      expect(pinned.effective.environment).toMatchObject({
+        value: "folder",
+        origin: { scope: "folder" },
+      });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("loads a stored execution value that has no environment pin", async () => {
+    const h = await setup();
+    try {
+      const scope = { kind: "project" as const, projectId: "p1" };
+      await call(h)("execution_save", {
+        scope,
+        value: { providerId: "codex", model: "gpt-6" },
+      });
+      const read = (await call(h)("execution_read", { scope })) as {
+        own: unknown;
+        effective: { environment: unknown };
+      };
+      expect(read.own).toEqual({ providerId: "codex", model: "gpt-6" });
+      expect(read.effective.environment).toBeNull();
     } finally {
       await h.harness.lifecycle.dispose();
     }
@@ -397,6 +506,73 @@ describe("pinned agents", () => {
       })) as { installed: boolean; agents: unknown[] };
       expect(catalog.installed).toBe(false);
       expect(catalog.agents).toEqual([]);
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+});
+
+describe("pinned environment", () => {
+  it("spawns a managed worktree on the folder host instead of rewriting it", async () => {
+    const h = await setup();
+    try {
+      const id = await section(h, "Review");
+      await call(h)("execution_save", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+        value: { environmentMode: "worktree" },
+      });
+      stubSpawn(h);
+      await call(h)("spawn", {
+        projectId: "p1",
+        folderId: id,
+        request: {
+          ...spawnRequest(),
+          environment: {
+            type: "host",
+            hostId: "h1",
+            workspace: {
+              type: "managed-worktree",
+              baseBranch: { kind: "default" },
+            },
+          },
+        },
+      });
+      expect(h.harness.inspection.sdk.callsTo("threads.spawn")[0]?.[0]).toMatchObject(
+        {
+          environment: {
+            type: "host",
+            hostId: "h1",
+            workspace: {
+              type: "managed-worktree",
+              baseBranch: { kind: "default" },
+            },
+          },
+        },
+      );
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("still starts an unpinned chat in the section folder", async () => {
+    const h = await setup();
+    try {
+      const id = await section(h, "Review");
+      stubSpawn(h);
+      await call(h)("spawn", {
+        projectId: "p1",
+        folderId: id,
+        request: spawnRequest(),
+      });
+      expect(h.harness.inspection.sdk.callsTo("threads.spawn")[0]?.[0]).toMatchObject(
+        {
+          environment: {
+            type: "provider",
+            environmentProviderId: "project-checkout",
+            machine: { type: "existing", hostId: "h1" },
+            inputs: { path: "/work/Review" },
+          },
+        },
+      );
     } finally {
       await h.harness.lifecycle.dispose();
     }
