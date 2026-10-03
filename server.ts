@@ -57,6 +57,7 @@ import {
   executionSchema,
   isAgentProvider,
   normalizeExecution,
+  offeredMachineIds,
   resolvedExecutionSchema,
   resolveExecution,
   type AgentCatalog,
@@ -509,8 +510,10 @@ export const rpcContract = defineRpcContract({
       inherited: resolvedExecutionSchema,
       /** The machine the pickers and the agent list resolve against. */
       hostId: z.string().nullable(),
-      /** Machines this place can pin: copies with a folder, or every host globally. */
+      /** Machines this place can pin: home host plus path copies, or every host globally. */
       hosts: z.array(z.object({ id: z.string(), name: z.string() })),
+      /** Every BB host, so a pin outside the offered list still has a name. */
+      knownHosts: z.array(z.object({ id: z.string(), name: z.string() })),
       /** What BB itself would start with here: shown, and used as the seed. */
       fallback: executionFallbackSchema.nullable(),
       agents: agentCatalogSchema,
@@ -1295,37 +1298,39 @@ export default async function plugin(bb: BbPluginApi) {
       project?.sources.find((s) => s.isDefault) ?? project?.sources[0];
     return { folder: null, hostId: source?.hostId ?? null };
   };
-  /** Devices a place can pin: those with a folder here, or every host globally. */
+  const executionKnownHosts = async () =>
+    (await bb.sdk.hosts.list()).map((h) => ({ id: h.id, name: h.name }));
+  /** Devices a place can pin: home host plus path copies, or every host globally. */
   const executionHosts = async (
     scope: ExecutionScope,
     place: { folder: Folder | null; hostId: string | null },
+    known: readonly { id: string; name: string }[],
   ) => {
-    const machines = await bb.sdk.hosts.list();
-    const named = (ids: readonly string[]) => {
-      const unique = [...new Set(ids)];
-      return unique.map((id) => ({
+    const named = (ids: readonly string[]) =>
+      ids.map((id) => ({
         id,
-        name: machines.find((h) => h.id === id)?.name ?? id,
+        name: known.find((h) => h.id === id)?.name ?? "",
       }));
-    };
-    if (scope.kind === "global")
-      return machines.map((h) => ({ id: h.id, name: h.name }));
+    if (scope.kind === "global") return [...known];
     if (scope.kind === "folder") {
       const folder = place.folder;
       if (!folder || isGroup(folder)) return [];
-      const rows = pathsOf(folder.id);
       return named(
-        rows.length ? rows.map((r) => r.hostId) : [folder.hostId],
+        offeredMachineIds(
+          folder.hostId,
+          pathsOf(folder.id).map((r) => r.hostId),
+        ),
       );
     }
     const project = (await bb.sdk.projects.list()).find(
       (p) => p.id === scope.projectId,
     );
-    return named(
-      (project?.sources ?? [])
-        .filter((s) => s.type === "local_path")
-        .map((s) => s.hostId),
+    const sources = (project?.sources ?? []).filter(
+      (s) => s.type === "local_path",
     );
+    const home =
+      sources.find((s) => s.isDefault)?.hostId ?? sources[0]?.hostId;
+    return named(offeredMachineIds(home, sources.map((s) => s.hostId)));
   };
   /**
    * Agents belong to the CLI Agents plugin: it discovers them on the machine
@@ -3141,12 +3146,14 @@ export default async function plugin(bb: BbPluginApi) {
         ...layers,
       ]);
       const providerId = await executionProvider(scope, effective);
+      const knownHosts = await executionKnownHosts();
       return {
         own,
         effective,
         inherited,
         hostId: place.hostId,
-        hosts: await executionHosts(scope, place),
+        hosts: await executionHosts(scope, place, knownHosts),
+        knownHosts,
         fallback: await executionFallback(scope, place.hostId),
         agents:
           scope.kind === "global" || !providerId

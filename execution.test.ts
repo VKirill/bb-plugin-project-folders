@@ -4,7 +4,14 @@ import {
   makeThreadResponse,
 } from "@get-bb/plugin-sdk/testing";
 import plugin from "./server";
-import { normalizeExecution, placeOnHost, resolveExecution } from "./execution";
+import {
+  machineLabel,
+  normalizeExecution,
+  offeredMachineIds,
+  placeOnHost,
+  resolveExecution,
+  seedMachineId,
+} from "./execution";
 
 const root = {
   id: "p1",
@@ -233,6 +240,31 @@ describe("execution inheritance", () => {
       origin: { scope: "project" },
     });
     expect(resolveExecution([]).machine).toBeNull();
+  });
+  it("offers the home host first and each path host once", () => {
+    expect(offeredMachineIds("h1", [])).toEqual(["h1"]);
+    expect(offeredMachineIds("h1", ["h2", "h1"])).toEqual(["h1", "h2"]);
+    expect(offeredMachineIds("h1", ["h2"])).toEqual(["h1", "h2"]);
+    expect(offeredMachineIds(null, ["h2"])).toEqual(["h2"]);
+  });
+  it("labels a known host with its BB name and an unknown one with the fallback", () => {
+    const known = [
+      { id: "h1", name: "Mac" },
+      { id: "h2", name: "OVH" },
+    ];
+    expect(machineLabel("h2", known, "unknown machine")).toBe("OVH");
+    expect(machineLabel("ghost", known, "unknown machine")).toBe(
+      "unknown machine",
+    );
+    expect(machineLabel("h3", [{ id: "h3", name: "  " }], "unknown machine")).toBe(
+      "unknown machine",
+    );
+  });
+  it("seeds a preferred host only when it is in the offered list", () => {
+    const offered = [{ id: "h1" }, { id: "h2" }];
+    expect(seedMachineId(offered, "h2")).toBe("h2");
+    expect(seedMachineId([{ id: "h1" }], "h2")).toBe("h1");
+    expect(seedMachineId([], "h2")).toBeUndefined();
   });
   it("falls back to the home host when the pinned machine has no folder here", () => {
     const home = { hostId: "h1", path: "/work" };
@@ -658,12 +690,16 @@ describe("pinned machine", () => {
       const id = await section(h, "Review");
       const project = (await call(h)("execution_read", {
         scope: { kind: "project", projectId: "p1" },
-      })) as { hosts: { id: string }[] };
-      expect(project.hosts.map((x) => x.id).sort()).toEqual(["h1", "h2"]);
+      })) as { hosts: { id: string; name: string }[]; knownHosts: { id: string }[] };
+      expect(project.hosts).toEqual([
+        { id: "h1", name: "Mac" },
+        { id: "h2", name: "OVH" },
+      ]);
+      expect(project.knownHosts.map((x) => x.id).sort()).toEqual(["h1", "h2"]);
       const folder = (await call(h)("execution_read", {
         scope: { kind: "folder", projectId: "p1", folderId: id },
-      })) as { hosts: { id: string }[] };
-      expect(folder.hosts.map((x) => x.id)).toEqual(["h1"]);
+      })) as { hosts: { id: string; name: string }[] };
+      expect(folder.hosts).toEqual([{ id: "h1", name: "Mac" }]);
       await call(h)("section_path_set", {
         folderId: id,
         hostId: "h2",
@@ -672,11 +708,15 @@ describe("pinned machine", () => {
       const both = (await call(h)("execution_read", {
         scope: { kind: "folder", projectId: "p1", folderId: id },
       })) as { hosts: { id: string; name: string }[] };
-      expect(both.hosts.map((x) => x.id).sort()).toEqual(["h1", "h2"]);
+      expect(both.hosts).toEqual([
+        { id: "h1", name: "Mac" },
+        { id: "h2", name: "OVH" },
+      ]);
       const global = (await call(h)("execution_read", {
         scope: { kind: "global" },
-      })) as { hosts: { id: string }[] };
-      expect(global.hosts.map((x) => x.id).sort()).toEqual(["h1", "h2"]);
+      })) as { hosts: { id: string }[]; knownHosts: { id: string }[] };
+      expect(global.hosts.map((x) => x.id)).toEqual(["h1", "h2"]);
+      expect(global.knownHosts.map((x) => x.id)).toEqual(["h1", "h2"]);
     } finally {
       await h.harness.lifecycle.dispose();
     }

@@ -9,7 +9,9 @@ import type { ExecutionScope, rpcContract } from "./server";
 import {
   CLI_AGENTS_URL,
   hasModelPin,
+  machineLabel,
   normalizeExecution,
+  seedMachineId,
   type AgentCatalog,
   type EnvironmentMode,
   type Execution,
@@ -32,6 +34,7 @@ type Loaded = {
   inherited: ResolvedExecution;
   hostId: string | null;
   hosts: { id: string; name: string }[];
+  knownHosts?: { id: string; name: string }[];
   fallback: ExecutionFallback | null;
   agents: AgentCatalog;
 };
@@ -156,10 +159,17 @@ export function ExecutionEditor({
     draft.environmentMode ??
     state.inherited.environment?.value ??
     "folder";
+  const knownMachines = [...(state.knownHosts ?? []), ...state.hosts];
+  const labelOf = (id: string) =>
+    machineLabel(id, knownMachines, t("неизвестная машина"));
+  const seedHostId = seedMachineId(
+    state.hosts,
+    draft.hostId ?? state.inherited.machine?.hostId,
+  );
   const shownMachine =
     draft.hostId ??
     state.inherited.machine?.hostId ??
-    state.hosts[0]?.id ??
+    seedHostId ??
     state.hostId ??
     "";
   const agentValue =
@@ -308,7 +318,7 @@ export function ExecutionEditor({
           checked={!!draft.hostId}
           label={t("Своя машина")}
           onChange={(on) =>
-            patch({ hostId: on ? shownMachine || undefined : undefined })
+            patch({ hostId: on ? seedHostId : undefined })
           }
         />
         <div className="pf-exec-text">
@@ -331,12 +341,12 @@ export function ExecutionEditor({
         >
           {state.hosts.map((h) => (
             <option key={h.id} value={h.id}>
-              {h.name}
+              {labelOf(h.id)}
             </option>
           ))}
-          {draft.hostId &&
-            !state.hosts.some((h) => h.id === draft.hostId) && (
-              <option value={draft.hostId}>{draft.hostId}</option>
+          {shownMachine &&
+            !state.hosts.some((h) => h.id === shownMachine) && (
+              <option value={shownMachine}>{labelOf(shownMachine)}</option>
             )}
         </select>
       </div>
