@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "env-caption-trim",
+  "task_sha256": "745555dd6e0ed02f1c3696bb460ae5350ef4d3661464af232fa3e2925c8e9f26",
+  "attempt": 1,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "4c9d8592fb1722eb40796c441a846e70f399aadadb849bd201677ee0da156704",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "not_required",
+  "accepted": true,
+  "accepted_at": "2026-10-03T20:36:48.504Z",
+  "model": "grok-4.6"
+}

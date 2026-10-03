@@ -346,6 +346,34 @@ it("pins an agent on the section and saves it", async () => {
   view.lifecycle.unmount();
 });
 
+it("hides as-in-BB on environment and machine when nothing above pins them", async () => {
+  const view = renderSlot(app.navPanels[0]!, { subPath: "" }, { rpc });
+  await view.findByText("Project");
+  view.getByText("Section").click();
+  fireEvent.click(await view.findByRole("tab", { name: "Provider" }));
+  await view.findByText("Provider, model and agent");
+  const envRow = view
+    .getByRole("combobox", { name: "Own environment" })
+    .closest(".pf-exec-row");
+  const machineRow = view
+    .getByRole("combobox", { name: "Own machine" })
+    .closest(".pf-exec-row");
+  expect(envRow?.textContent).not.toContain("as in BB");
+  expect(machineRow?.textContent).not.toContain("as in BB");
+  expect(envRow?.querySelector(".pf-exec-from")).toBeNull();
+  expect(machineRow?.querySelector(".pf-exec-from")).toBeNull();
+  expect(
+    view
+      .getByRole("switch", { name: "Own permission mode" })
+      .closest(".pf-exec-row")?.textContent,
+  ).toContain("as in BB");
+  expect(
+    view.getByRole("combobox", { name: "Agent" }).closest(".pf-exec-row")
+      ?.textContent,
+  ).toContain("as in BB");
+  view.lifecycle.unmount();
+});
+
 it("pins an isolated worktree on the section and shows the inherited origin when off", async () => {
   const view = renderSlot(
     app.navPanels[0]!,
@@ -375,8 +403,10 @@ it("pins an isolated worktree on the section and shows the inherited origin when
       "aria-checked",
     ),
   ).toBe("false");
-  expect(view.baseElement.textContent).toContain("from the project");
   const select = view.getByRole("combobox", { name: "Own environment" });
+  expect(select.closest(".pf-exec-row")?.textContent).toContain(
+    "from the project",
+  );
   expect((select as HTMLSelectElement).disabled).toBe(true);
   expect((select as HTMLSelectElement).value).toBe("worktree");
   fireEvent.click(view.getByRole("switch", { name: "Own environment" }));
@@ -433,8 +463,10 @@ it("pins a machine on the section and shows the inherited origin when off", asyn
       "aria-checked",
     ),
   ).toBe("false");
-  expect(view.baseElement.textContent).toContain("from the project");
   const select = view.getByRole("combobox", { name: "Own machine" });
+  expect(select.closest(".pf-exec-row")?.textContent).toContain(
+    "from the project",
+  );
   expect((select as HTMLSelectElement).disabled).toBe(true);
   expect((select as HTMLSelectElement).value).toBe("h2");
   expect(

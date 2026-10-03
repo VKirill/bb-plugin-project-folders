@@ -282,11 +282,12 @@ export function ExecutionEditor({
         />
         <div className="pf-exec-text">
           <span>{t("Своя среда")}</span>
-          {!draft.environmentMode && (
-            <span className="pf-exec-from">
-              {originLabel(state.inherited.environment?.origin, scope)}
-            </span>
-          )}
+          {!draft.environmentMode &&
+            state.inherited.environment?.origin && (
+              <span className="pf-exec-from">
+                {originLabel(state.inherited.environment.origin, scope)}
+              </span>
+            )}
         </div>
         <select
           className="pf-select"
@@ -312,9 +313,9 @@ export function ExecutionEditor({
         />
         <div className="pf-exec-text">
           <span>{t("Своя машина")}</span>
-          {!draft.hostId && (
+          {!draft.hostId && state.inherited.machine?.origin && (
             <span className="pf-exec-from">
-              {originLabel(state.inherited.machine?.origin, scope)}
+              {originLabel(state.inherited.machine.origin, scope)}
             </span>
           )}
         </div>
