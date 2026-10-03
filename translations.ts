@@ -393,6 +393,7 @@ export const english = {
   "Свой провайдер и модель": "Own provider and model",
   "Свой режим доступа": "Own permission mode",
   "Своя среда": "Own environment",
+  "Своя машина": "Own machine",
   "В папке": "In the folder",
   "Отдельный worktree": "Isolated worktree",
   Агент: "Agent",

@@ -26,6 +26,7 @@ import {
   type SectionTree,
 } from "./section-tree";
 import { direction, t, useLanguage } from "./i18n";
+import { managedWorktreeEnvironment, placeOnHost } from "./execution";
 
 export { SECTION_ENVIRONMENT_ID };
 
@@ -254,19 +255,44 @@ export function SectionComposerAction() {
     setBusy(true);
     setError("");
     try {
+      let hostId = folder.hostId;
+      let worktree = false;
+      try {
+        const read = await rpc.call("execution_read", {
+          scope: {
+            kind: "folder" as const,
+            projectId,
+            folderId: folder.id,
+          },
+        });
+        worktree = read.effective.environment?.value === "worktree";
+        const copies =
+          folder.paths && folder.paths.length > 0
+            ? folder.paths
+            : [{ hostId: folder.hostId, path: folder.path }];
+        hostId = placeOnHost(
+          read.effective.machine?.hostId,
+          { hostId: folder.hostId, path: folder.path },
+          copies,
+        ).hostId;
+      } catch {
+        worktree = false;
+      }
       await rpc.call("section_pick", {
         projectId,
-        hostId: folder.hostId,
+        hostId,
         folderId: folder.id,
       });
-      rememberPick({ projectId, hostId: folder.hostId, folderId: folder.id });
+      rememberPick({ projectId, hostId, folderId: folder.id });
       await composer.experimental_setSelection({
-        environment: {
-          type: "provider",
-          environmentProviderId: SECTION_ENVIRONMENT_ID,
-          machine: { type: "existing", hostId: folder.hostId },
-          inputs: { folderId: folder.id },
-        },
+        environment: worktree
+          ? managedWorktreeEnvironment(hostId)
+          : {
+              type: "provider",
+              environmentProviderId: SECTION_ENVIRONMENT_ID,
+              machine: { type: "existing", hostId },
+              inputs: { folderId: folder.id },
+            },
       });
       setChosen(folder);
     } catch (e) {

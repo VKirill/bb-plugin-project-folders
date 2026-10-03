@@ -57,6 +57,11 @@ export const executionSchema = z.object({
    */
   environmentMode: z.enum(ENVIRONMENT_MODES).optional(),
   /**
+   * The machine a new chat starts on. Absent leaves BB and the place's home
+   * host alone. A host with no folder for this place falls back to home.
+   */
+  hostId: z.string().min(1).max(100).optional(),
+  /**
    * "agent" pins `agentId`; "none" pins "no agent at all", which is how a
    * section refuses an agent its project pinned.
    */
@@ -93,6 +98,9 @@ export const resolvedExecutionSchema = z.object({
   environment: z
     .object({ value: z.enum(ENVIRONMENT_MODES), origin: originSchema })
     .nullable(),
+  machine: z
+    .object({ hostId: z.string(), origin: originSchema })
+    .nullable(),
   agent: agentPinSchema.extend({ origin: originSchema }).nullable(),
 });
 export type ResolvedExecution = z.infer<typeof resolvedExecutionSchema>;
@@ -109,6 +117,8 @@ export const hasAgentPin = (value: Execution) =>
 /** True when this place pins the chat environment, including an explicit folder. */
 export const hasEnvironmentPin = (value: Execution) =>
   value.environmentMode === "folder" || value.environmentMode === "worktree";
+/** True when this place pins the machine a new chat starts on. */
+export const hasMachinePin = (value: Execution) => !!value.hostId;
 
 /**
  * Nearest place wins, one group at a time. The groups travel apart, so a
@@ -123,6 +133,7 @@ export function resolveExecution(
     model: null,
     permissionMode: null,
     environment: null,
+    machine: null,
     agent: null,
   };
   for (const { origin, value } of layers) {
@@ -138,6 +149,8 @@ export function resolveExecution(
       resolved.permissionMode = { value: value.permissionMode, origin };
     if (!resolved.environment && hasEnvironmentPin(value))
       resolved.environment = { value: value.environmentMode!, origin };
+    if (!resolved.machine && hasMachinePin(value))
+      resolved.machine = { hostId: value.hostId!, origin };
     if (!resolved.agent && hasAgentPin(value))
       resolved.agent = {
         mode: value.agentMode!,
@@ -159,6 +172,7 @@ export function normalizeExecution(value: Execution): Execution {
   }
   if (value.permissionMode) out.permissionMode = value.permissionMode;
   if (hasEnvironmentPin(value)) out.environmentMode = value.environmentMode;
+  if (hasMachinePin(value)) out.hostId = value.hostId;
   if (value.agentMode === "none") out.agentMode = "none";
   else if (value.agentMode === "agent" && value.agentId) {
     out.agentMode = "agent";
@@ -201,6 +215,19 @@ export type AgentCatalog = z.infer<typeof agentCatalogSchema>;
 
 export const isAgentProvider = (providerId: string) =>
   (AGENT_PROVIDERS as readonly string[]).includes(providerId);
+
+/**
+ * The copy a new chat should open: the pinned host when this place has a
+ * folder there, otherwise the place's home host.
+ */
+export function placeOnHost(
+  pinnedHostId: string | null | undefined,
+  home: { hostId: string; path: string },
+  copies: readonly { hostId: string; path: string }[],
+): { hostId: string; path: string } {
+  if (!pinnedHostId) return home;
+  return copies.find((c) => c.hostId === pinnedHostId) ?? home;
+}
 
 /** Isolated managed worktree on this device; BB picks the default base branch. */
 export const managedWorktreeEnvironment = (hostId: string) => ({

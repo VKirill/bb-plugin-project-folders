@@ -287,6 +287,68 @@ describe("the chip in BB's own New thread composer", () => {
     });
     view.lifecycle.unmount();
   });
+  it("starts the chat on the pinned machine and that host's folder path", async () => {
+    nativeChip();
+    const view = renderSlot(
+      { id: "chip", component: chipSlot().component },
+      {},
+      {
+        composer: { scope: { kind: "new-thread", projectId: "p1" } },
+        sidebarThreads: { projects: sidebarProjects, status: "ready" },
+        rpc: {
+          list,
+          section_pick: () => ({ ok: true }),
+          execution_read: () => ({
+            own: {},
+            effective: {
+              model: null,
+              permissionMode: null,
+              environment: null,
+              machine: {
+                hostId: "h2",
+                origin: { scope: "project", folderId: null },
+              },
+              agent: null,
+            },
+            inherited: {
+              model: null,
+              permissionMode: null,
+              environment: null,
+              machine: null,
+              agent: null,
+            },
+            hostId: "h1",
+            hosts: [
+              { id: "h1", name: "Mac" },
+              { id: "h2", name: "OVH" },
+            ],
+            fallback: null,
+            agents: {
+              installed: false,
+              supported: false,
+              agents: [],
+              error: null,
+            },
+          }),
+        },
+      },
+    );
+    await openChip(view);
+    fireEvent.click(await view.findByRole("menuitem", { name: /^Project/ }));
+    await waitFor(() =>
+      expect(view.inspection.composer.selections).toHaveLength(1),
+    );
+    expect(view.inspection.composer.selections[0]).toEqual({
+      projectId: "p1",
+      environment: {
+        type: "provider",
+        environmentProviderId: "project-checkout",
+        machine: { type: "existing", hostId: "h2" },
+        inputs: { path: "/srv/project" },
+      },
+    });
+    view.lifecycle.unmount();
+  });
   it("still names the section after applying it remounted the composer", async () => {
     nativeChip();
     // No project yet: choosing a section is what sets one, and that is the

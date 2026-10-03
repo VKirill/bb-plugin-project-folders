@@ -4,7 +4,7 @@ import {
   makeThreadResponse,
 } from "@get-bb/plugin-sdk/testing";
 import plugin from "./server";
-import { normalizeExecution, resolveExecution } from "./execution";
+import { normalizeExecution, placeOnHost, resolveExecution } from "./execution";
 
 const root = {
   id: "p1",
@@ -197,6 +197,58 @@ describe("execution inheritance", () => {
     });
     expect(resolveExecution([]).environment).toBeNull();
   });
+  it("resolves the machine group nearest-first, apart from the others", () => {
+    const resolved = resolveExecution([
+      {
+        origin: { scope: "folder", folderId: "f1" },
+        value: { hostId: "h2" },
+      },
+      {
+        origin: { scope: "project", folderId: null },
+        value: { hostId: "h1", environmentMode: "worktree" },
+      },
+      {
+        origin: { scope: "global", folderId: null },
+        value: { hostId: "h0" },
+      },
+    ]);
+    expect(resolved.machine).toMatchObject({
+      hostId: "h2",
+      origin: { scope: "folder", folderId: "f1" },
+    });
+    expect(resolved.environment).toMatchObject({
+      value: "worktree",
+      origin: { scope: "project" },
+    });
+    expect(
+      resolveExecution([
+        { origin: { scope: "folder", folderId: "f1" }, value: {} },
+        {
+          origin: { scope: "project", folderId: null },
+          value: { hostId: "h1" },
+        },
+      ]).machine,
+    ).toMatchObject({
+      hostId: "h1",
+      origin: { scope: "project" },
+    });
+    expect(resolveExecution([]).machine).toBeNull();
+  });
+  it("falls back to the home host when the pinned machine has no folder here", () => {
+    const home = { hostId: "h1", path: "/work" };
+    expect(placeOnHost(undefined, home, [{ hostId: "h2", path: "/srv" }])).toEqual(
+      home,
+    );
+    expect(
+      placeOnHost("h2", home, [
+        { hostId: "h1", path: "/work" },
+        { hostId: "h2", path: "/srv" },
+      ]),
+    ).toEqual({ hostId: "h2", path: "/srv" });
+    expect(placeOnHost("h2", home, [{ hostId: "h1", path: "/work" }])).toEqual(
+      home,
+    );
+  });
   it("keeps only the groups a place really pins", () => {
     expect(
       normalizeExecution({ model: "opus", reasoningLevel: "high" }),
@@ -205,6 +257,7 @@ describe("execution inheritance", () => {
     expect(normalizeExecution({ environmentMode: "worktree" })).toEqual({
       environmentMode: "worktree",
     });
+    expect(normalizeExecution({ hostId: "h2" })).toEqual({ hostId: "h2" });
     expect(
       normalizeExecution({
         providerId: "codex",
@@ -342,6 +395,7 @@ describe("execution inheritance", () => {
       };
       expect(read.own).toEqual({ providerId: "codex", model: "gpt-6" });
       expect(read.effective.environment).toBeNull();
+      expect(read.effective.machine).toBeNull();
     } finally {
       await h.harness.lifecycle.dispose();
     }
@@ -573,6 +627,219 @@ describe("pinned environment", () => {
           },
         },
       );
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+});
+
+async function twoHosts() {
+  const h = await setup();
+  h.harness.inspection.sdk.stub("hosts.list", async () => [
+    { id: "h1", name: "Mac", status: "connected" },
+    { id: "h2", name: "OVH", status: "connected" },
+  ]);
+  h.harness.inspection.sdk.stub("projects.list", async () => [
+    {
+      ...root,
+      sources: [
+        { type: "local_path", hostId: "h1", path: "/work", isDefault: true },
+        { type: "local_path", hostId: "h2", path: "/srv", isDefault: false },
+      ],
+    },
+  ] as never);
+  return h;
+}
+
+describe("pinned machine", () => {
+  it("lists only machines where the place has a folder, and all hosts globally", async () => {
+    const h = await twoHosts();
+    try {
+      const id = await section(h, "Review");
+      const project = (await call(h)("execution_read", {
+        scope: { kind: "project", projectId: "p1" },
+      })) as { hosts: { id: string }[] };
+      expect(project.hosts.map((x) => x.id).sort()).toEqual(["h1", "h2"]);
+      const folder = (await call(h)("execution_read", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+      })) as { hosts: { id: string }[] };
+      expect(folder.hosts.map((x) => x.id)).toEqual(["h1"]);
+      await call(h)("section_path_set", {
+        folderId: id,
+        hostId: "h2",
+        path: "/srv/Review",
+      });
+      const both = (await call(h)("execution_read", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+      })) as { hosts: { id: string; name: string }[] };
+      expect(both.hosts.map((x) => x.id).sort()).toEqual(["h1", "h2"]);
+      const global = (await call(h)("execution_read", {
+        scope: { kind: "global" },
+      })) as { hosts: { id: string }[] };
+      expect(global.hosts.map((x) => x.id).sort()).toEqual(["h1", "h2"]);
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("saves a machine pin and shows a section what it inherits", async () => {
+    const h = await twoHosts();
+    try {
+      const id = await section(h, "Website");
+      await call(h)("execution_save", {
+        scope: { kind: "project", projectId: "p1" },
+        value: { hostId: "h2" },
+      });
+      const unread = (await call(h)("execution_read", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+      })) as {
+        own: unknown;
+        effective: { machine: { hostId: string; origin: { scope: string } } };
+        inherited: { machine: { hostId: string; origin: { scope: string } } };
+      };
+      expect(unread.own).toEqual({});
+      expect(unread.effective.machine).toMatchObject({
+        hostId: "h2",
+        origin: { scope: "project" },
+      });
+      expect(unread.inherited.machine).toMatchObject({
+        hostId: "h2",
+        origin: { scope: "project" },
+      });
+      await call(h)("execution_save", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+        value: { hostId: "h1" },
+      });
+      const pinned = (await call(h)("execution_read", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+      })) as {
+        own: { hostId: string };
+        effective: { machine: { hostId: string; origin: { scope: string } } };
+      };
+      expect(pinned.own).toEqual({ hostId: "h1" });
+      expect(pinned.effective.machine).toMatchObject({
+        hostId: "h1",
+        origin: { scope: "folder" },
+      });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("spawns on the pinned host and that host's folder path", async () => {
+    const h = await twoHosts();
+    try {
+      const id = await section(h, "Review");
+      await call(h)("section_path_set", {
+        folderId: id,
+        hostId: "h2",
+        path: "/srv/Review",
+      });
+      await call(h)("execution_save", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+        value: { hostId: "h2" },
+      });
+      stubSpawn(h);
+      await call(h)("spawn", {
+        projectId: "p1",
+        folderId: id,
+        request: {
+          ...spawnRequest(),
+          environment: {
+            type: "provider",
+            environmentProviderId: "project-checkout",
+            machine: { type: "existing", hostId: "h2" },
+          },
+        },
+      });
+      expect(
+        h.harness.inspection.sdk.callsTo("threads.spawn")[0]?.[0],
+      ).toMatchObject({
+        environment: {
+          type: "provider",
+          environmentProviderId: "project-checkout",
+          machine: { type: "existing", hostId: "h2" },
+          inputs: { path: "/srv/Review" },
+        },
+      });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("falls back to the home host when the pinned machine has no folder for the place", async () => {
+    const h = await twoHosts();
+    try {
+      const id = await section(h, "Review");
+      await call(h)("execution_save", {
+        scope: { kind: "project", projectId: "p1" },
+        value: { hostId: "h2" },
+      });
+      stubSpawn(h);
+      await call(h)("spawn", {
+        projectId: "p1",
+        folderId: id,
+        request: {
+          ...spawnRequest(),
+          environment: {
+            type: "provider",
+            environmentProviderId: "project-checkout",
+            machine: { type: "existing", hostId: "h2" },
+          },
+        },
+      });
+      expect(
+        h.harness.inspection.sdk.callsTo("threads.spawn")[0]?.[0],
+      ).toMatchObject({
+        environment: {
+          type: "provider",
+          environmentProviderId: "project-checkout",
+          machine: { type: "existing", hostId: "h1" },
+          inputs: { path: "/work/Review" },
+        },
+      });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+  it("spawns a managed worktree on the pinned host", async () => {
+    const h = await twoHosts();
+    try {
+      const id = await section(h, "Review");
+      await call(h)("section_path_set", {
+        folderId: id,
+        hostId: "h2",
+        path: "/srv/Review",
+      });
+      await call(h)("execution_save", {
+        scope: { kind: "folder", projectId: "p1", folderId: id },
+        value: { hostId: "h2", environmentMode: "worktree" },
+      });
+      stubSpawn(h);
+      await call(h)("spawn", {
+        projectId: "p1",
+        folderId: id,
+        request: {
+          ...spawnRequest(),
+          environment: {
+            type: "host",
+            hostId: "h2",
+            workspace: {
+              type: "managed-worktree",
+              baseBranch: { kind: "default" },
+            },
+          },
+        },
+      });
+      expect(
+        h.harness.inspection.sdk.callsTo("threads.spawn")[0]?.[0],
+      ).toMatchObject({
+        environment: {
+          type: "host",
+          hostId: "h2",
+          workspace: {
+            type: "managed-worktree",
+            baseBranch: { kind: "default" },
+          },
+        },
+      });
     } finally {
       await h.harness.lifecycle.dispose();
     }

@@ -33,6 +33,7 @@ const projectPin = {
   },
   permissionMode: null,
   environment: null,
+  machine: null,
   agent: null,
 };
 const rpc = {
@@ -49,6 +50,7 @@ const rpc = {
     effective: projectPin,
     inherited: projectPin,
     hostId: "h1",
+    hosts: [{ id: "h1", name: "Mac Mini" }],
     fallback: {
       providerId: "codex",
       model: "gpt-6",
@@ -150,6 +152,158 @@ it("starts a section chat in a managed worktree when that is pinned", async () =
   view.lifecycle.unmount();
 });
 
+it("starts a section chat on the pinned machine and that host's folder path", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "chat/p1/f1" },
+    {
+      rpc: {
+        ...rpc,
+        list: () => ({
+          folders: [
+            {
+              ...section,
+              paths: [
+                { hostId: "h1", path: "/work/Section" },
+                { hostId: "h2", path: "/srv/Section" },
+              ],
+            },
+          ],
+          roots: [root, { ...root, hostId: "h2", path: "/srv" }],
+          bindings: {},
+          errors: [],
+          machines: [
+            { id: "h1", name: "Mac Mini", connected: true },
+            { id: "h2", name: "OVH", connected: true },
+          ],
+        }),
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          hosts: [
+            { id: "h1", name: "Mac Mini" },
+            { id: "h2", name: "OVH" },
+          ],
+          effective: {
+            ...projectPin,
+            machine: {
+              hostId: "h2",
+              origin: { scope: "project", folderId: null },
+            },
+          },
+        }),
+      },
+    },
+  );
+  const composer = await waitFor(() =>
+    view.getByTestId("bb-new-thread-composer"),
+  );
+  expect(JSON.parse(composer.getAttribute("data-default-environment")!)).toEqual(
+    {
+      type: "provider",
+      environmentProviderId: "project-checkout",
+      machine: { type: "existing", hostId: "h2" },
+      inputs: { path: "/srv/Section" },
+    },
+  );
+  view.lifecycle.unmount();
+});
+
+it("starts a section chat in a managed worktree on the pinned machine", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "chat/p1/f1" },
+    {
+      rpc: {
+        ...rpc,
+        list: () => ({
+          folders: [
+            {
+              ...section,
+              paths: [
+                { hostId: "h1", path: "/work/Section" },
+                { hostId: "h2", path: "/srv/Section" },
+              ],
+            },
+          ],
+          roots: [root, { ...root, hostId: "h2", path: "/srv" }],
+          bindings: {},
+          errors: [],
+          machines: [
+            { id: "h1", name: "Mac Mini", connected: true },
+            { id: "h2", name: "OVH", connected: true },
+          ],
+        }),
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          hosts: [
+            { id: "h1", name: "Mac Mini" },
+            { id: "h2", name: "OVH" },
+          ],
+          effective: {
+            ...projectPin,
+            environment: {
+              value: "worktree",
+              origin: { scope: "project", folderId: null },
+            },
+            machine: {
+              hostId: "h2",
+              origin: { scope: "project", folderId: null },
+            },
+          },
+        }),
+      },
+    },
+  );
+  const composer = await waitFor(() =>
+    view.getByTestId("bb-new-thread-composer"),
+  );
+  expect(JSON.parse(composer.getAttribute("data-default-environment")!)).toEqual(
+    {
+      type: "host",
+      hostId: "h2",
+      workspace: {
+        type: "managed-worktree",
+        baseBranch: { kind: "default" },
+      },
+    },
+  );
+  view.lifecycle.unmount();
+});
+
+it("starts a section chat on the home host when the pinned machine has no folder", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "chat/p1/f1" },
+    {
+      rpc: {
+        ...rpc,
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          effective: {
+            ...projectPin,
+            machine: {
+              hostId: "h2",
+              origin: { scope: "project", folderId: null },
+            },
+          },
+        }),
+      },
+    },
+  );
+  const composer = await waitFor(() =>
+    view.getByTestId("bb-new-thread-composer"),
+  );
+  expect(JSON.parse(composer.getAttribute("data-default-environment")!)).toEqual(
+    {
+      type: "provider",
+      environmentProviderId: "project-checkout",
+      machine: { type: "existing", hostId: "h1" },
+      inputs: { path: "/work/Section" },
+    },
+  );
+  view.lifecycle.unmount();
+});
+
 it("shows a section where its unpinned model comes from", async () => {
   const view = renderSlot(app.navPanels[0]!, { subPath: "" }, { rpc });
   await view.findByText("Project");
@@ -243,6 +397,67 @@ it("pins an isolated worktree on the section and shows the inherited origin when
     folderId: "f1",
   });
   expect(saved.value).toEqual({ environmentMode: "worktree" });
+  view.lifecycle.unmount();
+});
+
+it("pins a machine on the section and shows the inherited origin when off", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "" },
+    {
+      rpc: {
+        ...rpc,
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          hosts: [
+            { id: "h1", name: "Mac Mini" },
+            { id: "h2", name: "OVH" },
+          ],
+          inherited: {
+            ...projectPin,
+            machine: {
+              hostId: "h2",
+              origin: { scope: "project", folderId: null },
+            },
+          },
+        }),
+      },
+    },
+  );
+  await view.findByText("Project");
+  view.getByText("Section").click();
+  fireEvent.click(await view.findByRole("tab", { name: "Provider" }));
+  await view.findByText("Provider, model and agent");
+  expect(
+    view.getByRole("switch", { name: "Own machine" }).getAttribute(
+      "aria-checked",
+    ),
+  ).toBe("false");
+  expect(view.baseElement.textContent).toContain("from the project");
+  const select = view.getByRole("combobox", { name: "Own machine" });
+  expect((select as HTMLSelectElement).disabled).toBe(true);
+  expect((select as HTMLSelectElement).value).toBe("h2");
+  expect(
+    [...(select as HTMLSelectElement).options].map((o) => o.textContent),
+  ).toEqual(["Mac Mini", "OVH"]);
+  fireEvent.click(view.getByRole("switch", { name: "Own machine" }));
+  expect((select as HTMLSelectElement).disabled).toBe(false);
+  fireEvent.change(select, { target: { value: "h1" } });
+  fireEvent.click(view.getByRole("button", { name: /Save/ }));
+  await waitFor(() =>
+    expect(
+      view.inspection.rpcCalls.some((c) => c.method === "execution_save"),
+    ).toBe(true),
+  );
+  const saved = view.inspection.rpcCalls.find(
+    (c) => c.method === "execution_save",
+  )!.input as { scope: unknown; value: unknown };
+  expect(saved.scope).toEqual({
+    kind: "folder",
+    projectId: "p1",
+    folderId: "f1",
+  });
+  expect(saved.value).toEqual({ hostId: "h1" });
   view.lifecycle.unmount();
 });
 

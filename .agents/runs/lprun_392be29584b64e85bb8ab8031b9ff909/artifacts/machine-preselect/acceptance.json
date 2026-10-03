@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "machine-preselect",
+  "task_sha256": "c70ce0c19ed3dd1af697a4a3a2f273c9565450f5fc66e0529158afe1106e4a61",
+  "attempt": 1,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "46d119a4cd7a2d80f2fadafb0d12c1733fad1a6cc77736d6957c3180ff9e5df5",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "not_required",
+  "accepted": true,
+  "accepted_at": "2026-10-03T20:35:11.015Z",
+  "model": "grok-4.6"
+}
