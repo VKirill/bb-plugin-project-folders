@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.28 — Environment per project and section
+
+- New **Own environment** switch in the Provider tab of project and section settings: **In folder** or **Separate worktree**. Inherited section → parent → project → global, like the model and permission mode.
+- The plugin's New chat screen and the project chip in BB's composer preselect that environment for a new session. Places without the pin work as before.
+
 ## 0.6.27 — Full backup of plugin data
 
 - Export and import every durable table plus plugin settings as one JSON file: RPC `backup_export` / `backup_import`, CLI `bb project-folders backup` and `restore <file> [--merge]`, and **Export everything** / **Import everything** in plugin settings.
