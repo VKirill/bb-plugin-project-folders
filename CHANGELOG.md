@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.29 — Machine per project and section
+
+- New **Own machine** switch in the Provider tab of project and section settings: pick a device that already has a folder for that place. Inherited section → parent → project → global, like the environment pin.
+- The plugin's New chat screen and the project chip in BB's composer preselect that machine for a new session. Places without the pin keep the previous host choice.
+- Environment and machine rows no longer show the extra **as in BB** caption when nothing above them is pinned.
+
 ## 0.6.28 — Environment per project and section
 
 - New **Own environment** switch in the Provider tab of project and section settings: **In folder** or **Separate worktree**. Inherited section → parent → project → global, like the model and permission mode.
