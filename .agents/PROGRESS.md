@@ -13,11 +13,10 @@
 
 ## Last verify
 - command: Lane Pilot verification for env-caption-trim, env-preselect, and machine-preselect
-- result: green (all three writer reports accepted; env-preselect reported 232 tests)
+- result: green (all four writer reports accepted; env-preselect reported 232 tests; release-0.6.29 typecheck passed)
 - when: 2026-10-03
 
 ## Pointers
 - Open todos: none (`.agents/todos/INDEX.md` not present).
 - Active plans: none (`.agents/plans/` not present).
-- Planning runs with `STATUS.md`: none under `.agents/runs/`.
 - Changelog: `.agents/CHANGELOG.md`.
