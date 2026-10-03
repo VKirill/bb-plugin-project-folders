@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "release-0.6.30",
+  "task_sha256": "9a07ddcbdb58e1daecbf143bf49ee0e7f1252d10b410a22c6b1734387e7fa690",
+  "attempt": 1,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "da936009dc21390f92fa107313d61c5b0a9ae4eb1542c9475979bab0289d8af6",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "not_required",
+  "accepted": true,
+  "accepted_at": "2026-10-03T20:51:08.268Z",
+  "model": "grok-4.6"
+}

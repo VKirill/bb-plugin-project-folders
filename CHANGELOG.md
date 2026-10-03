@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.30 — Machine names in Own machine
+
+- The **Own machine** list is the place's machines (home host first, then folder paths), shown by their BB names. A host BB knows never appears as a raw id; an unknown pin shows as an unknown machine.
+
 ## 0.6.29 — Machine per project and section
 
 - New **Own machine** switch in the Provider tab of project and section settings: pick a device that already has a folder for that place. Inherited section → parent → project → global, like the environment pin.
