@@ -12,8 +12,8 @@
 - No active project work is recorded in plans.
 
 ## Last verify
-- command: Lane Pilot verification for env-caption-trim, env-preselect, and machine-preselect
-- result: green (all four writer reports accepted; env-preselect reported 232 tests; release-0.6.29 typecheck passed)
+- command: Lane Pilot writer reports and acceptance records for env-caption-trim, env-preselect, machine-list-fix, machine-preselect, and release-0.6.29
+- result: green (all five tasks accepted; release-0.6.29 typecheck passed)
 - when: 2026-10-03
 
 ## Pointers
