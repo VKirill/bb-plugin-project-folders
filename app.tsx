@@ -39,7 +39,12 @@ import {
   SectionComposerAction,
   SectionEnvironmentInputs,
 } from "./section-environment";
-import type { PermissionMode, ReasoningLevel, ServiceTier } from "./execution";
+import {
+  managedWorktreeEnvironment,
+  type PermissionMode,
+  type ReasoningLevel,
+  type ServiceTier,
+} from "./execution";
 import {
   sortChats,
   visibleChats,
@@ -2994,6 +2999,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
       defaultReasoningLevel?: ReasoningLevel;
       defaultServiceTier?: ServiceTier;
       defaultPermissionMode?: PermissionMode;
+      defaultEnvironment?: ReturnType<typeof managedWorktreeEnvironment>;
     };
   } | null>(null);
   useEffect(() => {
@@ -3150,6 +3156,9 @@ function Panel({ subPath }: PluginNavPanelProps) {
             : {}),
           ...(r.effective.permissionMode
             ? { defaultPermissionMode: r.effective.permissionMode.value }
+            : {}),
+          ...(r.effective.environment?.value === "worktree"
+            ? { defaultEnvironment: managedWorktreeEnvironment(f.hostId) }
             : {}),
         };
       } catch {}
@@ -4550,12 +4559,14 @@ function Panel({ subPath }: PluginNavPanelProps) {
             key={`${f.id}:${f.hostId}`}
             {...chatSeeds.seeds}
             defaultProjectId={projectId}
-            defaultEnvironment={{
-              type: "provider",
-              environmentProviderId: "project-checkout",
-              machine: { type: "existing", hostId: f.hostId },
-              inputs: { path: f.path },
-            }}
+            defaultEnvironment={
+              chatSeeds.seeds.defaultEnvironment ?? {
+                type: "provider",
+                environmentProviderId: "project-checkout",
+                machine: { type: "existing", hostId: f.hostId },
+                inputs: { path: f.path },
+              }
+            }
             draftKey={`project-folders:${f.id}`}
             layout="document"
             className="w-full"

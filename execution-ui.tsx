@@ -11,6 +11,7 @@ import {
   hasModelPin,
   normalizeExecution,
   type AgentCatalog,
+  type EnvironmentMode,
   type Execution,
   type ExecutionFallback,
   type Origin,
@@ -150,6 +151,10 @@ export function ExecutionEditor({
     state.inherited.permissionMode?.value ??
     state.fallback?.permissionMode ??
     "auto";
+  const shownEnvironment: EnvironmentMode =
+    draft.environmentMode ??
+    state.inherited.environment?.value ??
+    "folder";
   const agentValue =
     draft.agentMode === "agent"
       ? (draft.agentId ?? INHERIT)
@@ -257,6 +262,36 @@ export function ExecutionEditor({
             patch({ permissionMode: value });
           }}
         />
+      </div>
+      <div className="pf-exec-row">
+        <Switch
+          checked={!!draft.environmentMode}
+          label={t("Своя среда")}
+          onChange={(on) =>
+            patch({ environmentMode: on ? shownEnvironment : undefined })
+          }
+        />
+        <div className="pf-exec-text">
+          <span>{t("Своя среда")}</span>
+          {!draft.environmentMode && (
+            <span className="pf-exec-from">
+              {originLabel(state.inherited.environment?.origin, scope)}
+            </span>
+          )}
+        </div>
+        <select
+          className="pf-select"
+          aria-label={t("Своя среда")}
+          disabled={!draft.environmentMode || busy}
+          value={shownEnvironment}
+          onChange={(e) => {
+            if (!draft.environmentMode) return;
+            patch({ environmentMode: e.target.value as EnvironmentMode });
+          }}
+        >
+          <option value="folder">{t("В папке")}</option>
+          <option value="worktree">{t("Отдельный worktree")}</option>
+        </select>
       </div>
       {scope.kind !== "global" && (
         <div className="pf-exec-row">

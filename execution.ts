@@ -6,9 +6,10 @@ import { z } from "zod";
  *
  * Nothing here replaces BB's own behaviour. A field that is not set anywhere
  * is simply absent, and the composer falls back to the project's remembered
- * execution defaults exactly as before. What the plugin adds is a place to
- * pin those values per project and per section, and inheritance down the
- * tree: the nearest place that sets a group wins.
+ * execution defaults exactly as before — including the folder the chat
+ * starts in. What the plugin adds is a place to pin those values per
+ * project and per section, and inheritance down the tree: the nearest place
+ * that sets a group wins.
  */
 export const REASONING_LEVELS = [
   "none",
@@ -22,6 +23,8 @@ export const REASONING_LEVELS = [
 ] as const;
 export const SERVICE_TIERS = ["default", "fast"] as const;
 export const PERMISSION_MODES = ["accept-edits", "auto", "full"] as const;
+/** Where a new chat works: the place's own folder, or an isolated worktree. */
+export const ENVIRONMENT_MODES = ["folder", "worktree"] as const;
 /** The CLIs whose native session agents the CLI Agents plugin can bind. */
 export const AGENT_PROVIDERS = [
   "claude-code",
@@ -35,6 +38,7 @@ export const CLI_AGENTS_URL = "https://github.com/VKirill/bb-plugin-cli-agents";
 export type ReasoningLevel = (typeof REASONING_LEVELS)[number];
 export type ServiceTier = (typeof SERVICE_TIERS)[number];
 export type PermissionMode = (typeof PERMISSION_MODES)[number];
+export type EnvironmentMode = (typeof ENVIRONMENT_MODES)[number];
 
 export const executionSchema = z.object({
   /**
@@ -46,6 +50,12 @@ export const executionSchema = z.object({
   reasoningLevel: z.enum(REASONING_LEVELS).optional(),
   serviceTier: z.enum(SERVICE_TIERS).optional(),
   permissionMode: z.enum(PERMISSION_MODES).optional(),
+  /**
+   * Absent means "leave the environment alone": the chat still starts in this
+   * folder (or the section provider). Pinning `folder` is how a section
+   * refuses a worktree its project pinned.
+   */
+  environmentMode: z.enum(ENVIRONMENT_MODES).optional(),
   /**
    * "agent" pins `agentId`; "none" pins "no agent at all", which is how a
    * section refuses an agent its project pinned.
@@ -80,6 +90,9 @@ export const resolvedExecutionSchema = z.object({
   permissionMode: z
     .object({ value: z.enum(PERMISSION_MODES), origin: originSchema })
     .nullable(),
+  environment: z
+    .object({ value: z.enum(ENVIRONMENT_MODES), origin: originSchema })
+    .nullable(),
   agent: agentPinSchema.extend({ origin: originSchema }).nullable(),
 });
 export type ResolvedExecution = z.infer<typeof resolvedExecutionSchema>;
@@ -93,10 +106,13 @@ export const hasModelPin = (value: Execution) =>
 export const hasAgentPin = (value: Execution) =>
   value.agentMode === "none" ||
   (value.agentMode === "agent" && !!value.agentId);
+/** True when this place pins the chat environment, including an explicit folder. */
+export const hasEnvironmentPin = (value: Execution) =>
+  value.environmentMode === "folder" || value.environmentMode === "worktree";
 
 /**
- * Nearest place wins, one group at a time. The three groups travel apart, so
- * a section can pin the agent alone and still take the model from its
+ * Nearest place wins, one group at a time. The groups travel apart, so a
+ * section can pin the agent alone and still take the model from its
  * project. Layers arrive nearest first: the section, its ancestors, the
  * project, then the plugin-wide default.
  */
@@ -106,6 +122,7 @@ export function resolveExecution(
   const resolved: ResolvedExecution = {
     model: null,
     permissionMode: null,
+    environment: null,
     agent: null,
   };
   for (const { origin, value } of layers) {
@@ -119,6 +136,8 @@ export function resolveExecution(
       };
     if (!resolved.permissionMode && value.permissionMode)
       resolved.permissionMode = { value: value.permissionMode, origin };
+    if (!resolved.environment && hasEnvironmentPin(value))
+      resolved.environment = { value: value.environmentMode!, origin };
     if (!resolved.agent && hasAgentPin(value))
       resolved.agent = {
         mode: value.agentMode!,
@@ -139,6 +158,7 @@ export function normalizeExecution(value: Execution): Execution {
     if (value.serviceTier) out.serviceTier = value.serviceTier;
   }
   if (value.permissionMode) out.permissionMode = value.permissionMode;
+  if (hasEnvironmentPin(value)) out.environmentMode = value.environmentMode;
   if (value.agentMode === "none") out.agentMode = "none";
   else if (value.agentMode === "agent" && value.agentId) {
     out.agentMode = "agent";
@@ -181,6 +201,16 @@ export type AgentCatalog = z.infer<typeof agentCatalogSchema>;
 
 export const isAgentProvider = (providerId: string) =>
   (AGENT_PROVIDERS as readonly string[]).includes(providerId);
+
+/** Isolated managed worktree on this device; BB picks the default base branch. */
+export const managedWorktreeEnvironment = (hostId: string) => ({
+  type: "host" as const,
+  hostId,
+  workspace: {
+    type: "managed-worktree" as const,
+    baseBranch: { kind: "default" as const },
+  },
+});
 
 /** The marker CLI Agents reads from the first message to bind one chat. */
 export const agentMarker = (token: string) => `[cli-agents-selection:${token}]`;

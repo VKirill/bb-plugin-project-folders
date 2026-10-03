@@ -32,6 +32,7 @@ const projectPin = {
     origin: { scope: "project", folderId: null },
   },
   permissionMode: null,
+  environment: null,
   agent: null,
 };
 const rpc = {
@@ -82,6 +83,14 @@ it("starts a section chat with the provider and model pinned above it", async ()
   // Nobody pinned these: BB keeps its own behaviour.
   expect(composer.getAttribute("data-default-service-tier")).toBe("");
   expect(composer.getAttribute("data-default-permission-mode")).toBe("");
+  expect(JSON.parse(composer.getAttribute("data-default-environment")!)).toEqual(
+    {
+      type: "provider",
+      environmentProviderId: "project-checkout",
+      machine: { type: "existing", hostId: "h1" },
+      inputs: { path: "/work/Section" },
+    },
+  );
   view.lifecycle.unmount();
 });
 
@@ -102,6 +111,42 @@ it("opens a chat even when the pinned values cannot be read", async () => {
     view.getByTestId("bb-new-thread-composer"),
   );
   expect(composer.getAttribute("data-default-provider-id")).toBe("");
+  view.lifecycle.unmount();
+});
+
+it("starts a section chat in a managed worktree when that is pinned", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "chat/p1/f1" },
+    {
+      rpc: {
+        ...rpc,
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          effective: {
+            ...projectPin,
+            environment: {
+              value: "worktree",
+              origin: { scope: "project", folderId: null },
+            },
+          },
+        }),
+      },
+    },
+  );
+  const composer = await waitFor(() =>
+    view.getByTestId("bb-new-thread-composer"),
+  );
+  expect(JSON.parse(composer.getAttribute("data-default-environment")!)).toEqual(
+    {
+      type: "host",
+      hostId: "h1",
+      workspace: {
+        type: "managed-worktree",
+        baseBranch: { kind: "default" },
+      },
+    },
+  );
   view.lifecycle.unmount();
 });
 
@@ -144,6 +189,60 @@ it("pins an agent on the section and saves it", async () => {
     folderId: "f1",
   });
   expect(saved.value).toEqual({ agentMode: "agent", agentId: "reviewer" });
+  view.lifecycle.unmount();
+});
+
+it("pins an isolated worktree on the section and shows the inherited origin when off", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "" },
+    {
+      rpc: {
+        ...rpc,
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          inherited: {
+            ...projectPin,
+            environment: {
+              value: "worktree",
+              origin: { scope: "project", folderId: null },
+            },
+          },
+        }),
+      },
+    },
+  );
+  await view.findByText("Project");
+  view.getByText("Section").click();
+  fireEvent.click(await view.findByRole("tab", { name: "Provider" }));
+  await view.findByText("Provider, model and agent");
+  expect(
+    view.getByRole("switch", { name: "Own environment" }).getAttribute(
+      "aria-checked",
+    ),
+  ).toBe("false");
+  expect(view.baseElement.textContent).toContain("from the project");
+  const select = view.getByRole("combobox", { name: "Own environment" });
+  expect((select as HTMLSelectElement).disabled).toBe(true);
+  expect((select as HTMLSelectElement).value).toBe("worktree");
+  fireEvent.click(view.getByRole("switch", { name: "Own environment" }));
+  expect((select as HTMLSelectElement).disabled).toBe(false);
+  fireEvent.change(select, { target: { value: "worktree" } });
+  fireEvent.click(view.getByRole("button", { name: /Save/ }));
+  await waitFor(() =>
+    expect(
+      view.inspection.rpcCalls.some((c) => c.method === "execution_save"),
+    ).toBe(true),
+  );
+  const saved = view.inspection.rpcCalls.find(
+    (c) => c.method === "execution_save",
+  )!.input as { scope: unknown; value: unknown };
+  expect(saved.scope).toEqual({
+    kind: "folder",
+    projectId: "p1",
+    folderId: "f1",
+  });
+  expect(saved.value).toEqual({ environmentMode: "worktree" });
   view.lifecycle.unmount();
 });
 
