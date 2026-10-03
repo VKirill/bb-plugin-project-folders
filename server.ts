@@ -509,6 +509,8 @@ export const rpcContract = defineRpcContract({
       inherited: resolvedExecutionSchema,
       /** The machine the pickers and the agent list resolve against. */
       hostId: z.string().nullable(),
+      /** Machines this place can pin: copies with a folder, or every host globally. */
+      hosts: z.array(z.object({ id: z.string(), name: z.string() })),
       /** What BB itself would start with here: shown, and used as the seed. */
       fallback: executionFallbackSchema.nullable(),
       agents: agentCatalogSchema,
@@ -1292,6 +1294,38 @@ export default async function plugin(bb: BbPluginApi) {
     const source =
       project?.sources.find((s) => s.isDefault) ?? project?.sources[0];
     return { folder: null, hostId: source?.hostId ?? null };
+  };
+  /** Devices a place can pin: those with a folder here, or every host globally. */
+  const executionHosts = async (
+    scope: ExecutionScope,
+    place: { folder: Folder | null; hostId: string | null },
+  ) => {
+    const machines = await bb.sdk.hosts.list();
+    const named = (ids: readonly string[]) => {
+      const unique = [...new Set(ids)];
+      return unique.map((id) => ({
+        id,
+        name: machines.find((h) => h.id === id)?.name ?? id,
+      }));
+    };
+    if (scope.kind === "global")
+      return machines.map((h) => ({ id: h.id, name: h.name }));
+    if (scope.kind === "folder") {
+      const folder = place.folder;
+      if (!folder || isGroup(folder)) return [];
+      const rows = pathsOf(folder.id);
+      return named(
+        rows.length ? rows.map((r) => r.hostId) : [folder.hostId],
+      );
+    }
+    const project = (await bb.sdk.projects.list()).find(
+      (p) => p.id === scope.projectId,
+    );
+    return named(
+      (project?.sources ?? [])
+        .filter((s) => s.type === "local_path")
+        .map((s) => s.hostId),
+    );
   };
   /**
    * Agents belong to the CLI Agents plugin: it discovers them on the machine
@@ -3112,6 +3146,7 @@ export default async function plugin(bb: BbPluginApi) {
         effective,
         inherited,
         hostId: place.hostId,
+        hosts: await executionHosts(scope, place),
         fallback: await executionFallback(scope, place.hostId),
         agents:
           scope.kind === "global" || !providerId
@@ -3156,7 +3191,10 @@ export default async function plugin(bb: BbPluginApi) {
     },
     section_pick: ({ projectId, hostId, folderId }) => {
       const folder = folders().find((f) => f.id === folderId);
-      if (!folder || folder.projectId !== projectId || folder.hostId !== hostId)
+      if (!folder || folder.projectId !== projectId)
+        throw new Error("This section is not on that device of this project.");
+      const bound = bindFolder(folder, hostId);
+      if (!bound)
         throw new Error("This section is not on that device of this project.");
       pendingSection.set(pendingKey(projectId, hostId), {
         folderId,
@@ -3320,13 +3358,17 @@ export default async function plugin(bb: BbPluginApi) {
           : req.environment.type === "host"
             ? req.environment.hostId
             : undefined;
+      const pinnedHost = effectiveExecution(
+        input.folderId ? f : null,
+        f.projectId,
+      ).machine?.hostId;
       if (input.folderId && picked && picked !== f.hostId) {
         const bound = bindFolder(f, picked);
-        if (!bound)
+        if (bound) f = bound;
+        else if (picked !== pinnedHost)
           throw new Error(
             "This section has no folder on the selected device. Set a path for that device in the section card.",
           );
-        f = bound;
       } else if (!input.folderId && picked && picked !== f.hostId) {
         const copy = (await roots()).find(
           (r) => r.projectId === f.projectId && r.hostId === picked,
@@ -3340,7 +3382,9 @@ export default async function plugin(bb: BbPluginApi) {
           : null;
       if (
         req.environment.type === "host" &&
-        ((req.environment.hostId && req.environment.hostId !== f.hostId) ||
+        ((req.environment.hostId &&
+          req.environment.hostId !== f.hostId &&
+          req.environment.hostId !== pinnedHost) ||
           (req.environment.workspace.type !== "unmanaged" && !managedWorktree))
       )
         throw new Error(
@@ -3362,7 +3406,8 @@ export default async function plugin(bb: BbPluginApi) {
         req.environment.type === "provider" &&
         (req.environment.environmentProviderId !== "project-checkout" ||
           req.environment.machine?.type !== "existing" ||
-          req.environment.machine.hostId !== f.hostId)
+          (req.environment.machine.hostId !== f.hostId &&
+            req.environment.machine.hostId !== pinnedHost))
       ) {
         const hostName = (
           (await bb.sdk.hosts.list()) as { id: string; name?: string }[]
@@ -3409,6 +3454,10 @@ export default async function plugin(bb: BbPluginApi) {
           : req.environment.type === "provider"
             ? {
                 ...req.environment,
+                machine: {
+                  type: "existing" as const,
+                  hostId: f.hostId,
+                },
                 inputs: {
                   ...(req.environment.inputs &&
                   typeof req.environment.inputs === "object" &&

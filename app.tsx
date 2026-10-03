@@ -41,6 +41,7 @@ import {
 } from "./section-environment";
 import {
   managedWorktreeEnvironment,
+  placeOnHost,
   type PermissionMode,
   type ReasoningLevel,
   type ServiceTier,
@@ -2999,7 +3000,14 @@ function Panel({ subPath }: PluginNavPanelProps) {
       defaultReasoningLevel?: ReasoningLevel;
       defaultServiceTier?: ServiceTier;
       defaultPermissionMode?: PermissionMode;
-      defaultEnvironment?: ReturnType<typeof managedWorktreeEnvironment>;
+      defaultEnvironment?:
+        | ReturnType<typeof managedWorktreeEnvironment>
+        | {
+            type: "provider";
+            environmentProviderId: "project-checkout";
+            machine: { type: "existing"; hostId: string };
+            inputs: { path: string };
+          };
     };
   } | null>(null);
   useEffect(() => {
@@ -3141,6 +3149,14 @@ function Panel({ subPath }: PluginNavPanelProps) {
             : { kind: "folder", projectId: f.projectId, folderId: f.id },
         });
         const model = r.effective.model;
+        const copies = rootSelected
+          ? data.roots.filter((r) => r.projectId === f.projectId)
+          : (f.paths ?? [{ hostId: f.hostId, path: f.path }]);
+        const place = placeOnHost(
+          r.effective.machine?.hostId,
+          { hostId: f.hostId, path: f.path },
+          copies,
+        );
         seeds = {
           ...(model
             ? {
@@ -3157,9 +3173,15 @@ function Panel({ subPath }: PluginNavPanelProps) {
           ...(r.effective.permissionMode
             ? { defaultPermissionMode: r.effective.permissionMode.value }
             : {}),
-          ...(r.effective.environment?.value === "worktree"
-            ? { defaultEnvironment: managedWorktreeEnvironment(f.hostId) }
-            : {}),
+          defaultEnvironment:
+            r.effective.environment?.value === "worktree"
+              ? managedWorktreeEnvironment(place.hostId)
+              : {
+                  type: "provider",
+                  environmentProviderId: "project-checkout",
+                  machine: { type: "existing", hostId: place.hostId },
+                  inputs: { path: place.path },
+                },
         };
       } catch {}
       if (live) setChatSeeds({ key: seedKey, seeds });

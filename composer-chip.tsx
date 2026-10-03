@@ -33,7 +33,7 @@ import {
   type SectionTree,
 } from "./section-tree";
 import { t, useLanguage } from "./i18n";
-import { managedWorktreeEnvironment } from "./execution";
+import { managedWorktreeEnvironment, placeOnHost } from "./execution";
 
 /** The class marking the span a replacement chip is portalled into. */
 export const NATIVE_SLOT_CLASS = "pf-native-project-slot";
@@ -243,19 +243,9 @@ export function ComposerProjectChip() {
     setBusy(true);
     setError("");
     try {
-      if (entry.kind === "section" && folder) {
-        await rpc.call("section_pick", {
-          projectId: entry.projectId,
-          hostId: folder.hostId,
-          folderId: folder.id,
-        });
-        rememberPick({
-          projectId: entry.projectId,
-          hostId: folder.hostId,
-          folderId: folder.id,
-        });
-      } else rememberPick(null);
       let worktree = false;
+      let hostId = folder?.hostId ?? "";
+      let folderPath = folder?.path ?? "";
       if (folder && entry.kind !== "group") {
         try {
           const read = await rpc.call("execution_read", {
@@ -269,10 +259,37 @@ export function ComposerProjectChip() {
                 : { kind: "project" as const, projectId: entry.projectId },
           });
           worktree = read.effective.environment?.value === "worktree";
+          const copies =
+            folder.paths && folder.paths.length > 0
+              ? folder.paths
+              : entry.kind === "project"
+                ? (tree?.roots.filter((r) => r.projectId === entry.projectId) ?? [
+                    { hostId: folder.hostId, path: folder.path },
+                  ])
+                : [{ hostId: folder.hostId, path: folder.path }];
+          const place = placeOnHost(
+            read.effective.machine?.hostId,
+            { hostId: folder.hostId, path: folder.path },
+            copies,
+          );
+          hostId = place.hostId;
+          folderPath = place.path;
         } catch {
           worktree = false;
         }
       }
+      if (entry.kind === "section" && folder) {
+        await rpc.call("section_pick", {
+          projectId: entry.projectId,
+          hostId,
+          folderId: folder.id,
+        });
+        rememberPick({
+          projectId: entry.projectId,
+          hostId,
+          folderId: folder.id,
+        });
+      } else rememberPick(null);
       await composer.experimental_setSelection({
         projectId: entry.projectId,
         // A project BB knows and the plugin has no folder for keeps BB's own
@@ -280,14 +297,14 @@ export function ComposerProjectChip() {
         ...(folder
           ? {
               environment: worktree
-                ? managedWorktreeEnvironment(folder.hostId)
+                ? managedWorktreeEnvironment(hostId)
                 : entry.kind === "section"
                   ? {
                       type: "provider" as const,
                       environmentProviderId: SECTION_ENVIRONMENT_ID,
                       machine: {
                         type: "existing" as const,
-                        hostId: folder.hostId,
+                        hostId,
                       },
                       inputs: { folderId: folder.id },
                     }
@@ -298,9 +315,9 @@ export function ComposerProjectChip() {
                       environmentProviderId: "project-checkout",
                       machine: {
                         type: "existing" as const,
-                        hostId: folder.hostId,
+                        hostId,
                       },
-                      inputs: { path: folder.path },
+                      inputs: { path: folderPath },
                     },
             }
           : {}),

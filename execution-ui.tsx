@@ -31,6 +31,7 @@ type Loaded = {
   effective: ResolvedExecution;
   inherited: ResolvedExecution;
   hostId: string | null;
+  hosts: { id: string; name: string }[];
   fallback: ExecutionFallback | null;
   agents: AgentCatalog;
 };
@@ -155,14 +156,22 @@ export function ExecutionEditor({
     draft.environmentMode ??
     state.inherited.environment?.value ??
     "folder";
+  const shownMachine =
+    draft.hostId ??
+    state.inherited.machine?.hostId ??
+    state.hosts[0]?.id ??
+    state.hostId ??
+    "";
   const agentValue =
     draft.agentMode === "agent"
       ? (draft.agentId ?? INHERIT)
       : draft.agentMode === "none"
         ? NO_AGENT
         : INHERIT;
-  const routing = state.hostId
-    ? ({ kind: "host", hostId: state.hostId } as const)
+  const routingHost =
+    draft.hostId ?? state.inherited.machine?.hostId ?? state.hostId;
+  const routing = routingHost
+    ? ({ kind: "host", hostId: routingHost } as const)
     : undefined;
   const agentsUsable =
     scope.kind !== "global" && state.agents.installed && state.agents.supported;
@@ -291,6 +300,43 @@ export function ExecutionEditor({
         >
           <option value="folder">{t("В папке")}</option>
           <option value="worktree">{t("Отдельный worktree")}</option>
+        </select>
+      </div>
+      <div className="pf-exec-row">
+        <Switch
+          checked={!!draft.hostId}
+          label={t("Своя машина")}
+          onChange={(on) =>
+            patch({ hostId: on ? shownMachine || undefined : undefined })
+          }
+        />
+        <div className="pf-exec-text">
+          <span>{t("Своя машина")}</span>
+          {!draft.hostId && (
+            <span className="pf-exec-from">
+              {originLabel(state.inherited.machine?.origin, scope)}
+            </span>
+          )}
+        </div>
+        <select
+          className="pf-select"
+          aria-label={t("Своя машина")}
+          disabled={!draft.hostId || busy || state.hosts.length === 0}
+          value={shownMachine}
+          onChange={(e) => {
+            if (!draft.hostId) return;
+            patch({ hostId: e.target.value || undefined });
+          }}
+        >
+          {state.hosts.map((h) => (
+            <option key={h.id} value={h.id}>
+              {h.name}
+            </option>
+          ))}
+          {draft.hostId &&
+            !state.hosts.some((h) => h.id === draft.hostId) && (
+              <option value={draft.hostId}>{draft.hostId}</option>
+            )}
         </select>
       </div>
       {scope.kind !== "global" && (
