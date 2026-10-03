@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "status": "accepted",
+  "lanePilotRunId": "lprun_392be29584b64e85bb8ab8031b9ff909",
+  "lanePilotTaskId": "release-0.6.30",
+  "attemptId": "lpattempt_d677110994ea424997ac06f6cd5a1c12",
+  "pmThreadId": "thr_4autf3vdii",
+  "writerThreadId": "thr_ufyvyiacf9",
+  "ownsPaths": [
+    "package.json",
+    "package-lock.json",
+    "CHANGELOG.md"
+  ],
+  "readFirst": [
+    {
+      "path": "package.json",
+      "windows": []
+    },
+    {
+      "path": "CHANGELOG.md",
+      "windows": []
+    }
+  ],
+  "output": "Релиз **0.6.30**.\n\n**Пути:** `package.json`, `package-lock.json`, `CHANGELOG.md`\n\n**CHANGELOG 0.6.30:** селект **Own machine** — машины места (домашний хост, затем пути) по именам BB; сырой id не показывается, если хост известен.\n\nВ плане не было готового текста секции — взял принятый после 0.6.29 `machine-list-fix`.\n\n**Проверка:** `npm run typecheck` — ок.",
+  "verification": [
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "stdout": "\r\n> bb-plugin-project-folders@0.6.30 typecheck\r\n> tsc --noEmit\r\n\r\n\\\u001b[1G\u001b[0K\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m New \u001b[31mmajor\u001b[39m version of npm available! \u001b[31m11.16.0\u001b[39m -> \u001b[34m12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m Changelog: \u001b[34mhttps://github.com/npm/cli/releases/tag/v12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m To update run: \u001b[4mnpm install -g npm@12.2.0\u001b[24m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\\\u001b[1G\u001b[0K",
+      "stderr": "",
+      "sandboxBackend": "macos-seatbelt",
+      "policySha256": "d71a8b70ebf6c37a0d5b66ea68f734d3e0d51c96fee6733dcc15c92ffb3ff14d",
+      "workspacePath": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_d677110994ea424997ac06f6cd5a1c12/bb-plugin-project-folders"
+    }
+  ],
+  "runV2": {
+    "schemaVersion": 1,
+    "pools": {
+      "provider": 5,
+      "verification": 2
+    },
+    "score": 2,
+    "risk": "low",
+    "sourceRisk": "low",
+    "scoreAdapter": "task-risk-v1"
+  },
+  "reasoning": [
+    {
+      "planSha256": "90a44cb5519d4ad79b44a13ae866cb535d1b39ea409371fc56dca7aafaa8841d",
+      "sentPlanSha256": "90a44cb5519d4ad79b44a13ae866cb535d1b39ea409371fc56dca7aafaa8841d",
+      "sourceLength": 550,
+      "sentLength": 550,
+      "jevStatus": "ok",
+      "jevDecision": "low",
+      "requestedReasoningLevel": "low",
+      "effectiveReasoningLevel": "low",
+      "fallbackReason": null,
+      "retryEffort": {
+        "enabled": true,
+        "retryIndex": 0,
+        "before": "low",
+        "after": "low",
+        "changed": false
+      },
+      "providerId": "acp-cursor",
+      "model": "grok-4.6",
+      "serviceTier": "default",
+      "requestedServiceTier": "default",
+      "runId": "lprun_392be29584b64e85bb8ab8031b9ff909",
+      "attemptId": "lpattempt_d677110994ea424997ac06f6cd5a1c12",
+      "threadId": "thr_ufyvyiacf9",
+      "effortMode": "automatic",
+      "selectionSource": {
+        "providerId": "acp-cursor",
+        "model": "grok-4.6",
+        "reasoningLevel": "low",
+        "serviceTier": "default",
+        "reasoningLevelSource": "client-preference"
+      },
+      "dispatchContext": {
+        "memoryText": "- Full plugin backups use a versioned JSON payload (`kind: 'bb-project-folders-backup'`, version 1) containing settings and all 11 durable tables: folders, folder_paths, thread_places, folder_rules, project_rules, project_order, execution_defaults, session_policies, preferences, item_styles, and folder_archives. Imports preserve row IDs and run in one transaction; invalid backups and imports during an active move or archive are rejected. Transient tables (exports, pending_exports, project_moves, thread_moves, section_moves) are excluded. This adds no schema changes and preserves the existing appearance-only export/import flow.\n- Section placement resolves environments by folder path. When the same folder belongs to an ancestor section and its descendant, bind the chat to the ancestor section. Explicit `thread_places` assignments take precedence. A single matching section keeps existing behavior; sibling sections sharing a folder remain unbound, and a project-root match remains unbound. Apply the shared resolution rule consistently in list bindings, `naturalPlace`, and `locate`.\n- Execution defaults can pin a chat environment as `folder` or `worktree`. Resolve the pin nearest-first across section, ancestors, project, and global settings. A `worktree` pin preselects a managed worktree on the folder host in both New chat and the composer chip; spawn must preserve that managed-worktree selection. With no pin, keep the existing folder/section-provider behavior. Groups must never become chat environments.",
+        "rulesText": "",
+        "rulesPicked": {
+          "total": 0,
+          "picked": []
+        },
+        "executionPacket": "Read these before editing; they are the context for this task:\n- package.json L1-L86 (sha256 c52ad4e9)\n- CHANGELOG.md L1-L413 (sha256 3429fc7a)",
+        "executionPacketSha256": "a2affd2ea7cf7f3fc7b31edbf7edaabb7858f5cd870573ea271826813229f048",
+        "pmReadContext": "",
+        "agent": "Lane Pilot writer",
+        "promptChars": 4093,
+        "helperMode": "roles",
+        "helperRequired": false
+      }
+    }
+  ],
+  "emergencyFallback": null
+}
