@@ -2,7 +2,7 @@
 - Organize chats into projects, nested folder-backed sections, and groups across connected devices.
 - Place chats in sections from their working folders, preserving explicit placements and resolving shared ancestor/child folders to the parent section.
 - Manage projects, sections, and chats with moves, visibility controls, archives, restore, and history exports.
-- Configure per-place agent rules, execution defaults, folder or managed-worktree session environment pins, appearance, language, and optional session-context filtering.
+- Configure per-place agent rules, execution defaults including inherited folder/worktree environment and machine pins for new sessions, appearance, language, and optional session-context filtering.
 - Export and restore all durable plugin data and settings as JSON, preserving IDs across replace or merge imports.
 
 ## Blocked
@@ -12,8 +12,8 @@
 - No active project work is recorded in plans.
 
 ## Last verify
-- command: `npm run typecheck && npm test && npm run build`
-- result: green (accepted writer report; 232 tests)
+- command: Lane Pilot verification for env-caption-trim, env-preselect, and machine-preselect
+- result: green (all three writer reports accepted; env-preselect reported 232 tests)
 - when: 2026-10-03
 
 ## Pointers
