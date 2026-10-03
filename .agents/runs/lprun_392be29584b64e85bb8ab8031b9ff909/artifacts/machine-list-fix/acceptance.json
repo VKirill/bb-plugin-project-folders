@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "machine-list-fix",
+  "task_sha256": "4dbd417ce8af7df088b1fa59420c04a6b4cf64e48eff53616091b99efe49a3e7",
+  "attempt": 1,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "6367dce38914faf77a3cffd987a8c3bdbe352c3346729d5451d529c7078327f1",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "not_required",
+  "accepted": true,
+  "accepted_at": "2026-10-03T20:49:58.757Z",
+  "model": "grok-4.6"
+}

@@ -51,6 +51,7 @@ const rpc = {
     inherited: projectPin,
     hostId: "h1",
     hosts: [{ id: "h1", name: "Mac Mini" }],
+    knownHosts: [{ id: "h1", name: "Mac Mini" }],
     fallback: {
       providerId: "codex",
       model: "gpt-6",
@@ -489,6 +490,115 @@ it("pins a machine on the section and shows the inherited origin when off", asyn
     projectId: "p1",
     folderId: "f1",
   });
+  expect(saved.value).toEqual({ hostId: "h1" });
+  view.lifecycle.unmount();
+});
+
+it("labels a pin outside the offered list with its BB name", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "" },
+    {
+      rpc: {
+        ...rpc,
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          own: { hostId: "h2" },
+          hosts: [{ id: "h1", name: "Mac Mini" }],
+          knownHosts: [
+            { id: "h1", name: "Mac Mini" },
+            { id: "h2", name: "OVH" },
+          ],
+        }),
+      },
+    },
+  );
+  await view.findByText("Project");
+  view.getByText("Section").click();
+  fireEvent.click(await view.findByRole("tab", { name: "Provider" }));
+  await view.findByText("Provider, model and agent");
+  const select = view.getByRole("combobox", { name: "Own machine" });
+  expect((select as HTMLSelectElement).value).toBe("h2");
+  expect(
+    [...(select as HTMLSelectElement).options].map((o) => o.textContent),
+  ).toEqual(["Mac Mini", "OVH"]);
+  expect(view.baseElement.textContent).not.toContain("h2");
+  view.lifecycle.unmount();
+});
+
+it("labels an unknown pin as unknown machine", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "" },
+    {
+      rpc: {
+        ...rpc,
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          own: { hostId: "ghost" },
+          hosts: [{ id: "h1", name: "Mac Mini" }],
+          knownHosts: [{ id: "h1", name: "Mac Mini" }],
+        }),
+      },
+    },
+  );
+  await view.findByText("Project");
+  view.getByText("Section").click();
+  fireEvent.click(await view.findByRole("tab", { name: "Provider" }));
+  await view.findByText("Provider, model and agent");
+  const select = view.getByRole("combobox", { name: "Own machine" });
+  expect((select as HTMLSelectElement).value).toBe("ghost");
+  expect(
+    [...(select as HTMLSelectElement).options].map((o) => o.textContent),
+  ).toEqual(["Mac Mini", "unknown machine"]);
+  view.lifecycle.unmount();
+});
+
+it("seeds an offered host when the inherited pin is outside the list", async () => {
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "" },
+    {
+      rpc: {
+        ...rpc,
+        execution_read: () => ({
+          ...rpc.execution_read(),
+          hosts: [{ id: "h1", name: "Mac Mini" }],
+          knownHosts: [
+            { id: "h1", name: "Mac Mini" },
+            { id: "h2", name: "OVH" },
+          ],
+          inherited: {
+            ...projectPin,
+            machine: {
+              hostId: "h2",
+              origin: { scope: "project", folderId: null },
+            },
+          },
+        }),
+      },
+    },
+  );
+  await view.findByText("Project");
+  view.getByText("Section").click();
+  fireEvent.click(await view.findByRole("tab", { name: "Provider" }));
+  await view.findByText("Provider, model and agent");
+  const select = view.getByRole("combobox", { name: "Own machine" });
+  expect((select as HTMLSelectElement).value).toBe("h2");
+  expect(
+    [...(select as HTMLSelectElement).options].map((o) => o.textContent),
+  ).toEqual(["Mac Mini", "OVH"]);
+  fireEvent.click(view.getByRole("switch", { name: "Own machine" }));
+  expect((select as HTMLSelectElement).value).toBe("h1");
+  fireEvent.click(view.getByRole("button", { name: /Save/ }));
+  await waitFor(() =>
+    expect(
+      view.inspection.rpcCalls.some((c) => c.method === "execution_save"),
+    ).toBe(true),
+  );
+  const saved = view.inspection.rpcCalls.find(
+    (c) => c.method === "execution_save",
+  )!.input as { value: unknown };
   expect(saved.value).toEqual({ hostId: "h1" });
   view.lifecycle.unmount();
 });

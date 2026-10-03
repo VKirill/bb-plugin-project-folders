@@ -286,6 +286,7 @@
   "Свой режим доступа": "Eigener Berechtigungsmodus",
   "Своя среда": "Eigene Umgebung",
   "Своя машина": "Eigene Maschine",
+  "неизвестная машина": "unbekannte Maschine",
   "В папке": "Im Ordner",
   "Отдельный worktree": "Isolierter Worktree",
   "Агент": "Agent",

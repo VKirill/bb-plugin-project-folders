@@ -216,6 +216,40 @@ export type AgentCatalog = z.infer<typeof agentCatalogSchema>;
 export const isAgentProvider = (providerId: string) =>
   (AGENT_PROVIDERS as readonly string[]).includes(providerId);
 
+export type NamedHost = { id: string; name: string };
+
+/**
+ * Machines a place can pin: the home host first, then each path host once.
+ */
+export function offeredMachineIds(
+  homeHostId: string | null | undefined,
+  pathHostIds: readonly string[],
+): string[] {
+  const ids: string[] = [];
+  if (homeHostId) ids.push(homeHostId);
+  for (const id of pathHostIds) if (id && !ids.includes(id)) ids.push(id);
+  return ids;
+}
+
+/** BB name when this host is known; otherwise the localized unknown label. */
+export function machineLabel(
+  hostId: string,
+  known: readonly NamedHost[],
+  unknownLabel: string,
+): string {
+  const name = known.find((h) => h.id === hostId)?.name?.trim();
+  return name || unknownLabel;
+}
+
+/** Toggle-on seed: a preferred host only when it is offered, else the first. */
+export function seedMachineId(
+  offered: readonly { id: string }[],
+  preferred?: string | null,
+): string | undefined {
+  if (preferred && offered.some((h) => h.id === preferred)) return preferred;
+  return offered[0]?.id;
+}
+
 /**
  * The copy a new chat should open: the pinned host when this place has a
  * folder there, otherwise the place's home host.

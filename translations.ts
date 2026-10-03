@@ -394,6 +394,7 @@ export const english = {
   "Свой режим доступа": "Own permission mode",
   "Своя среда": "Own environment",
   "Своя машина": "Own machine",
+  "неизвестная машина": "unknown machine",
   "В папке": "In the folder",
   "Отдельный worktree": "Isolated worktree",
   Агент: "Agent",
