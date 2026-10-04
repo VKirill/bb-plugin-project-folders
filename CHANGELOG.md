@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.31 — GitLab and Bitbucket links
+
+- A section whose `origin` is on **gitlab.com** or **bitbucket.org** now gets a repo mark left of +, like GitHub: HTTPS, `git@host:` and `ssh://` remotes, and GitLab subgroups. Self-hosted servers stay unmarked.
+- A private repo is marked with a small lock in the corner of the icon instead of a near-black icon, so it shows in dark themes too. GitLab and Bitbucket privacy is checked the same anonymous way as GitHub.
+- The repo tooltip has its own background and layer, so BB's sidebar no longer covers it.
+- Folder rows list `repoUrl`, `repoProvider` and `repoPrivate` instead of `githubUrl` and `githubPrivate`; the host method is `repo_remotes`.
+
 ## 0.6.30 — Machine names in Own machine
 
 - The **Own machine** list is the place's machines (home host first, then folder paths), shown by their BB names. A host BB knows never appears as a raw id; an unknown pin shows as an unknown machine.
