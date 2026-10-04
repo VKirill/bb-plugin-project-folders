@@ -19,7 +19,7 @@ sources:
   - project-delete.ts
   - execution.ts
   - session-policy-server.ts
-  - github-remote.ts
+  - repo-remote.ts
   - session-inventory.ts
   - package.json
 ---
@@ -134,7 +134,7 @@ The separate contract is declared and registered in `server.ts:170-185`, `server
 | BB host contract | `inspect` | Project/section move modules | Inspect paths and detect completed move/link | BB host dispatch to connected device | `host.ts:7-16`, `move-files.ts:14-73` |
 | BB host contract | `move` | Project/section move modules | Move a directory and create compatibility path | BB host dispatch to connected device | `host.ts:7-16`, `move-files.ts:74-95` |
 | BB host contract | `link` | Section move module | Link a folder renamed outside BB | BB host dispatch to connected device | `host.ts:7-16`, `move-files.ts:96-118` |
-| BB host contract | `github_remotes` | Project tree metadata refresh | Resolve GitHub remote and visibility | BB host dispatch to connected device | `host.ts:7-16`, `github-remote.ts:1-30` |
+| BB host contract | `repo_remotes` | Project tree metadata refresh | Resolve GitHub, GitLab or Bitbucket remote and visibility | BB host dispatch to connected device | `host.ts:7-16`, `repo-remote.ts:1-30` |
 | BB host contract | `session_inventory` | Session policy editor | List host MCP servers and native CLI plugins | BB host dispatch to connected device | `host.ts:7-16`, `session-inventory.ts:1-45` |
 
 The host contract operations are typed in `move-contract.ts:1-56`.
@@ -143,7 +143,7 @@ The host contract operations are typed in `move-contract.ts:1-56`.
 
 1. A server handler or move coordinator creates a client from `moveHostContract`. The contract payload carries operation inputs; callers select the target machine separately through BB’s `{ hostId }` call options (`server.ts:878-880`, `server.ts:2439-2441`, `project-move.ts:45-50`, `project-move.ts:172-175`).
 2. BB dispatches each typed contract key through `host.ts` to its host-side handler. The contract validates operation input and output shapes; host IDs are not fields in the operation payload (`move-contract.ts:10-56`, `host.ts:7-16`).
-3. The selected key determines the branch: `folder_edit` creates or deletes a directory, `inspect` checks a path move, `move` relocates it and creates a compatibility link, `link` links a directory moved outside BB, `session_inventory` reads local CLI configuration names, and `github_remotes` resolves GitHub remotes for supplied paths (`folder-files.ts:3-41`, `move-files.ts:14-118`, `session-inventory.ts:26-96`, `github-remote.ts:1-30`).
+3. The selected key determines the branch: `folder_edit` creates or deletes a directory, `inspect` checks a path move, `move` relocates it and creates a compatibility link, `link` links a directory moved outside BB, `session_inventory` reads local CLI configuration names, and `repo_remotes` resolves GitHub, GitLab and Bitbucket remotes for supplied paths (`folder-files.ts:3-41`, `move-files.ts:14-118`, `session-inventory.ts:26-96`, `repo-remote.ts:1-30`).
 
 | Operation branch | Conditions and result | Failures |
 |---|---|---|
@@ -151,7 +151,7 @@ The host contract operations are typed in `move-contract.ts:1-56`.
 | `inspect` | Returns normalized source/destination and whether a compatible link proves the move is already complete (`move-contract.ts:20-26`, `move-files.ts:14-73`). | Rejects unsupported OS, non-absolute/control-character paths, nested paths, symbolic-link parents, absent/non-real source, protected roots, occupied destination, cross-volume destination and linked worktrees (`move-files.ts:14-73`). |
 | `move` | Runs the same inspection; already-moved plans return without another rename. Otherwise it renames source, then creates a compatibility link (`move-files.ts:74-95`). | If linking fails it attempts to roll the rename back only if the original path remains absent; then returns an inspection instruction as error (`move-files.ts:82-93`). |
 | `link` | Requires an absent old path and existing real destination, then creates the compatibility symlink (`move-files.ts:96-118`). | Rejects invalid/nested paths, occupied source, non-real destination or symbolic-link parents (`move-files.ts:102-118`). |
-| `session_inventory`, `github_remotes` | Inventory returns MCP server and native-plugin names with their configured CLI source labels; remote lookup returns each input path and nullable URL (`session-inventory.ts:6-22`, `session-inventory.ts:26-96`, `github-remote.ts:1-30`). | Missing or unreadable inventory files are treated as empty text and contribute no names; handler or host-call errors reject (`session-inventory.ts:99-124`, `host.ts:7-16`). |
+| `session_inventory`, `repo_remotes` | Inventory returns MCP server and native-plugin names with their configured CLI source labels; remote lookup returns each input path and nullable URL (`session-inventory.ts:6-22`, `session-inventory.ts:26-96`, `repo-remote.ts:1-30`). | Missing or unreadable inventory files are treated as empty text and contribute no names; handler or host-call errors reject (`session-inventory.ts:99-124`, `host.ts:7-16`). |
 
 The host contract is declared once and consumed by central-server callers and the host entry. A caller supplies the target `hostId` in BB call options; the host entry maps the typed operation key to its handler, and BB validates the payload against the contract (`move-contract.ts:1-56`, `host.ts:5-16`, `server.ts:2439-2441`). The modes and handler outcomes are listed above.
 
@@ -162,7 +162,7 @@ The host contract is declared once and consumed by central-server callers and th
 | 3 | `inspect` resolves absolute source/destination paths and determines whether the destination already represents a completed move (`move-files.ts:14-73`). | Unsupported OS, invalid/nested paths, symlink parents, missing/non-directory source, protected roots, existing destination, cross-volume paths and linked worktrees reject (`move-files.ts:14-72`). |
 | 4 | `move` reuses inspection; an already-complete result returns directly. Otherwise it renames the source and creates a compatibility link at the old path (`move-files.ts:74-91`). | If link creation fails, it restores the rename only when the old path is still absent, then rejects with a recovery instruction (`move-files.ts:82-89`). |
 | 5 | `link` handles an already-relocated folder: the old path must be absent and the destination must be an existing real directory; it creates the compatibility symlink (`move-files.ts:94-118`). | Invalid/nested paths, occupied old path, non-directory or symlink destination, symlink parents and link errors reject (`move-files.ts:100-117`). |
-| 6 | `session_inventory` and `github_remotes` read host-local configured names and resolve remote metadata for supplied paths (`session-inventory.ts:26-96`, `github-remote.ts:1-30`). | Missing inventory files contribute no names; handler or host-call errors reject the call (`session-inventory.ts:99-124`, `host.ts:7-16`). |
+| 6 | `session_inventory` and `repo_remotes` read host-local configured names and resolve remote metadata for supplied paths (`session-inventory.ts:26-96`, `repo-remote.ts:1-30`). | Missing inventory files contribute no names; handler or host-call errors reject the call (`session-inventory.ts:99-124`, `host.ts:7-16`). |
 
 ### `makeProjectMoves`
 

@@ -831,18 +831,28 @@ it("loads the rules of a card opened by deep link, before the tree arrives", asy
   view.lifecycle.unmount();
 });
 
-it("shows a GitHub icon left of new-chat only when githubUrl is set", async () => {
+it("shows a repo icon left of new-chat only when repoUrl is set", async () => {
   const withRepo = {
     ...section,
-    githubUrl: "https://github.com/VKirill/bb-plugin-project-folders",
-    githubPrivate: true,
+    repoUrl: "https://github.com/VKirill/bb-plugin-project-folders",
+    repoProvider: "github" as const,
+    repoPrivate: true,
   };
   const plain = {
     ...section,
     id: "f2",
     name: "Plain",
     path: "/work/Plain",
-    githubUrl: null,
+    repoUrl: null,
+  };
+  const onGitlab = {
+    ...section,
+    id: "f3",
+    name: "Api",
+    path: "/work/Api",
+    repoUrl: "https://gitlab.com/acme/platform/api",
+    repoProvider: "gitlab" as const,
+    repoPrivate: false,
   };
   const group = {
     ...root,
@@ -850,7 +860,7 @@ it("shows a GitHub icon left of new-chat only when githubUrl is set", async () =
     name: "Group",
     path: "@group/g1",
     kind: "group" as const,
-    githubUrl: null,
+    repoUrl: null,
   };
   const view = renderSlot(
     app.threadLists[0]!,
@@ -859,8 +869,8 @@ it("shows a GitHub icon left of new-chat only when githubUrl is set", async () =
       sidebarThreads: { threads: [], projects: [] },
       rpc: {
         list: () => ({
-          folders: [withRepo, plain, group],
-          roots: [{ ...root, githubUrl: null }],
+          folders: [withRepo, plain, onGitlab, group],
+          roots: [{ ...root, repoUrl: null }],
           bindings: {},
           errors: [],
           machines: [{ id: "h1", name: "Mac Mini", connected: true }],
@@ -876,7 +886,16 @@ it("shows a GitHub icon left of new-chat only when githubUrl is set", async () =
   expect(link?.getAttribute("target")).toBe("_blank");
   expect(link?.getAttribute("rel")).toContain("noopener");
   expect(link?.getAttribute("rel")).toContain("noreferrer");
-  expect(link?.classList.contains("pf-github-private")).toBe(true);
+  expect(link?.classList.contains("pf-repo-private")).toBe(true);
+  expect(link?.getAttribute("data-provider")).toBe("github");
+  expect(link?.querySelector(".pf-repo-lock")).toBeTruthy();
+  const gitlab = view.baseElement.querySelector(
+    'a[href="https://gitlab.com/acme/platform/api"]',
+  );
+  expect(gitlab?.getAttribute("data-provider")).toBe("gitlab");
+  expect(gitlab?.getAttribute("aria-label")).toBe("Open GitLab repository");
+  expect(gitlab?.classList.contains("pf-repo-private")).toBe(false);
+  expect(gitlab?.querySelector(".pf-repo-lock")).toBeNull();
   const heading = link?.closest(".pf-heading");
   const plus = heading?.querySelector('button[aria-label="New chat: Section"]');
   expect(plus).toBeTruthy();
@@ -885,7 +904,7 @@ it("shows a GitHub icon left of new-chat only when githubUrl is set", async () =
       [...heading.children].indexOf(link as HTMLElement) <
         [...heading.children].indexOf(plus as HTMLElement),
   ).toBe(true);
-  expect(view.baseElement.querySelectorAll("a.pf-icon")).toHaveLength(1);
+  expect(view.baseElement.querySelectorAll("a.pf-icon")).toHaveLength(2);
   expect(view.getByText("Group")).toBeTruthy();
   expect(view.getByText("Plain")).toBeTruthy();
   view.lifecycle.unmount();

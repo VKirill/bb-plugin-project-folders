@@ -45,7 +45,7 @@ export const moveHostContract = defineRpcContract({
     input: sessionInventoryInput,
     output: sessionInventoryOutput,
   },
-  github_remotes: {
+  repo_remotes: {
     input: z.object({ paths: z.array(z.string()) }).strict(),
     output: z.object({
       remotes: z.array(

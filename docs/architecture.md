@@ -45,7 +45,7 @@ C4Container
   title Projects & Sections plugin containers
   Container(app, "Plugin app", "React / TypeScript", "Tree, composer integrations, dialogs and settings")
   Container(server, "Plugin server", "BB Plugin SDK / TypeScript", "RPC, persistence, BB lifecycle and orchestration")
-  Container(host, "Host entry", "BB host SDK / TypeScript", "Directory browsing, move/link, GitHub and session inventory")
+  Container(host, "Host entry", "BB host SDK / TypeScript", "Directory browsing, move/link, repo remote and session inventory")
   ContainerDb(db, "Plugin database", "BB SQLite storage", "Section records, preferences, rules, journals and export state")
   System_Ext(core, "BB core", "Projects, chats, environments and agent session hooks")
   System_Ext(device, "Connected device", "Local project folders and exported chat files")
@@ -61,7 +61,7 @@ C4Container
 
 - `app.tsx` composes the sidebar thread list, management page, composer extensions and settings sections (`app.tsx:1-70`). Its capabilities are covered by [the feature pages](features/project-tree.md).
 - `server.ts` defines RPC schemas and handlers, initializes storage, integrates BB SDK lifecycle APIs and registers the CLI command (`server.ts:187-602`, `server.ts:631-718`, `server.ts:3390-3475`). See [API](api.md).
-- `host.ts` binds the host contract to filesystem, move/link, GitHub remote and session inventory handlers (`host.ts:7-16`).
+- `host.ts` binds the host contract to filesystem, move/link, repo remote (GitHub, GitLab, Bitbucket) and session inventory handlers (`host.ts:7-16`).
 - State modules divide domain behavior: `archive.ts`, `project-move.ts`, `section-move.ts`, `thread-move.ts`, `execution.ts`, `session-policy.ts`, `session-policy-server.ts`, `preferences.ts` and `chat-list.ts` (`server.ts:1-44`).
 - `export-queue.ts` coalesces queued history exports, runs one at a time and retries failures (`export-queue.ts:1-63`).
 

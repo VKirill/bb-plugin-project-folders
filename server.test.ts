@@ -2354,10 +2354,19 @@ it("keeps chats on the parent when a child shares its folder", async () => {
   }
 });
 
-describe("githubUrl on list", () => {
+describe("repoUrl on list", () => {
   type Listed = {
-    folders: { path: string; kind?: string; githubUrl: string | null }[];
-    roots: { path: string; githubUrl: string | null }[];
+    folders: {
+      path: string;
+      kind?: string;
+      repoUrl: string | null;
+      repoProvider?: string | null;
+    }[];
+    roots: {
+      path: string;
+      repoUrl: string | null;
+      repoProvider?: string | null;
+    }[];
   };
   async function waitFor(cond: () => boolean) {
     const start = Date.now();
@@ -2366,14 +2375,14 @@ describe("githubUrl on list", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
-  it("fills githubUrl from one host batch and keeps the cache for the TTL", async () => {
+  it("fills repoUrl from one host batch and keeps the cache for the TTL", async () => {
     const calls: { method: string; paths: string[] }[] = [];
     const h = createFakePluginHost({
       pluginId: "project-folders",
       agentSkillIds: ["project-folders"],
       experimental_hostEntry: true,
       experimental_callHostRpc: async (call) => {
-        if (call.method !== "github_remotes")
+        if (call.method !== "repo_remotes")
           throw new Error(`unexpected ${call.method}`);
         const paths = (call.input as { paths: string[] }).paths;
         calls.push({ method: call.method, paths });
@@ -2384,7 +2393,7 @@ describe("githubUrl on list", () => {
               folderPath === "/work"
                 ? "https://github.com/acme/demo"
                 : folderPath === "/work/Site"
-                  ? "https://github.com/acme/site"
+                  ? "https://gitlab.com/acme/site"
                   : null,
           })),
         };
@@ -2424,21 +2433,25 @@ describe("githubUrl on list", () => {
         name: "Apps",
       })) as { path: string };
       const first = (await call("list", null)) as Listed;
-      expect(first.roots[0]?.githubUrl).toBeNull();
+      expect(first.roots[0]?.repoUrl).toBeNull();
       expect(
-        first.folders.find((f) => f.path === group.path)?.githubUrl,
+        first.folders.find((f) => f.path === group.path)?.repoUrl,
       ).toBeNull();
       await waitFor(() => calls.length === 1);
       expect(calls[0]?.paths.includes("/work")).toBe(true);
       expect(calls[0]?.paths.includes("/work/Site")).toBe(true);
       expect(calls[0]?.paths.some((p) => p.startsWith("@group/"))).toBe(false);
       const second = (await call("list", null)) as Listed;
-      expect(second.roots[0]?.githubUrl).toBe("https://github.com/acme/demo");
+      expect(second.roots[0]?.repoUrl).toBe("https://github.com/acme/demo");
+      expect(second.roots[0]?.repoProvider).toBe("github");
       expect(
-        second.folders.find((f) => f.path === "/work/Site")?.githubUrl,
-      ).toBe("https://github.com/acme/site");
+        second.folders.find((f) => f.path === "/work/Site")?.repoUrl,
+      ).toBe("https://gitlab.com/acme/site");
       expect(
-        second.folders.find((f) => f.path === group.path)?.githubUrl,
+        second.folders.find((f) => f.path === "/work/Site")?.repoProvider,
+      ).toBe("gitlab");
+      expect(
+        second.folders.find((f) => f.path === group.path)?.repoUrl,
       ).toBeNull();
       await call("list", null);
       expect(calls).toHaveLength(1);
@@ -2480,7 +2493,7 @@ describe("githubUrl on list", () => {
     try {
       const list = (await h.harness.behavior.callRpc("list", null)) as Listed;
       await new Promise((resolve) => setTimeout(resolve, 40));
-      expect(list.roots[0]?.githubUrl).toBeNull();
+      expect(list.roots[0]?.repoUrl).toBeNull();
       expect(calls).toBe(0);
     } finally {
       await h.harness.lifecycle.dispose();
