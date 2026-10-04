@@ -37,18 +37,44 @@
   width: 18px;
   height: 18px;
 }
-.pf-github {
+.pf-repo {
+  position: relative;
   width: 14px;
   height: 14px;
   border-radius: 4px;
 }
-.pf-github svg {
+.pf-repo svg {
   width: 14px;
   height: 14px;
 }
-.pf-github-private,
-.pf-github-private svg {
-  color: #111;
+/* A lock in the corner marks a private repo in any theme, not only by color. */
+.pf-repo .pf-repo-lock {
+  position: absolute;
+  inset-inline-end: -4px;
+  bottom: -3px;
+  display: inline-flex;
+  padding: 1px;
+  border-radius: 3px;
+  background: var(--sidebar, var(--background));
+  pointer-events: none;
+}
+.pf-repo .pf-repo-lock svg {
+  width: 8px;
+  height: 8px;
+}
+/* Portaled to body: without its own layer BB's sidebar covers it. */
+.pf-tooltip {
+  z-index: 1000;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--popover, var(--background));
+  color: var(--popover-foreground, var(--foreground));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 .pf-label {
   display: flex;

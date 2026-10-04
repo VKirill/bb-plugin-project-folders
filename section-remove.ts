@@ -57,7 +57,7 @@ export async function removeSection(
     sectionMoving: (folderId: string) => boolean;
     chatMoving: () => boolean;
     dropMembers: (members: Folder[]) => void;
-    forgetGithub: (hostId: string, path: string) => void;
+    forgetRepo: (hostId: string, path: string) => void;
     changed: () => void;
     archive: (folderId: string) => Promise<unknown>;
   },
@@ -74,7 +74,7 @@ export async function removeSection(
   if (deps.pendingArchives(f.projectId))
     throw new Error("Finish pending section archives first.");
   if (input.mode === "archive") {
-    deps.forgetGithub(f.hostId, f.path);
+    deps.forgetRepo(f.hostId, f.path);
     await deps.archive(f.id);
     return { ok: true as const, mode: input.mode };
   }
@@ -232,7 +232,7 @@ export async function removeSection(
       });
   }
 
-  for (const m of members) if (!isGroup(m)) deps.forgetGithub(m.hostId, m.path);
+  for (const m of members) if (!isGroup(m)) deps.forgetRepo(m.hostId, m.path);
   deps.dropMembers(members);
   deps.changed();
   return { ok: true as const, mode: input.mode };

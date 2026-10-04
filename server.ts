@@ -1,4 +1,4 @@
-import { githubPrivateForUrl } from "./github-remote";
+import { repoPrivateForUrl, repoProviderForUrl } from "./repo-remote";
 import { moveHostContract } from "./move-contract";
 import { makeThreadMoves, RELOCATE_MARKER } from "./thread-move";
 import { SECTION_ENVIRONMENT_ID } from "./section-tree";
@@ -138,8 +138,9 @@ const folderSchema = z.object({
   sort: z.number().optional(),
   /** A group only arranges the tree: it has no folder, chats or rules. */
   kind: z.enum(["folder", "group"]).optional(),
-  githubUrl: z.string().nullable().optional(),
-  githubPrivate: z.boolean().nullable().optional(),
+  repoUrl: z.string().nullable().optional(),
+  repoProvider: z.enum(["github", "gitlab", "bitbucket"]).nullable().optional(),
+  repoPrivate: z.boolean().nullable().optional(),
   /** Folder on each device; the home host+path stay on the row. */
   paths: z.array(z.object({ hostId: z.string(), path: z.string() })).optional(),
 });
@@ -914,40 +915,43 @@ export default async function plugin(bb: BbPluginApi) {
       ) ?? null
     );
   };
-  const GITHUB_CACHE_TTL_MS = 6 * 60 * 1000;
-  const githubCache = new Map<
+  const REPO_CACHE_TTL_MS = 6 * 60 * 1000;
+  const repoCache = new Map<
     string,
     { url: string | null; private: boolean | null; at: number }
   >();
-  const githubRefreshing = new Set<string>();
-  let notifyGithubChange = () => {};
-  const githubCacheKey = (hostId: string, folderPath: string) =>
+  const repoRefreshing = new Set<string>();
+  let notifyRepoChange = () => {};
+  const repoCacheKey = (hostId: string, folderPath: string) =>
     `${hostId}\0${folderPath}`;
-  const forgetGithub = (hostId: string, folderPath: string) => {
-    githubCache.delete(githubCacheKey(hostId, folderPath));
+  const forgetRepo = (hostId: string, folderPath: string) => {
+    repoCache.delete(repoCacheKey(hostId, folderPath));
   };
-  const withGithubUrl = (f: Folder): Folder => {
-    if (isGroup(f)) return { ...f, githubUrl: null, githubPrivate: null };
-    const hit = githubCache.get(githubCacheKey(f.hostId, f.path));
+  const withRepoUrl = (f: Folder): Folder => {
+    if (isGroup(f))
+      return { ...f, repoUrl: null, repoProvider: null, repoPrivate: null };
+    const hit = repoCache.get(repoCacheKey(f.hostId, f.path));
+    const url = hit?.url ?? null;
     return {
       ...f,
-      githubUrl: hit?.url ?? null,
-      githubPrivate: hit?.url ? (hit.private ?? null) : null,
+      repoUrl: url,
+      repoProvider: url ? repoProviderForUrl(url) : null,
+      repoPrivate: url ? (hit?.private ?? null) : null,
     };
   };
-  const refreshGithubHost = async (hostId: string, paths: string[]) => {
+  const refreshRepoHost = async (hostId: string, paths: string[]) => {
     let dirty = false;
     try {
       const result = await bb.hosts
         .experimental_client({ contract: moveHostContract })
-        .call("github_remotes", { paths }, { hostId });
+        .call("repo_remotes", { paths }, { hostId });
       const now = Date.now();
       const seen = new Set<string>();
       for (const row of result.remotes) {
         seen.add(row.path);
-        const key = githubCacheKey(hostId, row.path);
-        const prev = githubCache.get(key);
-        githubCache.set(key, {
+        const key = repoCacheKey(hostId, row.path);
+        const prev = repoCache.get(key);
+        repoCache.set(key, {
           url: row.url,
           private: prev?.url === row.url ? (prev.private ?? null) : null,
           at: now,
@@ -956,26 +960,26 @@ export default async function plugin(bb: BbPluginApi) {
       }
       for (const folderPath of paths) {
         if (seen.has(folderPath)) continue;
-        const key = githubCacheKey(hostId, folderPath);
-        const prev = githubCache.get(key);
-        githubCache.set(key, { url: null, private: null, at: now });
+        const key = repoCacheKey(hostId, folderPath);
+        const prev = repoCache.get(key);
+        repoCache.set(key, { url: null, private: null, at: now });
         if (prev?.url) dirty = true;
       }
       if (!process.env.VITEST) {
         const urls = [
           ...new Set(
-            [...githubCache.values()]
+            [...repoCache.values()]
               .map((hit) => hit.url)
               .filter((url): url is string => !!url),
           ),
         ];
         await Promise.all(
           urls.map(async (url) => {
-            const hidden = await githubPrivateForUrl(url);
+            const hidden = await repoPrivateForUrl(url);
             if (hidden == null) return;
-            for (const [key, hit] of githubCache) {
+            for (const [key, hit] of repoCache) {
               if (hit.url !== url || hit.private === hidden) continue;
-              githubCache.set(key, { ...hit, private: hidden });
+              repoCache.set(key, { ...hit, private: hidden });
               dirty = true;
             }
           }),
@@ -986,25 +990,25 @@ export default async function plugin(bb: BbPluginApi) {
     }
     return dirty;
   };
-  const scheduleGithubRefresh = (connected: Set<string>, items: Folder[]) => {
+  const scheduleRepoRefresh = (connected: Set<string>, items: Folder[]) => {
     const byHost = new Map<string, string[]>();
     const now = Date.now();
     for (const f of items) {
       if (isGroup(f) || !connected.has(f.hostId)) continue;
-      const hit = githubCache.get(githubCacheKey(f.hostId, f.path));
-      if (hit && now - hit.at < GITHUB_CACHE_TTL_MS) continue;
+      const hit = repoCache.get(repoCacheKey(f.hostId, f.path));
+      if (hit && now - hit.at < REPO_CACHE_TTL_MS) continue;
       const list = byHost.get(f.hostId) ?? [];
       if (!list.includes(f.path)) list.push(f.path);
       byHost.set(f.hostId, list);
     }
     for (const [hostId, paths] of byHost) {
-      if (!paths.length || githubRefreshing.has(hostId)) continue;
-      githubRefreshing.add(hostId);
-      void refreshGithubHost(hostId, paths)
+      if (!paths.length || repoRefreshing.has(hostId)) continue;
+      repoRefreshing.add(hostId);
+      void refreshRepoHost(hostId, paths)
         .then((dirty) => {
-          if (dirty) notifyGithubChange();
+          if (dirty) notifyRepoChange();
         })
-        .finally(() => githubRefreshing.delete(hostId));
+        .finally(() => repoRefreshing.delete(hostId));
     }
   };
   /** Where custom rules apply: the AGENTS.md files, BB sessions, or both. */
@@ -1665,7 +1669,7 @@ export default async function plugin(bb: BbPluginApi) {
     return p;
   }
   const changed = () => bb.realtime.publish("changed", {});
-  notifyGithubChange = changed;
+  notifyRepoChange = changed;
   const agentsFile = (f: Folder) => path.join(f.path, "AGENTS.md");
   const isMissing = (e: unknown) =>
     /not.found|ENOENT|does not exist/i.test(String(e));
@@ -1825,7 +1829,7 @@ export default async function plugin(bb: BbPluginApi) {
     await seedAgents(folder, input.folderId ? node : null).catch((e) =>
       bb.log.warn(`AGENTS.md template for ${folder.path}: ${String(e)}`),
     );
-    forgetGithub(folder.hostId, folder.path);
+    forgetRepo(folder.hostId, folder.path);
     changed();
     return folder;
   }
@@ -2246,7 +2250,7 @@ export default async function plugin(bb: BbPluginApi) {
       if (sectionMoves.busyProject(input.projectId))
         throw new Error("Finish pending section moves first.");
       for (const f of folders().filter((f) => f.projectId === input.projectId))
-        forgetGithub(f.hostId, f.path);
+        forgetRepo(f.hostId, f.path);
       return moves.move(input);
     },
     pending_moves: async () => moves.list().filter((m) => !m.complete),
@@ -2389,7 +2393,7 @@ export default async function plugin(bb: BbPluginApi) {
       if (threadMoves.any())
         throw new Error("Finish pending chat moves first.");
       const before = folders().find((f) => f.id === input.folderId);
-      if (before) forgetGithub(before.hostId, before.path);
+      if (before) forgetRepo(before.hostId, before.path);
       return sectionMoves.move(input);
     },
     pending_section_moves: async () =>
@@ -2417,7 +2421,7 @@ export default async function plugin(bb: BbPluginApi) {
       if (threadMoves.any())
         throw new Error("Finish pending chat moves first.");
       const archived = folders().find((f) => f.id === folderId);
-      if (archived) forgetGithub(archived.hostId, archived.path);
+      if (archived) forgetRepo(archived.hostId, archived.path);
       return archives.archive(folderId);
     },
     section_remove: (input) =>
@@ -2467,7 +2471,7 @@ export default async function plugin(bb: BbPluginApi) {
               }
             })();
           },
-          forgetGithub,
+          forgetRepo,
           changed,
           archive: (folderId) => archives.archive(folderId),
         },
@@ -2514,9 +2518,9 @@ export default async function plugin(bb: BbPluginApi) {
         .all() as { threadId: string; folderId: string | null }[])
         places[row.threadId] = row.folderId ?? "";
       const machines = await bb.sdk.hosts.list();
-      const listedFolders = fs.map((f) => withGithubUrl(withPaths(f)));
-      const listedRoots = projectRoots.map(withGithubUrl);
-      scheduleGithubRefresh(
+      const listedFolders = fs.map((f) => withRepoUrl(withPaths(f)));
+      const listedRoots = projectRoots.map(withRepoUrl);
+      scheduleRepoRefresh(
         new Set(
           machines.filter((h) => h.status === "connected").map((h) => h.id),
         ),
@@ -2763,14 +2767,14 @@ export default async function plugin(bb: BbPluginApi) {
       )
         throw new Error("This folder is already connected as a project.");
       const oldRoot = source.path;
-      forgetGithub(input.hostId, oldRoot);
+      forgetRepo(input.hostId, oldRoot);
       for (const f of folders())
         if (
           f.projectId === project.id &&
           f.hostId === input.hostId &&
           withinTree(f.path, oldRoot)
         )
-          forgetGithub(f.hostId, f.path);
+          forgetRepo(f.hostId, f.path);
       const remap = (q: string) =>
         withinTree(q, oldRoot) ? p + q.slice(oldRoot.length) : q;
       await bb.sdk.projects.sources.update({
@@ -2864,7 +2868,7 @@ export default async function plugin(bb: BbPluginApi) {
       writePath(folder.id, input.hostId, p);
       if (folder.hostId === input.hostId)
         db.prepare("UPDATE folders SET path=? WHERE id=?").run(p, folder.id);
-      forgetGithub(input.hostId, p);
+      forgetRepo(input.hostId, p);
       await seedAgents(
         { ...folder, hostId: input.hostId, path: p },
         null,
@@ -2889,7 +2893,7 @@ export default async function plugin(bb: BbPluginApi) {
         folder.id,
         input.hostId,
       );
-      forgetGithub(
+      forgetRepo(
         input.hostId,
         listed.find((r) => r.hostId === input.hostId)?.path ?? "",
       );
@@ -2964,7 +2968,7 @@ export default async function plugin(bb: BbPluginApi) {
           projectId: f.projectId,
           name: input.name,
         });
-      if (!isGroup(f)) forgetGithub(f.hostId, f.path);
+      if (!isGroup(f)) forgetRepo(f.hostId, f.path);
       changed();
       return { ok: true };
     },

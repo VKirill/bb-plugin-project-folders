@@ -30,18 +30,18 @@ The tree organizes BB project chats by their working folder and supports nested 
 
 1. `plugin(bb)` defines the legacy rule-setting descriptors used only for migration, opens BB storage and passes the schema changes to `bb.storage.migrate`. The migrations create the folder, export, archive and move tables, add rule and preference state, then migrate folder kinds and host path bindings (`server.ts:650-743`). A storage migration error propagates and stops plugin initialization (`server.ts:703-743`).
 2. It loads the shared `agents` record from `preferences`. If present, `parseAgents` starts from defaults and keeps only values that pass each field schema. If absent, it reads the legacy declarative settings once; a rejected read is logged, then valid values plus defaults are saved as the new record (`server.ts:744-801`).
-3. It builds readers for folder rows and per-host paths, folder binding/resolution helpers, and an in-memory GitHub metadata cache. For connected hosts it requests remotes for selected folder paths; a failed host read is caught so the tree listing remains available (`server.ts:802-924`).
+3. It builds readers for folder rows and per-host paths, folder binding/resolution helpers, and an in-memory repo remote metadata cache. For connected hosts it requests remotes for selected folder paths; a failed host read is caught so the tree listing remains available (`server.ts:802-924`).
 4. Initialization constructs the project/archive coordinators and other domain helpers, builds the handlers, registers the main plugin RPC and separate discoverable read-only section-list contract, configures BB agent instructions, then registers the CLI command group (`server.ts:1941-1952`, `server.ts:2005-2038`, `server.ts:3359-3407`, `server.ts:3537-3632`).
 
 | Initialization branch | Condition | Result or failure |
 |---|---|---|
 | Existing preferences row | `preferences` contains key `agents` | Parse each known setting against its field schema and use defaults for invalid/missing fields (`server.ts:760-789`). |
 | First settings migration | No `agents` row exists | Read legacy fields once; read rejection is logged, then defaults/valid legacy fields are persisted (`server.ts:790-801`). |
-| GitHub refresh | Connected host and section paths are selected | Host remote lookup refreshes metadata; read errors are caught so tree listing stays available (`server.ts:875-924`). |
+| Repo remote refresh | Connected host and section paths are selected | Host remote lookup refreshes metadata; read errors are caught so tree listing stays available (`server.ts:875-924`). |
 | Storage migration | `bb.storage.migrate` rejects | Initialization rejects before preference loading and handler registration (`server.ts:703-743`). |
 | Registration | Initialization reaches registration calls | Register the main typed RPC and separate cross-plugin section listing, configure BB’s agent hook, then register CLI commands (`server.ts:3359-3407`, `server.ts:3537-3632`). |
 
-Database migration and ordinary initialization errors propagate to the plugin loader; only the legacy settings read and GitHub metadata refresh have local recovery paths in these steps (`server.ts:703-743`, `server.ts:790-801`, `server.ts:875-924`).
+Database migration and ordinary initialization errors propagate to the plugin loader; only the legacy settings read and repo remote metadata refresh have local recovery paths in these steps (`server.ts:703-743`, `server.ts:790-801`, `server.ts:875-924`).
 
 1. The management UI calls `list` to load folder rows, project roots, workspace bindings, manual chat placements, errors and host state (`server.ts:280-300`, `server.ts:2328-2387`).
 2. Creating a section resolves the selected project/parent and host folder, validates relative paths, then creates the directory through the host filesystem API and persists a row in `folders` (`server.ts:1506-1517`, `server.ts:631-648`, `server.ts:1657-1729`).

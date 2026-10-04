@@ -97,13 +97,7 @@ import {
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Icon } from "./components/ui/icon";
-import {
-  Content as TooltipContent,
-  Portal as TooltipPortal,
-  Provider as TooltipProvider,
-  Root as Tooltip,
-  Trigger as TooltipTrigger,
-} from "@radix-ui/react-tooltip";
+import { RepoLink } from "./repo-link";
 import "./style.css";
 type Target = { projectId: string; folderId: string | null };
 type Modal = {
@@ -2000,39 +1994,7 @@ function FolderHeading({
         <span>{folder.name}</span>
         {device && <span className="pf-host-badge">{device}</span>}
       </button>
-      {!group && folder.githubUrl && (
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <a
-                className={
-                  folder.githubPrivate
-                    ? "pf-icon pf-github pf-github-private"
-                    : "pf-icon pf-github"
-                }
-                href={folder.githubUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={
-                  folder.githubPrivate
-                    ? t("Открыть приватный репозиторий GitHub")
-                    : t("Открыть репозиторий GitHub")
-                }
-                onClick={(event) => event.stopPropagation()}
-              >
-                <Icon name="Github" />
-              </a>
-            </TooltipTrigger>
-            <TooltipPortal>
-              <TooltipContent>
-                {folder.githubPrivate
-                  ? t("Приватный репозиторий GitHub")
-                  : folder.githubUrl}
-              </TooltipContent>
-            </TooltipPortal>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+      {!group && <RepoLink folder={folder} />}
       {!group && (
         <button
           className="pf-icon"

@@ -23,7 +23,7 @@ sources:
 
 - Server: RPC contract, persistence, BB SDK integration, CLI commands — [API](docs/api.md), [architecture](docs/architecture.md) (`server.ts:187-621`, `server.ts:631-718`).
 - App: plugin surfaces and settings (`app.tsx:1-70`).
-- Host: filesystem, move/link, GitHub remote and session inventory operations (`host.ts:7-16`).
+- Host: filesystem, move/link, repo remote (GitHub, GitLab, Bitbucket) and session inventory operations (`host.ts:7-16`).
 - Domain modules: archive, project move, section move, thread move, preferences, execution, session policy and export queue — [data model](docs/data-model.md), [features](docs/features/project-tree.md).
 
 ## Critical invariants
