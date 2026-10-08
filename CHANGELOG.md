@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.31 — Keep prompt cache warm for pinned threads
+
+- Pinned idle Claude threads get a short keepalive turn before their prompt cache expires (configurable in plugin settings: enabled, period 3–59 min, max wakes).
+- The wake counter resets after a real idle and counts keepalive turns.
+- Pings never override the thread's model, permission mode or reasoning level, and do not trigger on unpinned, archived, active or non-Claude threads.
+
+
 ## 0.6.30 — Machine names in Own machine
 
 - The **Own machine** list is the place's machines (home host first, then folder paths), shown by their BB names. A host BB knows never appears as a raw id; an unknown pin shows as an unknown machine.

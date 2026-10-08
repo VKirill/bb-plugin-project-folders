@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "status": "accepted",
+  "lanePilotRunId": "lprun_94fe112109c04e95be6ed6b833f6330c",
+  "lanePilotTaskId": "pinned-cache-keepalive",
+  "attemptId": "lpattempt_d1aaac9324764a16b0867c04c1c02602",
+  "pmThreadId": "thr_b3kgttu4vh",
+  "writerThreadId": "thr_vwu7uvhcw9",
+  "ownsPaths": [
+    "cache-keepalive.ts",
+    "cache-keepalive.test.ts",
+    "server.ts",
+    "plugin-settings.tsx",
+    "translations.ts",
+    "i18n.tsx",
+    "locales/",
+    "package.json",
+    "package-lock.json",
+    "CHANGELOG.md"
+  ],
+  "readFirst": [
+    {
+      "path": "server.ts",
+      "windows": []
+    },
+    {
+      "path": "plugin-settings.tsx",
+      "windows": []
+    },
+    {
+      "path": "translations.ts",
+      "windows": []
+    },
+    {
+      "path": "i18n.tsx",
+      "windows": []
+    },
+    {
+      "path": "node_modules/@get-bb/plugin-sdk/bundled-types/bb-plugin-sdk.d.ts",
+      "windows": []
+    },
+    {
+      "path": "CHANGELOG.md",
+      "windows": []
+    }
+  ],
+  "output": "cache-keepalive.ts\ncache-keepalive.test.ts\nserver.ts\nplugin-settings.tsx\ntranslations.ts\nlocales/ar.json\nlocales/de.json\nlocales/es.json\nlocales/fr.json\nlocales/hi.json\nlocales/ja.json\nlocales/ko.json\nlocales/pt.json\nlocales/zh.json\npackage.json\nCHANGELOG.md",
+  "verification": [
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdout": "\\\u001b[1G\u001b[0K\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m New \u001b[31mmajor\u001b[39m version of npm available! \u001b[31m11.16.0\u001b[39m -> \u001b[34m12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m Changelog: \u001b[34mhttps://github.com/npm/cli/releases/tag/v12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m To update run: \u001b[4mnpm install -g npm@12.2.0\u001b[24m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\\\u001b[1G\u001b[0K",
+      "stderr": "",
+      "sandboxBackend": "macos-seatbelt",
+      "policySha256": "6685fab42a88c61a794feca876234390105e84fc82b65731cf0200f89ae22698",
+      "workspacePath": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_d1aaac9324764a16b0867c04c1c02602/bb-plugin-project-folders"
+    },
+    {
+      "command": "npx vitest run cache-keepalive.test.ts i18n.test.ts server.test.ts",
+      "exitCode": 0,
+      "stdout": "\u001b[?25l\r\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.0 \u001b[39m\u001b[90m/Users/vechkasov/.lane-pilot/worktrees/lpattempt_d1aaac9324764a16b0867c04c1c02602/bb-plugin-project-folders\u001b[39m\r\n\r\n\u001b[?2026h\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mcache-keepalive.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (0)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m00:50:30\r\n\u001b[2m   Duration \u001b[22m100ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mcache-keepalive.test.ts\u001b[2m 1/12\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mi18n.test.ts\u001b[2m [queued]\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (12)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m00:50:30\r\n\u001b[2m   Duration \u001b[22m201ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m cache-keepalive.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mi18n.test.ts\u001b[2m 1/2\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (14)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m00:50:30\r\n\u001b[2m   Duration \u001b[22m301ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m i18n.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 13\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 1/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (70)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m00:50:30\r\n\u001b[2m   Duration \u001b[22m402ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 13/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m27 passed\u001b[39m\u001b[22m\u001b[90m (70)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m00:50:30\r\n\u001b[2m   Duration \u001b[22m504ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 34/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m48 passed\u001b[39m\u001b[22m\u001b[90m (70)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m00:50:30\r\n\u001b[2m   Duration \u001b[22m605ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 51/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m65 passed\u001b[39m\u001b[22m\u001b[90m (70)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m00:50:30\r\n\u001b[2m   Duration \u001b[22m705ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m server.test.ts \u001b[2m(\u001b[22m\u001b[2m56 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 481\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m70 passed\u001b[39m\u001b[22m\u001b[90m (70)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m 00:50:30\r\n\u001b[2m   Duration \u001b[22m 831ms\u001b[2m (tests 49%, transform 36%, import 15%, worker 1%)\u001b[22m\r\n\r\n\u001b[?2026l\u001b[?2026h\u001b[?2026l\u001b[?25h\\\u001b[1G\u001b[0K\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m New \u001b[31mmajor\u001b[39m version of npm available! \u001b[31m11.16.0\u001b[39m -> \u001b[34m12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m Changelog: \u001b[34mhttps://github.com/npm/cli/releases/tag/v12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m To update run: \u001b[4mnpm install -g npm@12.2.0\u001b[24m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\\\u001b[1G\u001b[0K",
+      "stderr": "",
+      "sandboxBackend": "macos-seatbelt",
+      "policySha256": "ad7505e1fde4b351485332c443dc8a18ef6fc0ded34023fee3919e3a1745a5d7",
+      "workspacePath": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_d1aaac9324764a16b0867c04c1c02602/bb-plugin-project-folders"
+    }
+  ],
+  "runV2": {
+    "schemaVersion": 1,
+    "pools": {
+      "provider": 15,
+      "verification": 2
+    },
+    "score": 5,
+    "risk": "medium",
+    "sourceRisk": "medium",
+    "scoreAdapter": "task-risk-v1"
+  },
+  "reasoning": [
+    {
+      "planSha256": "a9f8a7a91b38d3652a137694cbc4b72e680419e7526d19444ce00c7073ff1b70",
+      "sentPlanSha256": "a9f8a7a91b38d3652a137694cbc4b72e680419e7526d19444ce00c7073ff1b70",
+      "sourceLength": 4286,
+      "sentLength": 4286,
+      "jevStatus": "ok",
+      "jevDecision": "high",
+      "requestedReasoningLevel": "high",
+      "effectiveReasoningLevel": "medium",
+      "fallbackReason": "jev_unsupported_by_selected_model:high",
+      "retryEffort": {
+        "enabled": true,
+        "retryIndex": 0,
+        "before": "medium",
+        "after": "medium",
+        "changed": false
+      },
+      "providerId": "acp-opencode",
+      "model": "router9/ag/gemini-3.8-flash-medium",
+      "serviceTier": "fast",
+      "requestedServiceTier": "fast",
+      "runId": "lprun_94fe112109c04e95be6ed6b833f6330c",
+      "attemptId": "lpattempt_d1aaac9324764a16b0867c04c1c02602",
+      "threadId": "thr_vwu7uvhcw9",
+      "effortMode": "automatic",
+      "selectionSource": {
+        "providerId": "acp-opencode",
+        "model": "router9/ag/gemini-3.8-flash-medium",
+        "reasoningLevel": "medium",
+        "serviceTier": "fast",
+        "reasoningLevelSource": "client-preference"
+      },
+      "dispatchContext": {
+        "memoryText": "- Full plugin backups use a versioned JSON payload (`kind: 'bb-project-folders-backup'`, version 1) containing settings and all 11 durable tables: folders, folder_paths, thread_places, folder_rules, project_rules, project_order, execution_defaults, session_policies, preferences, item_styles, and folder_archives. Imports preserve row IDs and run in one transaction; invalid backups and imports during an active move or archive are rejected. Transient tables (exports, pending_exports, project_moves, thread_moves, section_moves) are excluded. This adds no schema changes and preserves the existing appearance-only export/import flow.\n- An owner's approved goal authorizes reversible steps in their own accounts. Ask once for consent covering any destructive, paid, outgoing, permission-changing, or irreversible steps.\n- Errand, QA, and reviewer helper threads are read-only for repository files; specialists may write under `.agents/`. Writers retain full worktree access. Wait backstops report helper edits as `repo_edited` with changed files and do not revert them.",
+        "memoryPicked": [
+          "a1e24df18c9424b7d28552a47384aeafc3bb57aef551ddef568e5654b8b2653f",
+          "88327d03cd13c4fe92360e7584fe09dd14c064093a74e20666b33f021be95b1b",
+          "d86da4f3ab41999c5f5c25ee3cfa928584b004ab91c199582af9cfac872e28c2"
+        ],
+        "rulesText": "- Перед ответом по задаче Lane Pilot сверяй каждый путь, который собираешься изменить из-за ошибки проверки, с owns_paths; если пути там нет, не меняй файл и сообщи об ошибке диспетчеру.",
+        "rulesPicked": {
+          "total": 16,
+          "picked": [
+            "rule_572535fb78e20b9d"
+          ]
+        },
+        "executionPacket": "Read these before editing; they are the context for this task:\n- server.ts L1-L4095 (sha256 b5d46f6f)",
+        "executionPacketSha256": "8d779867ff8ccfe1daf24aa1abe4f0e77586bac15bb2f614f76b13fe49a8380c",
+        "pmReadContext": "{\"summary\":\"This task implements pinned thread prompt cache keepalive for Claude models in the bb-plugin-project-folders plugin. The objective is to keep prompt caches warm by sending a short, automated keepalive turn to pinned, non-archived, idle Claude threads shortly before their one-hour cache expires (default 55 minutes, configurable between 3 and 59 minutes), halting at or after idleAt + 60 minutes. The feature introduces createCacheKeepalive(deps) in cache-keepalive.ts started from server.ts and cleared on plugin dispose. A 60-second sweep loop evaluates eligible threads, tracking wake counts (stopping if maxWakes > 0 is reached, continuing indefinitely if 0, and resetting upon real idle events). Pings use pluginSubmission with { pluginId, data.kind: 'cache-keepalive' } and ask for a 1-line response of at most 7 words with no tools, without overriding model, permission mode, or reasoning level. The plugin settings UI in plugin-settings.tsx must expose a new section «Кеш закреплённых чатов» with controls for enabled, periodMinutes, maxWakes, and a price note. The provided host-read excerpt contains only the beginning of server.ts (L1-L685), establishing the ComposerRequest schema with pluginSubmission support, RPC contracts, and preferences handling, but omits the rest of server.ts, plugin-settings.tsx, translations.ts, i18n.tsx, CHANGELOG.md, and SDK definitions.\",\"keyFacts\":[\"server.ts defines requestSchema which includes optional pluginSubmission: z.object({ pluginId: z.string(), data: z.json() }).optional(), matching the keepalive submission requirement.\",\"server.ts exports ComposerRequest as z.input<typeof requestSchema>, containing projectId, providerId, model, reasoningLevel, permissionMode, environment, input, executionInputSources, serviceTier, sendAt, and pluginSubmission.\",\"server.ts imports defineRpcContract, BbPluginApi, and PluginRpcHandlers from @get-bb/plugin-sdk.\",\"server.ts imports preference schemas and parsers (prefsSchema, parsePrefs, itemStyleSchema, parseItemStyles) from ./preferences.\",\"server.ts exposes prefs_get and prefs_save RPC endpoints in rpcContract for reading and updating plugin preferences.\",\"server.ts resolves pluginVersion dynamically by reading ./package.json via import.meta.url.\",\"server.ts entry point is an async default export function plugin(bb: BbPluginApi).\",\"server.ts defines a spawn RPC endpoint accepting targetSchema.extend({ request: requestSchema }) and returning { id: z.string() }.\",\"server.ts defines a sync RPC endpoint accepting { threadId: z.string() } and returning { path: z.string() }.\"],\"openQuestions\":[\"How does BbPluginApi expose threads and their pinned status, archive status, activity state, error state, and queued messages, since SDK bundled types were omitted from the excerpts?\",\"How are thread idle timestamps (idleAt) retrieved or tracked—does the BB SDK provide thread status events, or does the plugin query and store idle timestamps in SQLite?\",\"Where and how are SQLite migrations implemented and executed in server.ts or dependent modules, and what table structure is required for wake counters?\",\"How does the plugin differentiate between a real user/agent idle turn and a keepalive idle turn to reset or preserve the wake count?\",\"Which provider IDs and model strings constitute the Claude family eligible for keepalive pings?\",\"How are plugin settings persisted and surfaced to plugin-settings.tsx—should cacheKeepalive be added to prefsSchema in preferences.ts or another configuration store?\",\"What is the exact API method on BbPluginApi to dispatch a composer keepalive turn to an existing thread without spawning a new one?\",\"What cleanup/dispose hook is provided by BbPluginApi (e.g. bb.onDispose, signal, or returning an unregister handler) to clear the 60-second sweep timer?\",\"What is the structure of plugin-settings.tsx, translations.ts, and i18n.tsx for integrating the «Кеш закреплённых чатов» section, period/wakes controls, and localized strings?\",\"What is the current version in package.json and the existing format in CHANGELOG.md to prepare for version 0.6.31?\"]}",
+        "agent": "Lane Pilot writer",
+        "promptChars": 8756,
+        "helperMode": "roles",
+        "helperRequired": false
+      }
+    }
+  ],
+  "emergencyFallback": null,
+  "turns": 1
+}
