@@ -390,5 +390,14 @@
   "При импорте объединить с уже существующими записями": "Fusionner avec les enregistrements existants à l’import",
   "Все данные импортированы.": "Toutes les données ont été importées.",
   "Заменить все данные плагина содержимым файла? Текущие разделы, правила и архивы будут удалены.": "Remplacer toutes les données du plugin par ce fichier ? Les sections, règles et archives actuelles seront supprimées.",
-  "Перенос настроек, оформления и всех данных плагина через файл.": "Transférer les réglages, l’apparence et toutes les données du plugin via un fichier."
+  "Перенос настроек, оформления и всех данных плагина через файл.": "Transférer les réglages, l’apparence et toutes les données du plugin via un fichier.",
+  "Кеш закреплённых чатов": "Pinned chat cache",
+  "Поддерживать кеш промпта тёплым для закреплённых чатов Claude.": "Keep prompt cache warm for pinned Claude chats.",
+  "Включить продление кеша": "Enable cache keepalive",
+  "Отправляет короткий пинг до истечения часа неактивности.": "Sends a short ping before the one-hour idle prompt cache expires.",
+  "Период пинга, минут": "Ping period, minutes",
+  "Интервал от 3 до 59 минут. По умолчанию 55.": "Interval between 3 and 59 minutes. Default is 55.",
+  "Максимум пробуждений": "Maximum wakes",
+  "Сколько раз продлевать подряд без ответа пользователя. 0 — без ограничений.": "How many times to ping without user reply. 0 means unlimited.",
+  "Работает только для закреплённых чатов Claude. Каждый пинг стоит чтение кеша всего контекста и короткий ответ; это экономит полную перезапись контекста при возвращении через час.": "Works only for pinned Claude chats. Each ping costs a cache read of the whole context plus a short answer; it saves a full prompt write when you return after an hour."
 }

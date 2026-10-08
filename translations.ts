@@ -506,4 +506,18 @@ export const english = {
     "Replace all plugin data with this file? Current sections, rules and archives will be deleted.",
   "Перенос настроек, оформления и всех данных плагина через файл.":
     "Transfer settings, appearance and all plugin data through a file.",
+  "Кеш закреплённых чатов": "Pinned chat cache",
+  "Поддерживать кеш промпта тёплым для закреплённых чатов Claude.":
+    "Keep prompt cache warm for pinned Claude chats.",
+  "Включить продление кеша": "Enable cache keepalive",
+  "Отправляет короткий пинг до истечения часа неактивности.":
+    "Sends a short ping before the one-hour idle prompt cache expires.",
+  "Период пинга, минут": "Ping period, minutes",
+  "Интервал от 3 до 59 минут. По умолчанию 55.":
+    "Interval between 3 and 59 minutes. Default is 55.",
+  "Максимум пробуждений": "Maximum wakes",
+  "Сколько раз продлевать подряд без ответа пользователя. 0 — без ограничений.":
+    "How many times to ping without user reply. 0 means unlimited.",
+  "Работает только для закреплённых чатов Claude. Каждый пинг стоит чтение кеша всего контекста и короткий ответ; это экономит полную перезапись контекста при возвращении через час.":
+    "Works only for pinned Claude chats. Each ping costs a cache read of the whole context plus a short answer; it saves a full prompt write when you return after an hour.",
 } as const;

@@ -49,6 +49,14 @@ import {
   type ItemStyles,
 } from "./preferences";
 import {
+  cacheKeepaliveSchema,
+  createCacheKeepalive,
+  createSqliteKeepaliveStore,
+  defaultCacheKeepaliveConfig,
+  parseCacheKeepaliveConfig,
+  type CacheKeepaliveConfig,
+} from "./cache-keepalive";
+import {
   agentCatalogSchema,
   agentMarker,
   AGENT_MARKER_PATTERN,
@@ -654,6 +662,14 @@ export const rpcContract = defineRpcContract({
     }),
     output: backupImportResultSchema,
   },
+  cache_keepalive_get: {
+    input: z.null(),
+    output: cacheKeepaliveSchema,
+  },
+  cache_keepalive_save: {
+    input: cacheKeepaliveSchema,
+    output: cacheKeepaliveSchema,
+  },
 });
 const pluginVersion = (
   JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
@@ -781,7 +797,27 @@ export default async function plugin(bb: BbPluginApi) {
     `INSERT INTO folders_v2 (id, projectId, hostId, parentId, name, path, sort, kind) SELECT id, projectId, hostId, parentId, name, path, sort, kind FROM folders`,
     `DROP TABLE folders`,
     `ALTER TABLE folders_v2 RENAME TO folders`,
+    `CREATE TABLE thread_keepalive (threadId TEXT PRIMARY KEY, idleAt INTEGER NOT NULL DEFAULT 0, wakes INTEGER NOT NULL DEFAULT 0, updatedAt INTEGER NOT NULL DEFAULT 0, lastPingAt INTEGER)`,
   ]);
+  const loadCacheKeepaliveConfig = (): CacheKeepaliveConfig => {
+    const row = db
+      .prepare("SELECT data FROM preferences WHERE key='cache_keepalive'")
+      .get() as { data: string } | undefined;
+    return row ? parseCacheKeepaliveConfig(safeJson(row.data)) : defaultCacheKeepaliveConfig;
+  };
+  let currentKeepaliveConfig = loadCacheKeepaliveConfig();
+  const keepaliveStore = createSqliteKeepaliveStore(db);
+  const cacheKeepalive = createCacheKeepalive({
+    pluginId: bb.pluginId,
+    sdk: bb.sdk,
+    store: keepaliveStore,
+    getConfig: () => currentKeepaliveConfig,
+    log: bb.log,
+  });
+  bb.onDispose(() => cacheKeepalive.dispose());
+  bb.events.on("thread.idle", ({ thread }) => cacheKeepalive.onThreadIdle(thread));
+  bb.events.on("thread.archived", ({ thread }) => cacheKeepalive.onThreadRemoved(thread.id));
+  bb.events.on("thread.deleted", ({ thread }) => cacheKeepalive.onThreadRemoved(thread.id));
   type AgentsSettings = {
     agents_auto_create: boolean;
     agents_project_template: string;
@@ -3563,6 +3599,16 @@ export default async function plugin(bb: BbPluginApi) {
       return Object.keys(parsed.settings).length > 0
         ? { ...counts, settingsNotRestored: true }
         : counts;
+    },
+    cache_keepalive_get: () => {
+      return currentKeepaliveConfig;
+    },
+    cache_keepalive_save: (config) => {
+      currentKeepaliveConfig = parseCacheKeepaliveConfig(config);
+      db.prepare(
+        "INSERT INTO preferences (key, data) VALUES ('cache_keepalive', ?) ON CONFLICT(key) DO UPDATE SET data=excluded.data",
+      ).run(JSON.stringify(currentKeepaliveConfig));
+      return currentKeepaliveConfig;
     },
   };
   bb.rpc.register(rpcContract, handlers);

@@ -1,15 +1,21 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useRpc } from "@get-bb/plugin-sdk/app";
+import { rpcContract } from "./server";
 import { LanguagePicker, t } from "./i18n";
 import { Icon } from "./components/ui/icon";
 import { ChatSettings } from "./chat-settings";
 import { AppearanceSettings, TransferSettings } from "./appearance";
 import { AgentsMarkersHint, AgentsRulesEditor } from "./agents-apply";
 import { ExecutionSettings } from "./execution-ui";
-import { SettingRow, SettingsGroup } from "./settings-ui";
+import { SettingRow, SettingsGroup, Switch } from "./settings-ui";
 import {
   SessionPolicyEditor,
   useSessionPolicyAvailable,
 } from "./session-policy-ui";
+import {
+  defaultCacheKeepaliveConfig,
+  type CacheKeepaliveConfig,
+} from "./cache-keepalive";
 
 export const SETTINGS_SECTIONS = [
   "list",
@@ -17,6 +23,7 @@ export const SETTINGS_SECTIONS = [
   "rules",
   "execution",
   "session",
+  "cache",
   "archive",
   "transfer",
   "language",
@@ -52,6 +59,11 @@ const meta = (section: SettingsSection) =>
       title: t("Контекст сессии"),
       hint: t("Какие плагины, навыки и MCP получает сессия агента."),
     },
+    cache: {
+      icon: "Flame",
+      title: t("Кеш закреплённых чатов"),
+      hint: t("Поддерживать кеш промпта тёплым для закреплённых чатов Claude."),
+    },
     archive: {
       icon: "Archive",
       title: t("Архив разделов"),
@@ -68,6 +80,88 @@ const meta = (section: SettingsSection) =>
       hint: t("Перенос настроек, оформления и всех данных плагина через файл."),
     },
   })[section];
+
+export function CacheKeepaliveSettings() {
+  const rpc = useRpc<typeof rpcContract>();
+  const [config, setConfig] = useState<CacheKeepaliveConfig>(defaultCacheKeepaliveConfig);
+
+  useEffect(() => {
+    rpc.call("cache_keepalive_get", null)
+      .then((res) => setConfig(res))
+      .catch(() => {});
+  }, [rpc]);
+
+  const save = (updated: CacheKeepaliveConfig) => {
+    setConfig(updated);
+    rpc.call("cache_keepalive_save", updated).catch(() => {});
+  };
+
+  return (
+    <div className="pf-sgroup">
+      <SettingsGroup
+        title={t("Кеш закреплённых чатов")}
+        hint={t(
+          "Работает только для закреплённых чатов Claude. Каждый пинг стоит чтение кеша всего контекста и короткий ответ; это экономит полную перезапись контекста при возвращении через час.",
+        )}
+      >
+        <SettingRow
+          label={t("Включить продление кеша")}
+          hint={t("Отправляет короткий пинг до истечения часа неактивности.")}
+        >
+          <Switch
+            label={t("Включить продление кеша")}
+            checked={config.enabled}
+            onChange={(checked) => save({ ...config, enabled: checked })}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label={t("Период пинга, минут")}
+          hint={t("Интервал от 3 до 59 минут. По умолчанию 55.")}
+          disabled={!config.enabled}
+        >
+          <input
+            type="number"
+            min={3}
+            max={59}
+            value={config.periodMinutes}
+            disabled={!config.enabled}
+            onChange={(e) => {
+              const val = Number.parseInt(e.target.value, 10);
+              if (!Number.isNaN(val) && val >= 3 && val <= 59) {
+                save({ ...config, periodMinutes: val });
+              }
+            }}
+            className="pf-input pf-num-input"
+          />
+        </SettingRow>
+
+        <SettingRow
+          label={t("Максимум пробуждений")}
+          hint={t(
+            "Сколько раз продлевать подряд без ответа пользователя. 0 — без ограничений.",
+          )}
+          disabled={!config.enabled}
+        >
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={config.maxWakes}
+            disabled={!config.enabled}
+            onChange={(e) => {
+              const val = Number.parseInt(e.target.value, 10);
+              if (!Number.isNaN(val) && val >= 0 && val <= 100) {
+                save({ ...config, maxWakes: val });
+              }
+            }}
+            className="pf-input pf-num-input"
+          />
+        </SettingRow>
+      </SettingsGroup>
+    </div>
+  );
+}
 
 /** The list of settings sections; the host decides where it sits. */
 export function SettingsNav({
@@ -158,6 +252,7 @@ export function SettingsPane({
           <SessionPolicyEditor scope={{ kind: "global" }} />
         </SettingsGroup>
       )}
+      {section === "cache" && <CacheKeepaliveSettings />}
       {section === "archive" && archive}
       {section === "transfer" && <TransferSettings />}
       {section === "language" && (
