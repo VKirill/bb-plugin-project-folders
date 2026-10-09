@@ -2,7 +2,7 @@
 title: Deployment
 type: deployment
 created: 2026-09-27
-updated: 2026-09-30
+updated: 2026-10-09
 status: active
 confidence: medium
 tags: [deployment, installation, development]
@@ -20,7 +20,7 @@ TL;DR: Install the plugin through the BB CLI; for repository development install
 
 ## Prerequisites
 
-- BB `>=0.43.3` and BB Plugin SDK `>=0.4.84` (`package.json:5-7`).
+- BB `>=0.43.3` and BB Plugin SDK `>=0.4.104` (`package.json:4-7`).
 - Node.js/npm compatible with the lockfile, plus the `bb` CLI for building and installing (`package.json:80-84`).
 - Connected devices with local-path project sources for folder operations. The plugin’s host contract carries file operations to a selected host (`host.ts:7-16`).
 
@@ -42,8 +42,8 @@ Session-context filtering appears only when BB provides `experimental_vkSessionP
 ## Verify
 
 - Confirm the package build exits successfully with `npm run build` (`package.json:80-84`).
-- In BB, confirm the management page loads the project/section list; the app refreshes on `changed`, and the server registers the main and read-only section-list RPC contracts (`app.tsx:359`, `server.ts:3359-3382`).
-- For session context, read `session_policy_capability`; its handler returns the session-policy subsystem's availability value (`server.ts:2094-2096`).
+- In BB, confirm the management page loads the project/section list; the app refreshes on `changed`, and the server registers the main and read-only section-list RPC contracts (`app.tsx:359`, `server.ts:3540-3564`).
+- For session context, read `session_policy_capability`; its handler returns the session-policy subsystem's availability value (`server.ts:2157-2159`).
 
 ## Rollback
 
@@ -52,7 +52,7 @@ The repository defines no rollback script or automated database downgrade (`pack
 ## Troubleshooting
 
 - `bb plugin build` fails: verify BB CLI availability and SDK engine compatibility (`package.json:5-7`, `package.json:80-84`).
-- A project section cannot be used for a chat: confirm it belongs to the selected project, has a path on the selected host and is not a group, moving or being archived (`server.ts:3485-3522`).
+- A project section cannot be used for a chat: confirm it belongs to the selected project, has a path on the selected host and is not a group, moving or being archived (`server.ts:3655-3691`).
 - Session-context settings are unavailable: the running BB build does not expose the experimental session-policy extension (`session-policy-server.ts:52-68`).
 
 <!-- lane-pilot:backlinks -->

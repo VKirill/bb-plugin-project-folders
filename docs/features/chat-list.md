@@ -2,7 +2,7 @@
 title: Chat list and activity
 type: component
 created: 2026-09-27
-updated: 2026-09-30
+updated: 2026-10-09
 status: active
 confidence: high
 tags: [chat-list, activity, sidebar]
@@ -38,6 +38,7 @@ The plugin replaces a flat thread listing with project/section rows and per-plac
 | Idle hiding | 0–720 hours | Age cutoff; pinned, unread, active and busy chats remain visible |
 | Section auto-collapse | on/off, threshold 0.25–720 hours | Collapse inactive sections; default is two hours |
 | View | `comfortable` / `compact`; indent 0–32 | Tree density and nesting spacing |
+| Show hidden | on/off | Include hidden projects and sections in the tree; hidden items appear dimmed (`preferences.ts:66-90`, `chat-settings.tsx:260-279`, `app.tsx:2155-2167`) |
 
 Values and defaults come from `preferences.ts:66-115`; collapsed-list sorting and exclusions come from `chat-list.ts:14-29`, `chat-list.ts:146-177`.
 
@@ -56,6 +57,7 @@ Values and defaults come from `preferences.ts:66-115`; collapsed-list sorting an
 - `isThreadBusy` recognizes active status, non-none indicator, pending interaction and active workflow/background activity (`chat-list.ts:202-220`).
 - A manual placement overrides the section inferred from the chat environment; clearing it restores environment-based placement (`chat-list.ts:251-263`).
 - Chat-list settings are parsed field-by-field with defaults when stored data is invalid (`chat-list.ts:14-32`, `preferences.ts:170-197`).
+- The “Show hidden” switch controls visibility of hidden project/section rows; the hide flag itself is stored on the project or section appearance record ([Project and section tree](project-tree.md#modes), `chat-settings.tsx:260-279`, `app.tsx:2155-2167`).
 
 ## Public API
 
@@ -70,3 +72,8 @@ Values and defaults come from `preferences.ts:66-115`; collapsed-list sorting an
 
 - Opening a chat alone does not promote it by activity because matching `updatedAt` and `lastReadAt` values are treated as reads (`chat-list.ts:180-199`).
 - A collapsed list filters by recency before applying the limit; expanded lists return the complete sorted list (`chat-list.ts:163-177`).
+
+<!-- lane-pilot:backlinks -->
+## Referenced by
+
+- [Project and section tree](project-tree.md)
