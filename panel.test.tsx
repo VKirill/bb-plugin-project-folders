@@ -49,7 +49,9 @@ it("shows the selected section details with allowed actions", async () => {
   await view.findByDisplayValue("/work/Section");
   expect(view.baseElement.textContent).toContain("New section");
   expect(view.baseElement.textContent).toContain("Rules");
-  expect(view.baseElement.textContent).toContain("Delete");
+  const more = await view.findByRole("button", { name: "More actions" });
+  fireEvent.pointerDown(more, { button: 0, ctrlKey: false, pointerType: "mouse" });
+  expect(await view.findByRole("menuitem", { name: "Delete" })).toBeTruthy();
   view.lifecycle.unmount();
 });
 
@@ -145,7 +147,9 @@ it("opens the working copies dialog from the root details", async () => {
   );
   await view.findAllByText("Project");
   view.getAllByText("Project")[0].click();
-  const copiesButton = await view.findByRole("button", {
+  const more = await view.findByRole("button", { name: "More actions" });
+  fireEvent.pointerDown(more, { button: 0, ctrlKey: false, pointerType: "mouse" });
+  const copiesButton = await view.findByRole("menuitem", {
     name: /Working copies/,
   });
   copiesButton.click();
@@ -375,8 +379,9 @@ it("loads AGENTS.md and CLAUDE.md in the rules dialog Own file tab", async () =>
     },
   );
   await view.findByText("Project");
-  view.getByText("Section").click();
-  fireEvent.click(await view.findByRole("button", { name: "Rules" }));
+  const rowMore = await view.findByRole("button", { name: "Actions: Section" });
+  fireEvent.pointerDown(rowMore, { button: 0, ctrlKey: false, pointerType: "mouse" });
+  fireEvent.click(await view.findByRole("menuitem", { name: "Rules" }));
   const dialog = await view.findByRole("dialog");
   await within(dialog).findByRole("tab", { name: "Own file" });
   expect(
@@ -501,7 +506,9 @@ it("hands a copy to the folder picker and moves the files there", async () => {
   );
   await view.findAllByText("Project");
   view.getAllByText("Project")[0].click();
-  (await view.findByRole("button", { name: /Working copies/ })).click();
+  const more = await view.findByRole("button", { name: "More actions" });
+  fireEvent.pointerDown(more, { button: 0, ctrlKey: false, pointerType: "mouse" });
+  (await view.findByRole("menuitem", { name: /Working copies/ })).click();
   // Each copy shows its path read-only; the folder button opens the picker.
   const pickers = await view.findAllByRole("button", { name: /Choose folder/ });
   expect(view.getByDisplayValue("/srv/project")).toBeTruthy();
@@ -715,7 +722,9 @@ it("shows a group as a folderless card with group actions", async () => {
   view.getByText("Apps").click();
   await view.findByText(/creates no folder/);
   const card = view.baseElement.querySelector(".pf-details")!;
-  expect(card.textContent).toContain("Delete group");
+  const more = await view.findByRole("button", { name: "More actions" });
+  fireEvent.pointerDown(more, { button: 0, ctrlKey: false, pointerType: "mouse" });
+  expect(await view.findByRole("menuitem", { name: "Delete group" })).toBeTruthy();
   expect(card.textContent).not.toContain("Rules");
   expect(card.textContent).not.toContain("New chat");
   view.lifecycle.unmount();

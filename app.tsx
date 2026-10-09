@@ -3108,6 +3108,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
   };
   const [reorderError, setReorderError] = useState("");
   const [ruleDraft, setRuleDraft] = useState<RuleDraft | null>(null);
+  const [ruleDraftSaved, setRuleDraftSaved] = useState<RuleDraft | null>(null);
   const [ruleSaving, setRuleSaving] = useState(false);
   const [ruleSaved, setRuleSaved] = useState(false);
   const [ruleError, setRuleError] = useState("");
@@ -3442,7 +3443,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
               <button
                 type="button"
                 className="pf-icon"
-                aria-label={`${t("Действия чата")}: ${f.name}`}
+                aria-label={`${t("Действия")}: ${f.name}`}
               >
                 <Icon name="MoreHorizontal" />
               </button>
@@ -3644,6 +3645,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
   useEffect(() => {
     if (!selectedNode || !selRulesAllowed) {
       setRuleDraft(null);
+      setRuleDraftSaved(null);
       setRuleModeSaved(null);
       setDetailsPane("rules");
       return;
@@ -3657,20 +3659,23 @@ function Panel({ subPath }: PluginNavPanelProps) {
       .then(
         (r) => {
           if (live) {
-            setRuleDraft({
+            const loadedDraft: RuleDraft = {
               mode: r.mode,
               sectionTemplate: r.template || r.suggestedSection,
               projectTemplate: r.projectTemplate || r.suggestedProject,
               custom: r.custom,
               customTarget: r.customTarget,
               startup: r.startup,
-            });
+            };
+            setRuleDraft(loadedDraft);
+            setRuleDraftSaved(loadedDraft);
             setRuleModeSaved(r.mode);
           }
         },
         () => {
           if (live) {
             setRuleDraft(null);
+            setRuleDraftSaved(null);
             setRuleModeSaved(null);
           }
         },
@@ -3836,6 +3841,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
         customTarget: ruleDraft.customTarget,
         startup: ruleDraft.startup,
       });
+      setRuleDraftSaved(ruleDraft);
       setRuleModeSaved(ruleDraft.mode);
       setRuleSaved(true);
     } catch (e) {
@@ -3845,26 +3851,49 @@ function Panel({ subPath }: PluginNavPanelProps) {
     }
   };
   // AGENTS.md and CLAUDE.md of the selected copy: the files the agents read.
+  const [fileExpanded, setFileExpanded] = useState(false);
+  const fileIsExpanded =
+    fileExpanded ||
+    (cardDraft !== null && cardDraft !== cardSaved) ||
+    (cardClaudeDraft !== null && cardClaudeDraft !== cardClaude);
   const fileEditors = (
-    <div className="pf-file-editors" key={cardHost}>
-      <label className="pf-field">
-        AGENTS.md · {machineName(cardHost)}
-        {cardDraft === null ? (
-          <p className="pf-agents-hint">{t("Загрузка…")}</p>
-        ) : (
-          <textarea
-            className="pf-rules"
-            rows={8}
-            aria-label={`${t("Содержимое AGENTS.md")} — ${machineName(cardHost)}`}
-            value={cardDraft}
-            disabled={cardSaving}
-            onChange={(e) => setCardDraft(e.target.value)}
-          />
-        )}
-      </label>
+    <div
+      className={
+        "pf-file-editors" + (fileIsExpanded ? " pf-expanded" : "")
+      }
+      key={cardHost}
+    >
+      <div className="pf-file-head">
+        <span>AGENTS.md · {machineName(cardHost)}</span>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-expanded={fileIsExpanded}
+          onClick={() => setFileExpanded(!fileIsExpanded)}
+        >
+          <Icon name={fileIsExpanded ? "ChevronUp" : "ChevronDown"} />
+          <span className="pf-btn-label">
+            {fileIsExpanded ? t("Свернуть") : t("Развернуть")}
+          </span>
+        </Button>
+      </div>
+      {cardDraft === null ? (
+        <p className="pf-agents-hint">{t("Загрузка…")}</p>
+      ) : (
+        <textarea
+          className="pf-rules"
+          rows={8}
+          aria-label={`${t("Содержимое AGENTS.md")} — ${machineName(cardHost)}`}
+          value={cardDraft}
+          disabled={cardSaving}
+          onChange={(e) => setCardDraft(e.target.value)}
+        />
+      )}
       {cardClaude !== null && cardClaudeDraft !== null && (
-        <label className="pf-field">
-          CLAUDE.md · {machineName(cardHost)}
+        <>
+          <div className="pf-file-head">
+            <span>CLAUDE.md · {machineName(cardHost)}</span>
+          </div>
           <textarea
             className="pf-rules"
             rows={5}
@@ -3892,7 +3921,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
               </Button>
             </span>
           )}
-        </label>
+        </>
       )}
       {cardDraft !== null && cardDraft !== cardSaved && (
         <div className="pf-agents-actions">
@@ -3924,7 +3953,94 @@ function Panel({ subPath }: PluginNavPanelProps) {
   const groupAnchor = selGroup ? anchorOf(data.folders, sel) : null;
   const groupDetails = sel && selGroup && (
     <section className="pf-card pf-details">
-      <h2>{sel.name}</h2>
+      <div className="pf-details-head">
+        <h2>{sel.name}</h2>
+        <div className="pf-details-primary">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setModal({
+                action: "create",
+                target: { projectId: sel.projectId, folderId: sel.id },
+                folder: sel,
+                level: selLevel,
+              })
+            }
+          >
+            <Icon name="SectionAdd" />
+            {t("Новый раздел")}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setModal({
+                action: "group",
+                target: { projectId: sel.projectId, folderId: sel.id },
+                folder: sel,
+                level: selLevel,
+              })
+            }
+          >
+            <Icon name="Layers" />
+            {t("Новая группа")}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-8 px-0"
+                aria-label={t("Другие действия")}
+              >
+                <Icon name="MoreHorizontal" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() =>
+                  setStyling({
+                    projectId: sel.projectId,
+                    folder: sel,
+                    name: sel.name,
+                  })
+                }
+              >
+                <Icon name="Palette" />
+                {t("Оформление")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() =>
+                  setModal({
+                    action: "rename",
+                    target: { projectId: sel.projectId, folderId: sel.id },
+                    folder: sel,
+                    level: selLevel,
+                  })
+                }
+              >
+                <Icon name="Edit" />
+                {t("Переименовать")}
+              </DropdownMenuItem>
+              {reparentTargets(data.folders, sel, data.roots).length > 0 && (
+                <DropdownMenuItem onSelect={() => setRegrouping(sel)}>
+                  <Icon name="MoveTo" />
+                  {t("Переместить в группу…")}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => void deleteGroup(sel)}
+              >
+                <Icon name="Trash2" />
+                {t("Удалить группу")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
       <p className="pf-agents-hint">
         {t(
           "Группа объединяет разделы в дереве и не создаёт папку. Разделы внутри неё создаются в ближайшей папке выше.",
@@ -3935,96 +4051,174 @@ function Panel({ subPath }: PluginNavPanelProps) {
           t("Корень проекта на выбранном устройстве.")
         )}
       </p>
-      <div className="pf-details-actions">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            setModal({
-              action: "create",
-              target: { projectId: sel.projectId, folderId: sel.id },
-              folder: sel,
-              level: selLevel,
-            })
-          }
-        >
-          <Icon name="SectionAdd" />
-          {t("Новый раздел")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() =>
-            setModal({
-              action: "group",
-              target: { projectId: sel.projectId, folderId: sel.id },
-              folder: sel,
-              level: selLevel,
-            })
-          }
-        >
-          <Icon name="Layers" />
-          {t("Новая группа")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="pf-ghost-muted"
-          onClick={() =>
-            setModal({
-              action: "rename",
-              target: { projectId: sel.projectId, folderId: sel.id },
-              folder: sel,
-              level: selLevel,
-            })
-          }
-        >
-          <Icon name="Edit" />
-          {t("Переименовать")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="pf-ghost-muted"
-          onClick={() =>
-            setStyling({
-              projectId: sel.projectId,
-              folder: sel,
-              name: sel.name,
-            })
-          }
-        >
-          <Icon name="Palette" />
-          {t("Оформление")}
-        </Button>
-        {reparentTargets(data.folders, sel, data.roots).length > 0 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="pf-ghost-muted"
-            onClick={() => setRegrouping(sel)}
-          >
-            <Icon name="MoveTo" />
-            {t("Переместить в группу…")}
-          </Button>
-        )}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="pf-ghost-muted"
-          onClick={() => void deleteGroup(sel)}
-        >
-          <Icon name="Trash2" />
-          {t("Удалить группу")}
-        </Button>
-      </div>
     </section>
   );
   const details = selGroup
     ? groupDetails
     : sel && (
         <section className="pf-card pf-details">
-          <h2>{sel.name}</h2>
+          <div className="pf-details-head">
+            <h2>{sel.name}</h2>
+            <div className="pf-details-primary">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  nav.toPluginPanel("folders", {
+                    // Follow the open device tab: the copy you are looking at.
+                    subPath: `chat/${sel.projectId}/${
+                      selRoot ? `root:${cardCopy?.hostId ?? sel.hostId}` : sel.id
+                    }`,
+                  })
+                }
+              >
+                <Icon name="MessageCirclePlus" />
+                {t("Новый чат")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setModal({
+                    action: "create",
+                    target: {
+                      projectId: sel.projectId,
+                      folderId: selRoot ? null : sel.id,
+                    },
+                    folder: selRoot ? (cardCopy ?? sel) : sel,
+                    level: selLevel,
+                  })
+                }
+              >
+                <Icon name="SectionAdd" />
+                {t("Новый раздел")}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-8 px-0"
+                    aria-label={t("Другие действия")}
+                  >
+                    <Icon name="MoreHorizontal" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      setModal({
+                        action: "group",
+                        target: {
+                          projectId: sel.projectId,
+                          folderId: selRoot ? null : sel.id,
+                        },
+                        folder: selRoot ? (cardCopy ?? sel) : sel,
+                        level: selLevel,
+                      })
+                    }
+                  >
+                    <Icon name="Layers" />
+                    {t("Новая группа")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      setStyling({
+                        projectId: sel.projectId,
+                        folder: selRoot ? null : sel,
+                        name: sel.name,
+                      })
+                    }
+                  >
+                    <Icon name="Palette" />
+                    {t("Оформление")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    data-testid="pf-toggle-hidden"
+                    onSelect={() => togglePanelHidden(sel, selRoot)}
+                  >
+                    <Icon name={panelHidden(sel, selRoot) ? "Eye" : "EyeOff"} />
+                    {panelHidden(sel, selRoot)
+                      ? t("Показать в дереве")
+                      : t("Скрыть из дерева")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      setModal({
+                        action: "rename",
+                        target: {
+                          projectId: sel.projectId,
+                          folderId: selRoot ? null : sel.id,
+                        },
+                        folder: sel,
+                        level: selLevel,
+                      })
+                    }
+                  >
+                    <Icon name="Edit" />
+                    {t("Переименовать")}
+                  </DropdownMenuItem>
+                  {!selRoot &&
+                    reparentTargets(data.folders, sel, data.roots).length > 0 && (
+                      <DropdownMenuItem onSelect={() => setRegrouping(sel)}>
+                        <Icon name="MoveTo" />
+                        {t("Переместить в группу…")}
+                      </DropdownMenuItem>
+                    )}
+                  {!selRoot && (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setMovingSectionHost(cardHost);
+                        setMovingSection(sel);
+                      }}
+                    >
+                      <Icon name="FolderExport" />
+                      {t("Изменить путь")}
+                    </DropdownMenuItem>
+                  )}
+                  {selRoot && (
+                    <DropdownMenuItem onSelect={() => setCopyRoot(sel)}>
+                      <Icon name="Copy" />
+                      {t("Рабочие копии")}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  {!selRoot && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() =>
+                        setModal({
+                          action: "forget",
+                          target: { projectId: sel.projectId, folderId: sel.id },
+                          folder: sel,
+                          level: selLevel,
+                        })
+                      }
+                    >
+                      <Icon name="Trash2" />
+                      {t("Удалить")}
+                    </DropdownMenuItem>
+                  )}
+                  {selRoot && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() =>
+                        setModal({
+                          action: "remove",
+                          target: { projectId: sel.projectId, folderId: null },
+                          folder: sel,
+                          level: selLevel,
+                        })
+                      }
+                    >
+                      <Icon name="Trash2" />
+                      {t("Удалить")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
           {selRoot ? (
             <div className="pf-root-copies">
               {cardMachines.length > 1 && (
@@ -4204,181 +4398,9 @@ function Panel({ subPath }: PluginNavPanelProps) {
               )}
             </div>
           )}
-          <div className="pf-details-actions">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                nav.toPluginPanel("folders", {
-                  // Follow the open device tab: the copy you are looking at.
-                  subPath: `chat/${sel.projectId}/${
-                    selRoot ? `root:${cardCopy?.hostId ?? sel.hostId}` : sel.id
-                  }`,
-                })
-              }
-            >
-              <Icon name="MessageCirclePlus" />
-              {t("Новый чат")}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setModal({
-                  action: "create",
-                  target: {
-                    projectId: sel.projectId,
-                    folderId: selRoot ? null : sel.id,
-                  },
-                  folder: selRoot ? (cardCopy ?? sel) : sel,
-                  level: selLevel,
-                })
-              }
-            >
-              <Icon name="SectionAdd" />
-              {t("Новый раздел")}
-            </Button>
-            {!selRoot && !selGroup && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  setModal({
-                    action: "rules",
-                    target: {
-                      projectId: sel.projectId,
-                      folderId: sel.id,
-                    },
-                    folder: sel,
-                    level: selLevel,
-                  })
-                }
-              >
-                <Icon name="Settings" />
-                {t("Правила")}
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="pf-ghost-muted"
-              onClick={() =>
-                setModal({
-                  action: "rename",
-                  target: {
-                    projectId: sel.projectId,
-                    folderId: selRoot ? null : sel.id,
-                  },
-                  folder: sel,
-                  level: selLevel,
-                })
-              }
-            >
-              <Icon name="Edit" />
-              {t("Переименовать")}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="pf-ghost-muted"
-              onClick={() =>
-                setStyling({
-                  projectId: sel.projectId,
-                  folder: selRoot ? null : sel,
-                  name: sel.name,
-                })
-              }
-            >
-              <Icon name="Palette" />
-              {t("Оформление")}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="pf-ghost-muted"
-              data-testid="pf-toggle-hidden"
-              onClick={() => togglePanelHidden(sel, selRoot)}
-            >
-              <Icon name={panelHidden(sel, selRoot) ? "Eye" : "EyeOff"} />
-              {panelHidden(sel, selRoot)
-                ? t("Показать в дереве")
-                : t("Скрыть из дерева")}
-            </Button>
-            {!selRoot &&
-              reparentTargets(data.folders, sel, data.roots).length > 0 && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="pf-ghost-muted"
-                  onClick={() => setRegrouping(sel)}
-                >
-                  <Icon name="MoveTo" />
-                  {t("Переместить в группу…")}
-                </Button>
-              )}
-            {!selRoot && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="pf-ghost-muted"
-                onClick={() => {
-                  setMovingSectionHost(cardHost);
-                  setMovingSection(sel);
-                }}
-              >
-                <Icon name="FolderExport" />
-                {t("Изменить путь")}
-              </Button>
-            )}
-            {selRoot && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="pf-ghost-muted"
-                onClick={() => setCopyRoot(sel)}
-              >
-                <Icon name="Copy" />
-                {t("Рабочие копии")}
-              </Button>
-            )}
-            {!selRoot && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  setModal({
-                    action: "forget",
-                    target: { projectId: sel.projectId, folderId: sel.id },
-                    folder: sel,
-                    level: selLevel,
-                  })
-                }
-              >
-                <Icon name="Trash2" />
-                {t("Удалить")}
-              </Button>
-            )}
-            {selRoot && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  setModal({
-                    action: "remove",
-                    target: { projectId: sel.projectId, folderId: null },
-                    folder: sel,
-                    level: selLevel,
-                  })
-                }
-              >
-                <Icon name="Trash2" />
-                {t("Удалить")}
-              </Button>
-            )}
-          </div>
           {selRulesAllowed && (
             <div
-              className="pf-tabs pf-details-nav"
+              className="pf-tabs pf-details-nav pf-tabs-underline"
               role="tablist"
               aria-label={t("Настройки места")}
             >
@@ -4452,20 +4474,32 @@ function Panel({ subPath }: PluginNavPanelProps) {
                       <p className="pf-agents-hint">
                         {selRoot
                           ? t(
-                              "Общие для всех машин проекта: применяются к новым разделам и по кнопке «Применить к существующим разделам».",
+                              "Общие для всех машин проекта: применяются к новым разделам и по кнопке «Применить к существующим разделам» в настройках плагина.",
                             )
                           : t(
-                              "Этот шаблон получают новые подразделы и команда «Применить к существующим разделам» для этого раздела.",
+                              "Этот шаблон получают новые подразделы и команда «Применить к существующим разделам» в настройках плагина.",
                             )}
                       </p>
                     }
                   />
                   {/* The file tab saves through its own buttons; the mode itself
                   is only saved when it differs from the stored one. */}
-                  {(ruleDraft.mode !== "manual" ||
-                    ruleModeSaved !== "manual") && (
-                    <div className="pf-agents-actions">
+                  {JSON.stringify(ruleDraft) !==
+                    JSON.stringify(ruleDraftSaved) && (
+                    <div className="pf-agents-actions pf-save-bar">
                       <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={ruleSaving}
+                        onClick={() => {
+                          if (ruleDraftSaved) setRuleDraft({ ...ruleDraftSaved });
+                          setRuleSaved(false);
+                        }}
+                      >
+                        {t("Отмена")}
+                      </Button>
+                      <Button
+                        size="sm"
                         disabled={ruleSaving}
                         onClick={() => void saveRules()}
                       >
