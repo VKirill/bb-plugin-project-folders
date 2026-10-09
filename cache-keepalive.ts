@@ -8,7 +8,7 @@ export const cacheKeepaliveSchema = z.object({
 export type CacheKeepaliveConfig = z.infer<typeof cacheKeepaliveSchema>;
 
 export const defaultCacheKeepaliveConfig: CacheKeepaliveConfig = {
-  enabled: true,
+  enabled: false,
   periodMinutes: 55,
   maxWakes: 0,
 };
@@ -165,7 +165,7 @@ export function formatKeepaliveMessage(wake: number, maxWakes: number): string {
     `This turn only keeps the prompt cache of this pinned chat warm. ` +
     `Do no work and call no tools. ` +
     `Reply with one line of at most seven words in the conversation's language, e.g. ` +
-    `«🕯 кеш продлён ${wake}/${maxLabel}».`
+    `«🕯 cache kept warm ${wake}/${maxLabel}».`
   );
 }
 
