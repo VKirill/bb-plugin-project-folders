@@ -300,6 +300,27 @@
     0 1px 3px rgba(0, 0, 0, 0.14),
     0 0 0 1px var(--border);
 }
+.pf-tabs-underline {
+  background: transparent;
+  padding: 0;
+  gap: 16px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  width: 100%;
+}
+.pf-tabs-underline .pf-tab {
+  padding: 8px 2px;
+  border-radius: 0;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+}
+.pf-tabs-underline .pf-tab.pf-selected {
+  background: transparent;
+  box-shadow: none;
+  border-bottom-color: var(--foreground);
+  color: var(--foreground);
+}
 /* A machine tab: the bolt is solid while the machine is connected. */
 .pf-tab.pf-tab-live svg path {
   fill: currentColor;
@@ -462,51 +483,124 @@
 .pf-root-copies .pf-copy-current .pf-copy-path {
   color: var(--foreground);
 }
-.pf-details-actions {
+.pf-details-head {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.pf-details-head h2 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pf-details-primary {
+  display: flex;
   gap: 8px;
-  margin-top: 12px;
-  margin-bottom: 4px;
+  flex: none;
 }
-.pf-details-actions .pf-ghost-muted {
-  color: var(--muted-foreground);
+.pf-details {
+  container-type: inline-size;
 }
-.pf-details-actions .pf-ghost-muted:hover {
-  color: var(--foreground);
-}
-.pf-details .pf-agents-rule {
-  margin-top: 16px;
-}
-.pf-details-nav {
-  margin: 4px 0 0;
-}
-.pf-details-nav + .pf-agents-rule {
-  margin-top: 12px;
-}
-.pf-details > .pf-agents-rule h3 {
-  margin: 0 0 10px;
-}
-.pf-copies-list + .pf-details-actions,
-.pf-root-copies + .pf-details-actions {
-  margin-top: 14px;
+.pf-file-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
 }
 .pf-file-editors {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 10px 12px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   margin-bottom: 12px;
 }
-.pf-file-editors > p {
+.pf-file-editors .pf-field,
+.pf-file-editors .pf-rules {
   margin: 0;
 }
 .pf-file-editors .pf-rules {
-  max-height: 240px;
+  max-height: 11lh;
   overflow: auto;
   resize: vertical;
   field-sizing: fixed;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+}
+.pf-file-editors .pf-rules:focus {
+  mask-image: none;
+}
+.pf-file-editors.pf-expanded .pf-rules {
+  field-sizing: content;
+  max-height: 70vh;
+  mask-image: none;
+}
+.pf-agents-labelrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.pf-agents-labelrow .pf-agents-target {
+  margin: 0;
+}
+.pf-agents-fixed {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.pf-rules-grow {
+  field-sizing: content;
+  min-height: calc(2lh + 22px);
+  max-height: 320px;
+  resize: vertical;
+  margin: 6px 0 14px;
+}
+.pf-save-bar {
+  justify-content: flex-end;
+  position: sticky;
+  bottom: 0;
+  padding: 10px 0;
+  background: var(--background);
+  border-top: 1px solid var(--border);
+}
+.pf-details-nav + .pf-agents-rule {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 14px;
+}
+@container (max-width: 559px) {
+  .pf-details-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title more"
+      "actions actions";
+  }
+  .pf-details-head h2 {
+    grid-area: title;
+  }
+  .pf-details-primary {
+    grid-area: actions;
+    display: flex;
+    width: 100%;
+  }
+  .pf-details-primary > [data-radix-menu-trigger],
+  .pf-details-primary > button[aria-label="More actions"],
+  .pf-details-primary > button[aria-label="Другие действия"] {
+    grid-area: more;
+    margin-inline-start: auto;
+  }
+  .pf-file-head .pf-btn-label {
+    display: none;
+  }
 }
 .pf-side-row.pf-drop-above {
   box-shadow: inset 0 2px 0 0 var(--ink);
@@ -575,12 +669,6 @@
 }
 .pf-details h2 {
   margin: 0 0 4px;
-}
-.pf-details-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
 }
 @media (max-width: 860px) {
   .pf-layout {

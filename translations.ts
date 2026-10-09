@@ -139,10 +139,14 @@ export const english = {
   "Свой файл": "Own file",
   "Плагин не вписывает в эти файлы ничего: ни шаблон, ни свои правила.":
     "The plugin writes nothing into these files: no template, no custom rules.",
+  "Файлы ведёте вы: плагин не дописывает в них ни шаблон, ни свои правила.":
+    "You maintain the files: the plugin appends neither the template nor custom rules.",
   "Шаблон берётся из настроек плагина.":
     "The template comes from the plugin settings.",
   "Этот шаблон получают новые подразделы и команда «Применить к существующим разделам» для этого раздела.":
     "New subsections and Apply to existing sections use this template for this section.",
+  "Этот шаблон получают новые подразделы и команда «Применить к существующим разделам» в настройках плагина.":
+    "New subsections and the Apply to existing sections button in plugin settings use this template.",
   "Проекты получают шаблон проектов, разделы любого уровня — шаблон разделов. Текст вписывается в конец AGENTS.md между служебными метками; текст выше меток не меняется.":
     "Projects get the project template, sections of any depth the sections template. The text is appended to the end of AGENTS.md between service markers; content above the markers is never changed.",
   "Применить к существующим разделам": "Apply to existing sections",
@@ -162,6 +166,7 @@ export const english = {
   "В файл": "Into the file",
   "В сессии BB": "Into BB sessions",
   "И туда и туда": "Both",
+  "В файл и в сессию BB": "Into file and BB sessions",
   "Стартовое поручение": "Startup instruction",
   "Постоянные правила этого места: роутинг моделей, делегирование, порядок работы. «В файл» дописывает их в конец AGENTS.md и CLAUDE.md — они действуют и в консоли на машине. «В сессии BB» ничего не пишет на диск: текст попадает в инструкции агента, запущенного из BB, и действует весь разговор.":
     "Standing rules for this place: model routing, delegation, how work is done. “Into the file” appends them to the end of AGENTS.md and CLAUDE.md, so they also apply in a terminal on that machine. “Into BB sessions” writes nothing to disk: the text goes into the instructions of an agent started from BB and holds for the whole conversation.",
@@ -237,6 +242,8 @@ export const english = {
   "Шаблон проекта и свои правила": "Project template & custom rules",
   "Общие для всех машин проекта: применяются к новым разделам и по кнопке «Применить к существующим разделам».":
     "Shared across the project's machines: used for new sections and by Apply to existing sections.",
+  "Общие для всех машин проекта: применяются к новым разделам и по кнопке «Применить к существующим разделам» в настройках плагина.":
+    "Shared across the project's machines: used for new sections and by the Apply to existing sections button in plugin settings.",
   Папки: "Folders",
   Работа: "Work",
   Разработка: "Development",
@@ -520,4 +527,15 @@ export const english = {
     "How many times to ping without user reply. 0 means unlimited.",
   "Работает только для закреплённых чатов Claude. Каждый пинг стоит чтение кеша всего контекста и короткий ответ; это экономит полную перезапись контекста при возвращении через час.":
     "Works only for pinned Claude chats. Each ping costs a cache read of the whole context plus a short answer; it saves a full prompt write when you return after an hour.",
+  "Другие действия": "More actions",
+  "Действия": "Actions",
+  "Развернуть": "Expand",
+  "Свернуть": "Collapse",
+  "только в сессии BB": "BB sessions only",
+  "В режиме «Свой файл» плагин не пишет в файлы, поэтому свои правила действуют только в сессиях, запущенных из BB.":
+    "In Own file mode the plugin does not write to files, so custom rules only apply in sessions started from BB.",
+  "Например: отвечай по-русски, коммиты — по Conventional Commits":
+    "For example: reply in English, use Conventional Commits",
+  "Например: запусти скилл и пришли текущие задачи":
+    "For example: run the skill and send the current tasks",
 } as const;

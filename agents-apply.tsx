@@ -268,40 +268,55 @@ export function RuleFields({
   const extras = (
     <div className="pf-agents-extra">
       <div className="pf-agents-field">
-        <span className="pf-agents-label">
-          {t("Свои правила")}
-          <Help
-            text={t(
-              "Постоянные правила этого места: роутинг моделей, делегирование, порядок работы. «В файл» дописывает их в конец AGENTS.md и CLAUDE.md — они действуют и в консоли на машине. «В сессии BB» ничего не пишет на диск: текст попадает в инструкции агента, запущенного из BB, и действует весь разговор.",
-            )}
-          />
-        </span>
+        <div className="pf-agents-labelrow">
+          <span className="pf-agents-label">
+            {t("Свои правила")}
+            <Help
+              text={t(
+                "Постоянные правила этого места: роутинг моделей, делегирование, порядок работы. «В файл» дописывает их в конец AGENTS.md и CLAUDE.md — они действуют и в консоли на машине. «В сессии BB» ничего не пишет на диск: текст попадает в инструкции агента, запущенного из BB, и действует весь разговор.",
+              )}
+            />
+          </span>
+          {draft.mode === "manual" ? (
+            <span className="pf-agents-target pf-agents-fixed">
+              {t("Куда применять")}: {t("только в сессии BB")}
+              <Help
+                text={t(
+                  "В режиме «Свой файл» плагин не пишет в файлы, поэтому свои правила действуют только в сессиях, запущенных из BB.",
+                )}
+              />
+            </span>
+          ) : (
+            <label className="pf-agents-target">
+              {t("Куда применять")}
+              <select
+                className="pf-select"
+                value={draft.customTarget}
+                onChange={(e) =>
+                  onChange({
+                    customTarget: e.target.value as RuleDraft["customTarget"],
+                  })
+                }
+              >
+                <option value="file">{t("В файл")}</option>
+                <option value="session">{t("В сессии BB")}</option>
+                <option value="both">{t("В файл и в сессию BB")}</option>
+              </select>
+            </label>
+          )}
+        </div>
         <textarea
-          className="pf-rules"
-          rows={4}
+          className="pf-rules pf-rules-grow"
+          rows={2}
           dir="ltr"
           aria-label={t("Свои правила")}
+          placeholder={t(
+            "Например: отвечай по-русски, коммиты — по Conventional Commits",
+          )}
           value={draft.custom}
           onChange={(e) => onChange({ custom: e.target.value })}
         />
       </div>
-      <label className="pf-agents-target">
-        {t("Куда применять")}
-        <select
-          className="pf-select"
-          value={draft.mode === "manual" ? "session" : draft.customTarget}
-          disabled={draft.mode === "manual"}
-          onChange={(e) =>
-            onChange({
-              customTarget: e.target.value as RuleDraft["customTarget"],
-            })
-          }
-        >
-          <option value="file">{t("В файл")}</option>
-          <option value="session">{t("В сессии BB")}</option>
-          <option value="both">{t("И туда и туда")}</option>
-        </select>
-      </label>
       <div className="pf-agents-field">
         <span className="pf-agents-label">
           {t("Стартовое поручение")}
@@ -312,10 +327,11 @@ export function RuleFields({
           />
         </span>
         <textarea
-          className="pf-rules"
-          rows={3}
+          className="pf-rules pf-rules-grow"
+          rows={2}
           dir="ltr"
           aria-label={t("Стартовое поручение")}
+          placeholder={t("Например: запусти скилл и пришли текущие задачи")}
           value={draft.startup}
           onChange={(e) => onChange({ startup: e.target.value })}
         />
@@ -338,7 +354,7 @@ export function RuleFields({
           <>
             <p className="pf-agents-hint">
               {t(
-                "Плагин не вписывает в эти файлы ничего: ни шаблон, ни свои правила.",
+                "Файлы ведёте вы: плагин не дописывает в них ни шаблон, ни свои правила.",
               )}
             </p>
             {fileSlot}
@@ -358,8 +374,8 @@ export function RuleFields({
               <label className="pf-agents-field">
                 {t("Шаблон проектов")}
                 <textarea
-                  className="pf-rules"
-                  rows={4}
+                  className="pf-rules pf-rules-grow"
+                  rows={3}
                   dir="ltr"
                   value={draft.projectTemplate}
                   onChange={(e) =>
@@ -371,8 +387,8 @@ export function RuleFields({
             <label className="pf-agents-field">
               {t("Шаблон разделов")}
               <textarea
-                className="pf-rules"
-                rows={4}
+                className="pf-rules pf-rules-grow"
+                rows={3}
                 dir="ltr"
                 value={draft.sectionTemplate}
                 onChange={(e) => onChange({ sectionTemplate: e.target.value })}

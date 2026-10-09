@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.32 — Project and section card redesign
+
+- Clear card header with primary actions («Новый чат», «Новый раздел») and a ⋯ menu holding secondary actions, with «Удалить» placed last in destructive style after a separator.
+- Underline navigation tabs for «Правила / Провайдер / Контекст сессии».
+- Sticky dirty-driven save bar for the rules tab in all modes, fixing custom rules and startup instruction saving in «Свой файл» mode.
+- Collapsible AGENTS.md / CLAUDE.md file editors with ~11-line collapsed preview, fade, auto-expansion on edit, and collapse on host switch.
+- Auto-growing textareas for «Свой шаблон», «Свои правила» and «Стартовое поручение».
+- «Куда применять» moved to the «Свои правила» label row, showing static text with help in «Свой файл» mode.
+
 ## 0.6.31 — Keep prompt cache warm for pinned threads
 
 - Pinned idle Claude threads get a short keepalive turn before their prompt cache expires (configurable in plugin settings: enabled, period 3–59 min, max wakes).

@@ -399,5 +399,17 @@
   "Интервал от 3 до 59 минут. По умолчанию 55.": "Interval between 3 and 59 minutes. Default is 55.",
   "Максимум пробуждений": "Maximum wakes",
   "Сколько раз продлевать подряд без ответа пользователя. 0 — без ограничений.": "How many times to ping without user reply. 0 means unlimited.",
-  "Работает только для закреплённых чатов Claude. Каждый пинг стоит чтение кеша всего контекста и короткий ответ; это экономит полную перезапись контекста при возвращении через час.": "Works only for pinned Claude chats. Each ping costs a cache read of the whole context plus a short answer; it saves a full prompt write when you return after an hour."
+  "Работает только для закреплённых чатов Claude. Каждый пинг стоит чтение кеша всего контекста и короткий ответ; это экономит полную перезапись контекста при возвращении через час.": "Works only for pinned Claude chats. Each ping costs a cache read of the whole context plus a short answer; it saves a full prompt write when you return after an hour.",
+  "Файлы ведёте вы: плагин не дописывает в них ни шаблон, ни свои правила.": "Você gerencia os arquivos: o plugin não adiciona modelo nem regras personalizadas.",
+  "Этот шаблон получают новые подразделы и команда «Применить к существующим разделам» в настройках плагина.": "Novas subseções e o botão «Aplicar às seções existentes» nas configurações do plugin usam este modelo.",
+  "В файл и в сессию BB": "No arquivo e na sessão BB",
+  "Общие для всех машин проекта: применяются к новым разделам и по кнопке «Применить к существующим разделам» в настройках плагина.": "Comuns a todas as máquinas do projeto: aplicam-se a novas seções e pelo botão «Aplicar às seções existentes» nas configurações do plugin.",
+  "Другие действия": "Mais ações",
+  "Действия": "Ações",
+  "Развернуть": "Expandir",
+  "Свернуть": "Recolher",
+  "только в сессии BB": "Apenas na sessão BB",
+  "В режиме «Свой файл» плагин не пишет в файлы, поэтому свои правила действуют только в сессиях, запущенных из BB.": "No modo «Arquivo próprio», o plugin não grava nos arquivos, portanto as regras personalizadas só se aplicam em sessões iniciadas no BB.",
+  "Например: отвечай по-русски, коммиты — по Conventional Commits": "Por exemplo: responda em português, commits seguindo Conventional Commits",
+  "Например: запусти скилл и пришли текущие задачи": "Por exemplo: execute a habilidade e envie as tarefas atuais"
 }
