@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.34 — Lean default AGENTS.md templates
+
+- Shipped lean default `AGENTS.md` templates for projects and sections: trimmed owner-specific workflows (solo development, commit straight to main, unconditional service restart) and generic coding rules, keeping only non-inferable essentials.
+- Removed duplicated `.bb/chats` layout instructions from the default templates in favor of the plugin's session instruction hook.
+
 ## 0.6.33 — Stock BB compatibility
 
 - Set `engines.bbPluginSdk` to `>=0.4.104` to reflect experimental SDK features used by composer and server integrations.
