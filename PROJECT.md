@@ -1,12 +1,14 @@
 ---
 title: Projects & Sections — Project facts
-updated: 2026-09-30
+updated: 2026-10-09
 sources:
   - package.json
   - server.ts
   - app.tsx
   - host.ts
   - project-delete.ts
+  - section-remove.ts
+  - cache-keepalive.ts
   - section-move.ts
   - docs/architecture.md
   - docs/gotchas.md
@@ -29,12 +31,14 @@ sources:
 ## Critical invariants
 
 - Groups are organizational nodes with synthetic paths; use a real section for a chat environment (`section-tree.ts:8-11`, `server.ts:2152-2178`, `server.ts:3485-3509`).
-- Select a section with a folder binding on the composer environment's host (`server.ts:3485-3499`).
+- The composer accepts a section only when it belongs to the selected project, is a real folder section, has a path binding on the chosen host, and is not moving or archiving (`server.ts:3655-3691`).
 - Filesystem section moves persist a journal before changing files; failures retain an error for retry (`section-move.ts:268-293`, `section-move.ts:347-353`).
 - Project deletion and its file-retention constraints: [project and section tree](docs/features/project-tree.md#how-it-works).
+- Section removal modes, preconditions and chat/file outcomes: [section archive and restore](docs/features/archive-and-restore.md#modes) (`section-remove.ts:48-79`).
 - Section rename and path changes use separate operations: [project and section tree](docs/features/project-tree.md#how-it-works).
-- BB database history is canonical; `.bb/chats` files are exports (`server.ts:1770-1783`, `server.ts:1829-1839`).
+- `.bb/chats/<threadId>` contains an automatically updated timeline snapshot; the export metadata and README identify BB’s database as canonical (`server.ts:1914-1929`, `server.ts:1974-1976`).
 - Session-context filtering requires BB’s experimental extension (`session-policy-server.ts:52-68`).
+- Prompt cache keepalive is disabled by default and targets eligible pinned Claude-family chats: [cache keepalive](docs/features/cache-keepalive.md) (`cache-keepalive.ts:10-14`, `cache-keepalive.ts:218-240`).
 
 ## Conventions
 
@@ -66,3 +70,4 @@ sources:
 - [API](docs/api.md)
 - [Data model](docs/data-model.md)
 - [Feature pages](docs/features/project-tree.md)
+- [Prompt cache keepalive](docs/features/cache-keepalive.md)
