@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "status": "accepted",
+  "lanePilotRunId": "lprun_94fe112109c04e95be6ed6b833f6330c",
+  "lanePilotTaskId": "stock-bb-compat",
+  "attemptId": "lpattempt_6f7edc71b8714ab5b05a71e508a5a224",
+  "pmThreadId": "thr_b3kgttu4vh",
+  "writerThreadId": "thr_h9z76qjqp6",
+  "ownsPaths": [
+    "package.json",
+    "package-lock.json",
+    "cache-keepalive.ts",
+    "cache-keepalive.test.ts",
+    "server.ts",
+    "server.test.ts",
+    "dispatch-hook.ts",
+    "dispatch-hook.test.ts",
+    "plugin-settings.tsx",
+    "translations.ts",
+    "locales/",
+    "CHANGELOG.md"
+  ],
+  "readFirst": [
+    {
+      "path": "package.json",
+      "windows": []
+    },
+    {
+      "path": "cache-keepalive.ts",
+      "windows": []
+    },
+    {
+      "path": "cache-keepalive.test.ts",
+      "windows": []
+    },
+    {
+      "path": "server.ts",
+      "windows": []
+    },
+    {
+      "path": "plugin-settings.tsx",
+      "windows": []
+    },
+    {
+      "path": "translations.ts",
+      "windows": []
+    }
+  ],
+  "output": "package.json\ncache-keepalive.ts\ncache-keepalive.test.ts\nserver.ts\ndispatch-hook.ts\ndispatch-hook.test.ts\nCHANGELOG.md",
+  "verification": [
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdout": "\\\u001b[1G\u001b[0K\\\u001b[1G\u001b[0K\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m New \u001b[31mmajor\u001b[39m version of npm available! \u001b[31m11.16.0\u001b[39m -> \u001b[34m12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m Changelog: \u001b[34mhttps://github.com/npm/cli/releases/tag/v12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m To update run: \u001b[4mnpm install -g npm@12.2.0\u001b[24m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\\\u001b[1G\u001b[0K",
+      "stderr": "",
+      "sandboxBackend": "macos-seatbelt",
+      "policySha256": "157013b1d9beb3e37808cbbc2825058632a31f73e7a814c9583a639a55c793ab",
+      "workspacePath": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_6f7edc71b8714ab5b05a71e508a5a224/bb-plugin-project-folders"
+    },
+    {
+      "command": "npx vitest run cache-keepalive.test.ts server.test.ts i18n.test.ts dispatch-hook.test.ts --passWithNoTests",
+      "exitCode": 0,
+      "stdout": "\\\u001b[1G\u001b[0K\u001b[?25l\r\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.0 \u001b[39m\u001b[90m/Users/vechkasov/.lane-pilot/worktrees/lpattempt_6f7edc71b8714ab5b05a71e508a5a224/bb-plugin-project-folders\u001b[39m\r\n\r\n\u001b[?2026h\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mdispatch-hook.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (0)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m228ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mcache-keepalive.test.ts\u001b[2m 0/13\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mdispatch-hook.test.ts\u001b[2m [queued]\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mi18n.test.ts\u001b[2m [queued]\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m536ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m cache-keepalive.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 41\u001b[2mms\u001b[22m\u001b[39m\r\n \u001b[32m✓\u001b[39m dispatch-hook.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mi18n.test.ts\u001b[2m 0/2\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m20 passed\u001b[39m\u001b[22m\u001b[90m (22)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m917ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m i18n.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 34\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 0/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m22 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m1.02s\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 1/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m23 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m1.12s\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 7/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m29 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m1.22s\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 20/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m42 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m1.32s\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 33/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m55 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m1.42s\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 46/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m68 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m1.62s\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 52/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m74 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:08:27\r\n\u001b[2m   Duration \u001b[22m1.72s\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m server.test.ts \u001b[2m(\u001b[22m\u001b[2m56 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 753\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m78 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m 02:08:27\r\n\u001b[2m   Duration \u001b[22m 1.86s\u001b[2m (transform 48%, tests 28%, import 21%, worker 3%)\u001b[22m\r\n\r\n\u001b[?2026l\u001b[?2026h\u001b[?2026l\u001b[?25h\\\u001b[1G\u001b[0K\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m New \u001b[31mmajor\u001b[39m version of npm available! \u001b[31m11.16.0\u001b[39m -> \u001b[34m12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m Changelog: \u001b[34mhttps://github.com/npm/cli/releases/tag/v12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m To update run: \u001b[4mnpm install -g npm@12.2.0\u001b[24m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\\\u001b[1G\u001b[0K",
+      "stderr": "",
+      "sandboxBackend": "macos-seatbelt",
+      "policySha256": "17f0dce5326d6a1cc7cf3ee15eb86f482edc3b84a746f0f832bf5a7e10457929",
+      "workspacePath": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_6f7edc71b8714ab5b05a71e508a5a224/bb-plugin-project-folders"
+    }
+  ],
+  "runV2": {
+    "schemaVersion": 1,
+    "pools": {
+      "provider": 15,
+      "verification": 2
+    },
+    "score": 5,
+    "risk": "medium",
+    "sourceRisk": "medium",
+    "scoreAdapter": "task-risk-v1"
+  },
+  "reasoning": [
+    {
+      "planSha256": "e10f17909125de0dbf8e760d678b4b8e87f61fc5bba5f464f756f4506801c942",
+      "sentPlanSha256": "e10f17909125de0dbf8e760d678b4b8e87f61fc5bba5f464f756f4506801c942",
+      "sourceLength": 2913,
+      "sentLength": 2913,
+      "jevStatus": "ok",
+      "jevDecision": "high",
+      "requestedReasoningLevel": "high",
+      "effectiveReasoningLevel": "medium",
+      "fallbackReason": "jev_unsupported_by_selected_model:high",
+      "retryEffort": {
+        "enabled": true,
+        "retryIndex": 0,
+        "before": "medium",
+        "after": "medium",
+        "changed": false
+      },
+      "providerId": "acp-opencode",
+      "model": "router9/ag/gemini-3.8-flash-medium",
+      "serviceTier": "fast",
+      "requestedServiceTier": "fast",
+      "runId": "lprun_94fe112109c04e95be6ed6b833f6330c",
+      "attemptId": "lpattempt_6f7edc71b8714ab5b05a71e508a5a224",
+      "threadId": "thr_h9z76qjqp6",
+      "effortMode": "automatic",
+      "selectionSource": {
+        "providerId": "acp-opencode",
+        "model": "router9/ag/gemini-3.8-flash-medium",
+        "reasoningLevel": "medium",
+        "serviceTier": "fast",
+        "reasoningLevelSource": "client-preference"
+      },
+      "dispatchContext": {
+        "memoryText": "- Full plugin backups use a versioned JSON payload (`kind: 'bb-project-folders-backup'`, version 1) containing settings and all 11 durable tables: folders, folder_paths, thread_places, folder_rules, project_rules, project_order, execution_defaults, session_policies, preferences, item_styles, and folder_archives. Imports preserve row IDs and run in one transaction; invalid backups and imports during an active move or archive are rejected. Transient tables (exports, pending_exports, project_moves, thread_moves, section_moves) are excluded. This adds no schema changes and preserves the existing appearance-only export/import flow.\n- Errand, QA, and reviewer helper threads are read-only for repository files; specialists may write under `.agents/`. Writers retain full worktree access. Wait backstops report helper edits as `repo_edited` with changed files and do not revert them.\n- An owner's approved goal authorizes reversible steps in their own accounts. Ask once for consent covering any destructive, paid, outgoing, permission-changing, or irreversible steps.",
+        "memoryPicked": [
+          "a1e24df18c9424b7d28552a47384aeafc3bb57aef551ddef568e5654b8b2653f",
+          "d86da4f3ab41999c5f5c25ee3cfa928584b004ab91c199582af9cfac872e28c2",
+          "88327d03cd13c4fe92360e7584fe09dd14c064093a74e20666b33f021be95b1b"
+        ],
+        "rulesText": "- Перед ответом по задаче Lane Pilot сверяй каждый путь, который собираешься изменить из-за ошибки проверки, с owns_paths; если пути там нет, не меняй файл и сообщи об ошибке диспетчеру.",
+        "rulesPicked": {
+          "total": 16,
+          "picked": [
+            "rule_572535fb78e20b9d"
+          ]
+        },
+        "executionPacket": "Read these before editing; they are the context for this task:\n- package.json L1-L86 (sha256 c0e23929)\n- cache-keepalive.ts L1-L317 (sha256 1769eb1f)\n- cache-keepalive.test.ts L1-L401 (sha256 5f669cff)",
+        "executionPacketSha256": "7cac776a7b4e05b2c2ce93173bde43441d37958dcc2b5e601bcb43bfad5bc30a",
+        "pmReadContext": "{\"summary\":\"The task contract 'stock-bb-compat' addresses three primary areas: raising the plugin SDK engine floor, making prompt cache keepalive strictly opt-in with non-Russian ping text and verified translations, and ensuring the message.dispatch hook never blocks user messages due to internal bookkeeping errors. From the provided excerpts, package.json currently specifies version 0.6.31 with engines.bbPluginSdk '>=0.4.84', while devDependencies pins '@get-bb/plugin-sdk' to '0.4.104'; the contract requires raising engines.bbPluginSdk to '>=0.4.104' and bumping package.json to 0.6.33 alongside a CHANGELOG.md entry, while keeping engines.bb ('>=0.43.3') unchanged. In cache-keepalive.ts, defaultCacheKeepaliveConfig currently has enabled set to true by default (periodMinutes 55, maxWakes 0), and formatKeepaliveMessage contains Russian text ('«🕯 кеш продлён ...»'). Both must be updated: defaultCacheKeepaliveConfig.enabled must become false, the ping text example must be purged of Russian text, and corresponding tests in cache-keepalive.test.ts that assert enabled=true and the Russian text must be adjusted. Additionally, a test must specifically prove that the default keepalive config sends no pings. The dispatch hook requirements mandate computing threadMoves.blocked once, inspecting input for RELOCATE_MARKER only when blocked, and catching bookkeeping errors to return proceed with a warning log, covered by test cases. However, server.ts, dispatch-hook.ts, plugin-settings.tsx, translations.ts, and locales were omitted from the provided host excerpts, leaving their exact current implementations to be resolved.\",\"keyFacts\":[\"package.json defines the plugin name as 'bb-plugin-project-folders' and current version as '0.6.31'.\",\"package.json specifies engines.bb as '>=0.43.3' and engines.bbPluginSdk as '>=0.4.84'.\",\"package.json devDependencies pins '@get-bb/plugin-sdk' at '0.4.104'.\",\"cache-keepalive.ts defines defaultCacheKeepaliveConfig as { enabled: true, periodMinutes: 55, maxWakes: 0 }.\",\"cache-keepalive.ts parseCacheKeepaliveConfig falls back to defaultCacheKeepaliveConfig for non-object or invalid inputs.\",\"cache-keepalive.ts formatKeepaliveMessage produces a string ending with Russian example text: '«🕯 кеш продлён ${wake}/${maxLabel}».'.\",\"cache-keepalive.ts sweep() exits immediately without fetching threads if config.enabled is false.\",\"cache-keepalive.ts isClaudeFamily uses CLAUDE_FAMILY_PATTERN to match claude, anthropic, opus, sonnet, or haiku provider IDs.\",\"cache-keepalive.test.ts explicitly asserts that defaultCacheKeepaliveConfig equals { enabled: true, periodMinutes: 55, maxWakes: 0 }.\",\"cache-keepalive.test.ts tests for formatKeepaliveMessage assert containment of Russian text '«🕯 кеш продлён 1/∞»' and '«🕯 кеш продлён 2/5»'.\",\"cache-keepalive.test.ts excerpt truncates at line 401 in the middle of a test for 'enabled=false stops all pings'.\"],\"openQuestions\":[\"Where is the message.dispatch hook currently defined and implemented, as neither server.ts nor dispatch-hook.ts is included in the provided excerpts?\",\"What is the current implementation of threadMoves.blocked and RELOCATE_MARKER inspection in the dispatch hook?\",\"What logger and format should be used for the warning log when a bookkeeping call throws in the dispatch hook?\",\"What keepalive settings keys currently exist in plugin-settings.tsx, translations.ts, and locales/*.json, since those files are missing from the excerpts?\",\"What preferred English phrasing should replace the Russian example text '«🕯 кеш продлён ...»' in formatKeepaliveMessage?\",\"What is the full content of cache-keepalive.test.ts beyond line 401, and does an existing test verify the behavior of the default configuration?\",\"What existing tests exist in server.test.ts and dispatch-hook.test.ts for the dispatch hook?\",\"What is the current structure and recent history in CHANGELOG.md between 0.6.31 and 0.6.33?\"]}",
+        "agent": "Lane Pilot writer",
+        "promptChars": 8546,
+        "helperMode": "roles",
+        "helperRequired": false
+      }
+    }
+  ],
+  "emergencyFallback": null,
+  "turns": 1
+}

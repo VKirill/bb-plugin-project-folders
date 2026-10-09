@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.33 — Stock BB compatibility
+
+- Set `engines.bbPluginSdk` to `>=0.4.104` to reflect experimental SDK features used by composer and server integrations.
+- Prompt cache keepalive is now opt-in (`enabled: false` by default) and uses a language-neutral keepalive ping prompt.
+- Hardened `message.dispatch` hook: evaluates thread relocation barrier efficiently without serializing full blocks unless blocked, and safely falls back to proceed on internal bookkeeping errors.
+
 ## 0.6.32 — Project and section card redesign
 
 - Clear card header with primary actions («Новый чат», «Новый раздел») and a ⋯ menu holding secondary actions, with «Удалить» placed last in destructive style after a separator.

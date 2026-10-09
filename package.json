@@ -1,10 +1,10 @@
 {
   "name": "bb-plugin-project-folders",
-  "version": "0.6.32",
+  "version": "0.6.33",
   "type": "module",
   "engines": {
     "bb": ">=0.43.3",
-    "bbPluginSdk": ">=0.4.84"
+    "bbPluginSdk": ">=0.4.104"
   },
   "bb": {
     "name": "Projects & Sections",

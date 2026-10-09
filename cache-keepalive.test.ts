@@ -12,9 +12,9 @@ import {
 } from "./cache-keepalive";
 
 describe("cache-keepalive configuration", () => {
-  it("defaults to enabled=true, periodMinutes=55, maxWakes=0", () => {
+  it("defaults to enabled=false, periodMinutes=55, maxWakes=0", () => {
     expect(defaultCacheKeepaliveConfig).toEqual({
-      enabled: true,
+      enabled: false,
       periodMinutes: 55,
       maxWakes: 0,
     });
@@ -22,8 +22,8 @@ describe("cache-keepalive configuration", () => {
 
   it("parses valid and invalid config values", () => {
     expect(parseCacheKeepaliveConfig(null)).toEqual(defaultCacheKeepaliveConfig);
-    expect(parseCacheKeepaliveConfig({ enabled: false, periodMinutes: 30, maxWakes: 5 })).toEqual({
-      enabled: false,
+    expect(parseCacheKeepaliveConfig({ enabled: true, periodMinutes: 30, maxWakes: 5 })).toEqual({
+      enabled: true,
       periodMinutes: 30,
       maxWakes: 5,
     });
@@ -53,11 +53,11 @@ describe("formatKeepaliveMessage", () => {
     expect(msg).toContain("[Cache keepalive 1/∞]");
     expect(msg).toContain("Do no work and call no tools");
     expect(msg).toContain("at most seven words");
-    expect(msg).toContain("«🕯 кеш продлён 1/∞»");
+    expect(msg).toContain("«🕯 cache kept warm 1/∞»");
 
     const msgWithMax = formatKeepaliveMessage(2, 5);
     expect(msgWithMax).toContain("[Cache keepalive 2/5]");
-    expect(msgWithMax).toContain("«🕯 кеш продлён 2/5»");
+    expect(msgWithMax).toContain("«🕯 cache kept warm 2/5»");
   });
 });
 
@@ -336,6 +336,36 @@ describe("createCacheKeepalive with fake clock", () => {
       sdk,
       store,
       getConfig: () => ({ enabled: false, periodMinutes: 55, maxWakes: 0 }),
+      now: () => fakeNow + 55 * 60 * 1000,
+      setInterval: vi.fn(),
+      clearInterval: vi.fn(),
+    });
+
+    fakeNow += 55 * 60 * 1000;
+    await keepalive.sweep();
+    expect(sentMessages).toHaveLength(0);
+
+    keepalive.dispose();
+  });
+
+  it("default config sends no ping", async () => {
+    const thread: KeepaliveThread = {
+      id: "t-default-optin",
+      providerId: "anthropic",
+      pinnedAt: fakeNow,
+      archivedAt: null,
+      status: "idle",
+      updatedAt: fakeNow,
+    };
+    const { sdk, sentMessages } = createMockSdk([thread]);
+    const store = createInMemoryKeepaliveStore();
+    store.setIdleAt("t-default-optin", fakeNow);
+
+    const keepalive = createCacheKeepalive({
+      pluginId: "project-folders",
+      sdk,
+      store,
+      getConfig: () => defaultCacheKeepaliveConfig,
       now: () => fakeNow + 55 * 60 * 1000,
       setInterval: vi.fn(),
       clearInterval: vi.fn(),

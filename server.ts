@@ -1,6 +1,7 @@
 import { githubPrivateForUrl } from "./github-remote";
 import { moveHostContract } from "./move-contract";
 import { makeThreadMoves, RELOCATE_MARKER } from "./thread-move";
+import { handleMessageDispatch } from "./dispatch-hook";
 import { SECTION_ENVIRONMENT_ID } from "./section-tree";
 import { makeProjectMoves } from "./project-move";
 import { makeSectionMoves } from "./section-move";
@@ -2186,40 +2187,15 @@ export default async function plugin(bb: BbPluginApi) {
     canonical: canonicalPath,
     detached,
   });
-  bb.experimental_hooks.on("message.dispatch", (ctx) => {
-    // The relocation request is the message that lifts the barrier: it carries
-    // the marker, so it is the one thing allowed through while one is up.
-    const relocating = JSON.stringify(ctx.input.blocks).includes(
-      RELOCATE_MARKER,
-    );
-    if (threadMoves.blocked(ctx.thread.id) && !relocating)
-      return {
-        action: "reject",
-        message:
-          "Chat relocation is unfinished. Repeat Move to section in Projects & Sections to finish moving its files.",
-      };
-    const intent = ctx.environmentIntent;
-    const inputs = intent?.kind === "provider" ? intent.inputs : null;
-    const requestedPath =
-      ctx.environment?.path ??
-      (inputs &&
-      typeof inputs === "object" &&
-      !Array.isArray(inputs) &&
-      typeof inputs.path === "string"
-        ? inputs.path
-        : null);
-    return (threadMoves.blocked(ctx.thread.id) && !relocating) ||
-      moves.busy(ctx.project.id) ||
-      sectionMoves.busyProject(ctx.project.id) ||
-      archives.blocked(ctx.thread.id) ||
-      (requestedPath && ctx.host && archives.moving(ctx.host.id, requestedPath))
-      ? {
-          action: "reject",
-          message:
-            "The chat section is archived or moving. Restore it in Projects & Sections.",
-        }
-      : { action: "proceed" };
-  });
+  bb.experimental_hooks.on("message.dispatch", (ctx) =>
+    handleMessageDispatch(ctx, {
+      threadMoves,
+      moves,
+      sectionMoves,
+      archives,
+      log: bb.log,
+    }),
+  );
   const sessionPolicies = makeSessionPolicies({
     bb,
     db,

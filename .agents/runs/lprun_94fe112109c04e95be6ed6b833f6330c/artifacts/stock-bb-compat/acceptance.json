@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "stock-bb-compat",
+  "task_sha256": "e49ea14b3230a776ca05d84e8b54e5704ec49ca0ed7640179b50526d951223a0",
+  "attempt": 1,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "fd5f48e984c8696f367d0272ec1fe3db96c6ba7fb36558beb916557db9b7f139",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "not_required",
+  "accepted": true,
+  "accepted_at": "2026-10-09T00:08:45.900Z",
+  "model": "router9/ag/gemini-3.8-flash-medium"
+}
