@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "lean-agents-template",
+  "task_sha256": "17df62a21eed13a05ecdfe201c00b785a5dfb7adfacc37c41f5ef2038febee1b",
+  "attempt": 2,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "48ea4173e5c7579bc1fe6b131034b8a3df1fc365b65da2a28546c6483f01509a",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "not_required",
+  "accepted": true,
+  "accepted_at": "2026-10-09T00:32:56.573Z",
+  "model": "router9/ag/gemini-3.8-flash-medium"
+}

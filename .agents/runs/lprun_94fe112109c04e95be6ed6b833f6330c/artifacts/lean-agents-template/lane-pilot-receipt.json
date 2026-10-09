@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "status": "accepted",
+  "lanePilotRunId": "lprun_94fe112109c04e95be6ed6b833f6330c",
+  "lanePilotTaskId": "lean-agents-template",
+  "attemptId": "lpattempt_d7398e044e204048a0da47fef874acaa",
+  "pmThreadId": "thr_b3kgttu4vh",
+  "writerThreadId": "thr_f9ymkix2aa",
+  "ownsPaths": [
+    "server.ts",
+    "server.test.ts",
+    "backup.test.ts",
+    "translations.ts",
+    "locales/",
+    "package.json",
+    "package-lock.json",
+    "CHANGELOG.md"
+  ],
+  "readFirst": [
+    {
+      "path": "server.ts",
+      "windows": []
+    },
+    {
+      "path": "agents-template.ts",
+      "windows": []
+    },
+    {
+      "path": "server.test.ts",
+      "windows": []
+    },
+    {
+      "path": "backup.test.ts",
+      "windows": []
+    }
+  ],
+  "output": "Changed paths:\n- `server.ts`\n- `package.json`\n- `CHANGELOG.md`\n\nVerification results:\n- `npx tsc --noEmit`: exited 0 (clean type check).\n- `npx vitest run server.test.ts backup.test.ts i18n.test.ts agents-template.test.ts`: all 71 tests passed.\n- Full test suite (`npx vitest run`): 31 test files, 272 tests passed.\n\nAnalysis of existing `AGENTS.md` files:\nAs verified in `server.ts` (`seedAgents` at lines 1744–1761 and `seedProjectAgents` at lines 1774–1790), existing files are checked with `await readAgents(...) !== null` and adopted untouched without overwriting. Files are only modified when explicitly instructed by user action via `agents_apply` («Применить к существующим разделам») or saving rules for a specific location in `rules_settings_save`. Thus, updating the default templates does not automatically rewrite existing `AGENTS.md` files on disk.",
+  "verification": [
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdout": "\\\u001b[1G\u001b[0K\\\u001b[1G\u001b[0K\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m New \u001b[31mmajor\u001b[39m version of npm available! \u001b[31m11.16.0\u001b[39m -> \u001b[34m12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m Changelog: \u001b[34mhttps://github.com/npm/cli/releases/tag/v12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m To update run: \u001b[4mnpm install -g npm@12.2.0\u001b[24m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\\\u001b[1G\u001b[0K",
+      "stderr": "",
+      "sandboxBackend": "macos-seatbelt",
+      "policySha256": "faba2878e24373919d9fff95e133b1af968fd03db034793f041a4c6fa8863f71",
+      "workspacePath": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_d7398e044e204048a0da47fef874acaa/bb-plugin-project-folders"
+    },
+    {
+      "command": "npx vitest run server.test.ts backup.test.ts i18n.test.ts agents-template.test.ts",
+      "exitCode": 0,
+      "stdout": "\\\u001b[1G\u001b[0K\u001b[?25l\r\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.0 \u001b[39m\u001b[90m/Users/vechkasov/.lane-pilot/worktrees/lpattempt_d7398e044e204048a0da47fef874acaa/bb-plugin-project-folders\u001b[39m\r\n\r\n\u001b[?2026h\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (0)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:32:51\r\n\u001b[2m   Duration \u001b[22m102ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22magents-template.test.ts\u001b[2m 0/8\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mbackup.test.ts\u001b[2m [queued]\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mi18n.test.ts\u001b[2m [queued]\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m0 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:32:51\r\n\u001b[2m   Duration \u001b[22m307ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m agents-template.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mbackup.test.ts\u001b[2m [queued]\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mi18n.test.ts\u001b[2m 0/2\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m [queued]\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:32:51\r\n\u001b[2m   Duration \u001b[22m449ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m i18n.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mbackup.test.ts\u001b[2m 1/5\u001b[22m\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 0/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m11 passed\u001b[39m\u001b[22m\u001b[90m (71)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:32:51\r\n\u001b[2m   Duration \u001b[22m650ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m backup.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 67\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 11/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m26 passed\u001b[39m\u001b[22m\u001b[90m (71)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:32:51\r\n\u001b[2m   Duration \u001b[22m751ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 30/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m45 passed\u001b[39m\u001b[22m\u001b[90m (71)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:32:51\r\n\u001b[2m   Duration \u001b[22m851ms\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\r\n\u001b[1m\u001b[33m ❯ \u001b[39m\u001b[22mserver.test.ts\u001b[2m 46/56\u001b[22m\r\n\r\n\u001b[2m Test Files \u001b[22m\u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m\u001b[1m\u001b[32m61 passed\u001b[39m\u001b[22m\u001b[90m (71)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m02:32:51\r\n\u001b[2m   Duration \u001b[22m1.05s\r\n\u001b[?2026l\u001b[?2026h\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K\u001b[1A\u001b[K \u001b[32m✓\u001b[39m server.test.ts \u001b[2m(\u001b[22m\u001b[2m56 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 541\u001b[2mms\u001b[22m\u001b[39m\r\n\r\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\r\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m71 passed\u001b[39m\u001b[22m\u001b[90m (71)\u001b[39m\r\n\u001b[2m   Start at \u001b[22m 02:32:51\r\n\u001b[2m   Duration \u001b[22m 1.14s\u001b[2m (transform 48%, tests 32%, import 19%, worker 1%)\u001b[22m\r\n\r\n\u001b[?2026l\u001b[?2026h\u001b[?2026l\u001b[?25h\\\u001b[1G\u001b[0K\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m New \u001b[31mmajor\u001b[39m version of npm available! \u001b[31m11.16.0\u001b[39m -> \u001b[34m12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m Changelog: \u001b[34mhttps://github.com/npm/cli/releases/tag/v12.2.0\u001b[39m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m To update run: \u001b[4mnpm install -g npm@12.2.0\u001b[24m\r\n\u001b[1mnpm\u001b[22m \u001b[96mnotice\u001b[39m\r\n\\\u001b[1G\u001b[0K",
+      "stderr": "",
+      "sandboxBackend": "macos-seatbelt",
+      "policySha256": "68b17e766b8f798ea02ad838bc51b0375ed48f3d9e525aafab92bfdb2ed59a49",
+      "workspacePath": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_d7398e044e204048a0da47fef874acaa/bb-plugin-project-folders"
+    }
+  ],
+  "runV2": {
+    "schemaVersion": 1,
+    "pools": {
+      "provider": 15,
+      "verification": 2
+    },
+    "score": 2,
+    "risk": "low",
+    "sourceRisk": "low",
+    "scoreAdapter": "task-risk-v1"
+  },
+  "reasoning": [
+    {
+      "planSha256": "e654031b9cc5ca6d9dc05b651180e31ab8cce321fc113b4c0921b28c46aeb261",
+      "sentPlanSha256": "e654031b9cc5ca6d9dc05b651180e31ab8cce321fc113b4c0921b28c46aeb261",
+      "sourceLength": 2767,
+      "sentLength": 2767,
+      "jevStatus": "ok",
+      "jevDecision": "medium",
+      "requestedReasoningLevel": "medium",
+      "effectiveReasoningLevel": "medium",
+      "fallbackReason": null,
+      "retryEffort": {
+        "enabled": true,
+        "retryIndex": 1,
+        "before": "medium",
+        "after": "medium",
+        "changed": false
+      },
+      "providerId": "acp-opencode",
+      "model": "router9/ag/gemini-3.8-flash-medium",
+      "serviceTier": "fast",
+      "requestedServiceTier": "fast",
+      "runId": "lprun_94fe112109c04e95be6ed6b833f6330c",
+      "attemptId": "lpattempt_d7398e044e204048a0da47fef874acaa",
+      "threadId": "thr_f9ymkix2aa",
+      "effortMode": "automatic",
+      "selectionSource": {
+        "providerId": "acp-opencode",
+        "model": "router9/ag/gemini-3.8-flash-medium",
+        "reasoningLevel": "medium",
+        "serviceTier": "fast",
+        "reasoningLevelSource": "client-preference"
+      },
+      "dispatchContext": {
+        "memoryText": "- Execution defaults can pin a chat environment as `folder` or `worktree`. Resolve the pin nearest-first across section, ancestors, project, and global settings. A `worktree` pin preselects a managed worktree on the folder host in both New chat and the composer chip; spawn must preserve that managed-worktree selection. With no pin, keep the existing folder/section-provider behavior. Groups must never become chat environments.\n- Errand, QA, and reviewer helper threads are read-only for repository files; specialists may write under `.agents/`. Writers retain full worktree access. Wait backstops report helper edits as `repo_edited` with changed files and do not revert them.\n- Full plugin backups use a versioned JSON payload (`kind: 'bb-project-folders-backup'`, version 1) containing settings and all 11 durable tables: folders, folder_paths, thread_places, folder_rules, project_rules, project_order, execution_defaults, session_policies, preferences, item_styles, and folder_archives. Imports preserve row IDs and run in one transaction; invalid backups and imports during an active move or archive are rejected. Transient tables (exports, pending_exports, project_moves, thread_moves, section_moves) are excluded. This adds no schema changes and preserves the existing appearance-only export/import flow.",
+        "memoryPicked": [
+          "39467d1db13cd0d2692a4e6c1934571d085dddc651a02deec6aeba4e0829c97b",
+          "d86da4f3ab41999c5f5c25ee3cfa928584b004ab91c199582af9cfac872e28c2",
+          "a1e24df18c9424b7d28552a47384aeafc3bb57aef551ddef568e5654b8b2653f"
+        ],
+        "rulesText": "- Перед ответом по задаче Lane Pilot сверяй каждый путь, который собираешься изменить из-за ошибки проверки, с owns_paths; если пути там нет, не меняй файл и сообщи об ошибке диспетчеру.",
+        "rulesPicked": {
+          "total": 16,
+          "picked": [
+            "rule_572535fb78e20b9d"
+          ]
+        },
+        "executionPacket": "Read these before editing; they are the context for this task:\n- server.ts L1-L4117 (sha256 e4c57ddf)",
+        "executionPacketSha256": "e01e178f1a6dff011f2a19527d1a02599ae3dc881fa8e33d7046282c9c5adb10",
+        "pmReadContext": "{\"summary\":\"This packet excerpt covers server.ts (lines 1 to approximately 729), defining the existing default templates and RPC contracts for agent rules within the bb-plugin-project-folders plugin. Currently, server.ts exports or declares two constant string templates: defaultAgentsTemplate (lines 70-101) and defaultProjectTemplate (lines 103-143). The current defaultAgentsTemplate provides section-level guidelines across four headers ('Think before coding', 'Minimum and surgical changes', 'Success criteria and verification', and 'Files and autonomy'), explicitly prescribing chat folder paths under .bb/chats/<chat id>/ (artifacts/, notes/, tmp/) and barring modification of thread.json and history/. The current defaultProjectTemplate defines project-wide guidelines across six headers ('Before work', 'Git and delivery', 'Where files live', 'Order and files', 'Results and records', and 'Wrap-up'), embedding workflow assumptions including solo maintenance, direct commits to main without PRs or feature branches, an explicit folder taxonomy (docs/, src/, scripts/, tests/, todo/, .bb/chats/, dist/, data/, tmp/), and mandatory artifact generation in chat workspaces. The task objective is to replace these with lean default templates containing only non-inferable rules, removing references to .bb/chats, solo maintenance, main-only commits, and imposed folder layouts. The excerpt also defines RPC endpoints in server.ts related to template management (rules_read, rules_save, rules_settings_save, agents_config, agents_config_save, agents_apply) and imports managed-block utilities (AGENTS_BLOCK_START, AGENTS_BLOCK_END, applyAgentsBlock, applyCustomBlock, readManagedBlock) from ./agents-template. Key invariants require preserving the session instruction at server.ts ~3619, leaving managed-block markers and apply logic unchanged, and confirming from the code that existing AGENTS.md files are not automatically overwritten by the new defaults. Because server.ts is truncated around line 729, function implementations, the session instruction at line ~3619, and the other contract files (agents-template.ts, test suites, translations, package.json, and CHANGELOG.md) are not included in the provided excerpt.\",\"keyFacts\":[\"server.ts defines defaultAgentsTemplate with four sections: 'Think before coding', 'Minimum and surgical changes', 'Success criteria and verification', and 'Files and autonomy'.\",\"server.ts defaultAgentsTemplate explicitly references .bb/chats/<chat id>/ folder structure (artifacts/, notes/, tmp/) and forbids editing thread.json or history/.\",\"server.ts defines defaultProjectTemplate with six sections: 'Before work', 'Git and delivery', 'Where files live', 'Order and files', 'Results and records', and 'Wrap-up'.\",\"server.ts defaultProjectTemplate enforces solo development conventions: 'Solo development: commit straight to main — no worktrees, feature branches or PRs unless the user asks' and 'One person maintains this project'.\",\"server.ts defaultProjectTemplate imposes a specific file layout including README.md, AGENTS.md, docs/, src/, scripts/, tests/, todo/, .bb/chats/, dist/, data/, and tmp/.\",\"server.ts defaultProjectTemplate prescribes creating artifacts in chat's artifacts/ folder for substantial work.\",\"server.ts imports AGENTS_BLOCK_END, AGENTS_BLOCK_START, applyAgentsBlock, applyCustomBlock, and readManagedBlock from ./agents-template.\",\"server.ts defines RPC contract endpoint agents_apply with null input and output containing updated, unchanged, failed, and error counts.\",\"server.ts defines RPC contract endpoint rules_read returning template, projectTemplate, content, claude, sha, path, mode, custom, customTarget, startup, suggestedSection, and suggestedProject.\",\"server.ts defines RPC contract endpoint rules_settings_save accepting sectionTemplate, projectTemplate, custom, customTarget, startup, mode, projectId, and folderId.\",\"server.ts defines RPC contract endpoints agents_config and agents_config_save for global settings including template, projectTemplate, autoCreate, custom, customTarget, and startup.\",\"server.ts reads pluginVersion dynamically from package.json via readFileSync with import.meta.url.\",\"server.ts defines legacyDescriptors.agents_auto_create defaulting to true as a pre-0.4.1 migration field.\",\"server.ts defines resolveFolderPath which disallows relative path traversal ('..'), '.bb', and '.git'.\"],\"openQuestions\":[\"The excerpt truncates server.ts at line 729, omitting the implementation of agents_apply, rules_read, rules_settings_save, agents_config, and how templates are applied to new projects/sections.\",\"The exact replacement text specified by the plan for defaultProjectTemplate and defaultAgentsTemplate is not present in the excerpt.\",\"The session instruction at server.ts ~3619 (which must remain unchanged per task invariants) is not included in the excerpt.\",\"The excerpt does not show agents-template.ts, leaving the implementation of applyAgentsBlock, applyCustomBlock, and marker constants unverified.\",\"The excerpt does not include server.test.ts, backup.test.ts, i18n.test.ts, or agents-template.test.ts, so existing test assertions pinning template strings cannot be inspected.\",\"The excerpt does not include translations.ts or locales/*.json, leaving it unsettled whether template strings are localized or have associated translation keys.\",\"The excerpt does not include package.json or CHANGELOG.md, so the current package version and changelog formatting conventions cannot be inspected.\",\"The specific code path proving that existing AGENTS.md files are not automatically overwritten by new defaults is located in the truncated portion of server.ts or unprovided files.\"]}",
+        "agent": "Lane Pilot writer",
+        "promptChars": 9278,
+        "helperMode": "roles",
+        "helperRequired": false
+      }
+    }
+  ],
+  "emergencyFallback": null,
+  "turns": 1
+}
