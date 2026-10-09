@@ -1088,7 +1088,7 @@ function FolderDialog({
     </Dialog>
   );
 }
-function ProjectDialog({
+export function ProjectDialog({
   open,
   onClose,
   onCreated,
@@ -1100,6 +1100,12 @@ function ProjectDialog({
   onCreated: () => void;
 }) {
   const rpc = useRpc<typeof rpcContract>();
+  const { prefs, loaded: prefsLoaded } = usePrefs();
+  // Read defaults at open/device change, without replacing an in-progress choice.
+  const startingFolder = useRef(prefs.projects.startingFolder);
+  startingFolder.current = prefs.projects.startingFolder;
+  const browseRequest = useRef(0);
+  const [warning, setWarning] = useState("");
   const [hosts, setHosts] = useState<
     { id: string; name: string; connected: boolean }[]
   >([]);
@@ -1125,6 +1131,10 @@ function ProjectDialog({
     setChosen(null);
     setBrowse(false);
     setHostId("");
+    setBase("");
+    setListing(null);
+    setLoading(true);
+    setWarning("");
     rpc.call("machines").then(
       (r) => {
         if (live) {
@@ -1145,43 +1155,66 @@ function ProjectDialog({
     };
   }, [open, rpc, defaultHostId]);
   useEffect(() => {
-    if (!open || !hostId) return;
-    let live = true;
+    if (!open || !hostId || !prefsLoaded) return;
+    const request = ++browseRequest.current;
     setChosen(null);
     setBase("");
+    setListing(null);
     setBrowse(false);
+    setError("");
+    setWarning("");
     setLoading(true);
-    rpc.call("project_browse", { hostId }).then(
-      (r) => {
-        if (live) {
+    const path = startingFolder.current;
+    const load = async () => {
+      try {
+        let r;
+        try {
+          r = await rpc.call(
+            "project_browse",
+            path ? { hostId, path } : { hostId },
+          );
+        } catch (e) {
+          if (!path || request !== browseRequest.current) throw e;
+          r = await rpc.call("project_browse", { hostId });
+          if (request === browseRequest.current)
+            setWarning(
+              t(
+                "Начальная папка недоступна. Используется домашняя папка выбранного устройства.",
+              ) +
+                " " +
+                path,
+            );
+        }
+        if (request === browseRequest.current) {
           setBase(r.path);
           setListing(r);
-          setLoading(false);
         }
-      },
-      (e) => {
-        if (live) {
-          setError(String(e));
-          setLoading(false);
-        }
-      },
-    );
-    return () => {
-      live = false;
+      } catch (e) {
+        if (request === browseRequest.current) setError(String(e));
+      } finally {
+        if (request === browseRequest.current) setLoading(false);
+      }
     };
-  }, [open, hostId, rpc]);
+    void load();
+    return () => {
+      browseRequest.current++;
+    };
+  }, [open, hostId, rpc, prefsLoaded]);
   const enter = async (path: string) => {
+    const request = ++browseRequest.current;
     setLoading(true);
     setError("");
     try {
-      setListing(await rpc.call("project_browse", { hostId, path }));
+      const next = await rpc.call("project_browse", { hostId, path });
+      if (request === browseRequest.current) setListing(next);
     } catch (e) {
-      setError(String(e));
+      if (request === browseRequest.current) setError(String(e));
     } finally {
-      setLoading(false);
+      if (request === browseRequest.current) setLoading(false);
     }
   };
   const save = async () => {
+    if (busy || loading || !hostId || !base) return;
     setBusy(true);
     setError("");
     try {
@@ -1214,6 +1247,11 @@ function ProjectDialog({
             {t("Устройство и рабочая папка проекта")}
           </DialogDescription>
         </DialogHeader>
+        {warning && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {warning}
+          </p>
+        )}
         {error && (
           <p role="alert" className="text-destructive text-sm">
             {error}
@@ -1298,6 +1336,7 @@ function ProjectDialog({
               <Input
                 required
                 autoFocus
+                disabled={busy}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -1308,6 +1347,7 @@ function ProjectDialog({
                 <Input
                   aria-label={t("Папка проекта")}
                   required
+                  disabled={loading || busy}
                   value={
                     chosen ?? (base ? base.replace(/\/$/, "") + "/" + name : "")
                   }

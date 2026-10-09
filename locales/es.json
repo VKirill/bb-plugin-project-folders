@@ -1,4 +1,10 @@
 {
+  "Начальная папка для новых проектов.": "Carpeta inicial para proyectos nuevos.",
+  "Новые проекты": "Proyectos nuevos",
+  "Начальная папка нового проекта": "Carpeta inicial del nuevo proyecto",
+  "Абсолютный путь на выбранном устройстве. Пустое поле — домашняя папка устройства.": "Ruta absoluta en el dispositivo seleccionado. Déjalo vacío para usar su carpeta personal.",
+  "Укажите абсолютный путь без управляющих символов или оставьте поле пустым.": "Introduce una ruta absoluta sin caracteres de control (hasta 4096 caracteres), o déjalo vacío.",
+  "Начальная папка недоступна. Используется домашняя папка выбранного устройства.": "La carpeta inicial no está disponible. Se usará la carpeta personal del dispositivo seleccionado.",
   "Выбор папки": "Elegir carpeta",
   "Новый раздел": "Nueva sección",
   "Правила работы": "Reglas de trabajo",

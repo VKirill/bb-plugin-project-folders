@@ -57,6 +57,14 @@ Database migration and ordinary initialization errors propagate to the plugin lo
 
 ## Modes
 
+### New-project starting folder
+
+In plugin settings, **Projects → New project starting folder** accepts an absolute directory path, saved when the field loses focus or Enter is pressed. It is shared across devices through `prefs.projects.startingFolder` in the existing server preferences. Blank keeps the selected device's home directory. Older saved preferences and imports also default to blank (`preferences.ts`, `plugin-settings.tsx`).
+
+The New project dialog in both the sidebar and management page starts its folder browser at this directory and suggests `<starting-folder>/<project-name>`. Manually entering or selecting a folder overrides that suggestion. The setting is read when the dialog opens or the selected device changes; updates do not replace a choice already being edited (`app.tsx`, `prefs-store.tsx`).
+
+If the configured directory is unavailable, the dialog warns and uses the home directory on the same selected device. If that device cannot be browsed, the error remains visible and creation is disabled. The setting does not create the starting directory. Other folder pickers continue to use their existing starting locations (`app.tsx`, `server.ts`).
+
 | Node | Owns a directory | Can contain | Chat environment | Rules |
 |---|---:|---|---:|---:|
 | Project root | BB project source | Sections and groups | Yes | Project rule record |

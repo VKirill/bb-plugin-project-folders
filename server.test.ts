@@ -378,6 +378,7 @@ describe("shared preferences", () => {
       expect(first.stored).toBe(false);
       const prefs = (first as unknown as { prefs: Record<string, any> }).prefs;
       prefs.chatList.limit = 25;
+      prefs.projects.startingFolder = "/work/projects";
       prefs.appearance.levels.project = { icon: "emoji:🚀", color: "blue" };
       await call("prefs_save", { prefs });
       await call("item_style_save", {
@@ -396,6 +397,7 @@ describe("shared preferences", () => {
       };
       expect(next.stored).toBe(true);
       expect(next.prefs.chatList.limit).toBe(25);
+      expect(next.prefs.projects.startingFolder).toBe("/work/projects");
       expect(next.prefs.appearance.levels.project.icon).toBe("emoji:🚀");
       expect(next.items).toEqual({
         "f:x": { color: "#00ff00", cascade: true },
@@ -404,6 +406,18 @@ describe("shared preferences", () => {
       expect(
         ((await call("prefs_get", null)) as { items: object }).items,
       ).toEqual({});
+      for (const startingFolder of ["relative", "/work\n"]) {
+        await expect(
+          call("prefs_save", {
+            prefs: { ...prefs, projects: { startingFolder } },
+          }),
+        ).rejects.toThrow();
+      }
+      Object.assign(h, await h.harness.lifecycle.reload(plugin));
+      const reloaded = (await h.harness.behavior.callRpc("prefs_get", null)) as {
+        prefs: typeof prefs;
+      };
+      expect(reloaded.prefs.projects.startingFolder).toBe("/work/projects");
     } finally {
       await h.harness.lifecycle.dispose();
     }

@@ -627,7 +627,10 @@ it("lists the plugin settings sections in the tree sidebar and opens them", asyn
   await view.findByText("Project");
   const side = view.baseElement.querySelector(".pf-side")!;
   expect(side.textContent).toContain("Chat list");
+  expect(side.textContent).toContain("Projects");
   expect(side.textContent).toContain("Appearance");
+  fireEvent.click(view.getByRole("button", { name: "Projects" }));
+  await view.findByRole("textbox", { name: "New project starting folder" });
   fireEvent.click(view.getByRole("button", { name: "Section archive" }));
   await view.findByText("Archive is empty");
   view.getByText("Section").click();
