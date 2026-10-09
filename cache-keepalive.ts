@@ -57,13 +57,22 @@ export interface KeepaliveThread {
   };
 }
 
+export interface KeepaliveQueuedMessage {
+  id?: string;
+  sendAt?: number | null;
+  [key: string]: unknown;
+}
+
 export interface KeepaliveSdkSubset {
   threads: {
     list: (args?: { signal?: AbortSignal }) => Promise<KeepaliveThread[]>;
     get?: (args: { threadId: string }) => Promise<KeepaliveThread>;
     send: (args: any) => Promise<unknown>;
     queuedMessages?: {
-      list: (args: { threadId: string }) => Promise<unknown[]>;
+      list: (args: { threadId: string }) => Promise<KeepaliveQueuedMessage[]>;
+    };
+    queue?: {
+      list?: (args?: { threadId?: string; signal?: AbortSignal }) => Promise<KeepaliveQueuedMessage[]>;
     };
     interactions?: {
       list?: (args: { threadId: string }) => Promise<unknown[]>;
@@ -78,6 +87,7 @@ export interface KeepaliveStore {
   setWakeCount: (threadId: string, wakes: number) => void;
   deleteThread: (threadId: string) => void;
   recordPingSent?: (threadId: string, at: number) => void;
+  getLastPingAt?: (threadId: string) => number | null;
 }
 
 export function createSqliteKeepaliveStore(db: {
@@ -112,17 +122,28 @@ export function createSqliteKeepaliveStore(db: {
     deleteThread(threadId: string): void {
       db.prepare("DELETE FROM thread_keepalive WHERE threadId=?").run(threadId);
     },
+    recordPingSent(threadId: string, at: number): void {
+      db.prepare(
+        "INSERT INTO thread_keepalive (threadId, idleAt, wakes, updatedAt, lastPingAt) VALUES (?, 0, 0, ?, ?) ON CONFLICT(threadId) DO UPDATE SET lastPingAt=excluded.lastPingAt, updatedAt=excluded.updatedAt",
+      ).run(threadId, at, at);
+    },
+    getLastPingAt(threadId: string): number | null {
+      const row = db
+        .prepare("SELECT lastPingAt FROM thread_keepalive WHERE threadId=?")
+        .get(threadId) as { lastPingAt: number | null } | undefined;
+      return row ? (row.lastPingAt ?? null) : null;
+    },
   };
 }
 
 export function createInMemoryKeepaliveStore(): KeepaliveStore {
-  const records = new Map<string, { idleAt: number | null; wakes: number }>();
+  const records = new Map<string, { idleAt: number | null; wakes: number; lastPingAt: number | null }>();
   return {
     getIdleAt(threadId: string) {
       return records.get(threadId)?.idleAt ?? null;
     },
     setIdleAt(threadId: string, idleAt: number) {
-      const r = records.get(threadId) ?? { idleAt: null, wakes: 0 };
+      const r = records.get(threadId) ?? { idleAt: null, wakes: 0, lastPingAt: null };
       r.idleAt = idleAt;
       records.set(threadId, r);
     },
@@ -130,12 +151,20 @@ export function createInMemoryKeepaliveStore(): KeepaliveStore {
       return records.get(threadId)?.wakes ?? 0;
     },
     setWakeCount(threadId: string, wakes: number) {
-      const r = records.get(threadId) ?? { idleAt: null, wakes: 0 };
+      const r = records.get(threadId) ?? { idleAt: null, wakes: 0, lastPingAt: null };
       r.wakes = wakes;
       records.set(threadId, r);
     },
     deleteThread(threadId: string) {
       records.delete(threadId);
+    },
+    recordPingSent(threadId: string, at: number) {
+      const r = records.get(threadId) ?? { idleAt: null, wakes: 0, lastPingAt: null };
+      r.lastPingAt = at;
+      records.set(threadId, r);
+    },
+    getLastPingAt(threadId: string) {
+      return records.get(threadId)?.lastPingAt ?? null;
     },
   };
 }
@@ -223,22 +252,8 @@ export function createCacheKeepalive(deps: CacheKeepaliveDeps) {
         if (thread.archivedAt != null) continue;
         // Non-deleted
         if (thread.deletedAt != null) continue;
-        // Idle status
-        if (thread.status !== "idle") continue;
-        if (thread.runtime?.displayStatus && thread.runtime.displayStatus !== "idle") continue;
-        // Claude-family
+        // Claude-family: only Claude threads are candidates for prompt cache keepalive
         if (!isClaudeFamily(thread)) continue;
-        // No queued messages
-        if (thread.queuedMessageCount != null && thread.queuedMessageCount > 0) continue;
-        if (deps.sdk.threads.queuedMessages) {
-          const queued = await deps.sdk.threads.queuedMessages.list({ threadId: thread.id });
-          if (queued && queued.length > 0) continue;
-        }
-        // No pending interactions
-        if (deps.sdk.threads.interactions?.list) {
-          const interactions = await deps.sdk.threads.interactions.list({ threadId: thread.id });
-          if (interactions && interactions.length > 0) continue;
-        }
 
         // Determine idleAt
         let idleAt = deps.store.getIdleAt(thread.id);
@@ -247,20 +262,105 @@ export function createCacheKeepalive(deps: CacheKeepaliveDeps) {
             idleAt = thread.updatedAt;
             deps.store.setIdleAt(thread.id, idleAt);
           } else {
-            // skipped until next idle
+            log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: no idleAt or updatedAt available`);
+            continue;
+          }
+        }
+
+        const expiryMs = idleAt + oneHourMs;
+
+        // From here on, this is a pinned, non-archived, non-deleted Claude thread.
+        // If we skip it, log debug with reason.
+
+        // Idle status
+        if (thread.status !== "idle" || (thread.runtime?.displayStatus && thread.runtime.displayStatus !== "idle")) {
+          log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: not idle (status=${thread.status}, displayStatus=${thread.runtime?.displayStatus})`);
+          continue;
+        }
+
+        // Queued messages inspection
+        // Fast path: queuedMessageCount === 0 means nothing is queued.
+        // If queuedMessageCount > 0 or undefined, inspect the queue list if available.
+        if (thread.queuedMessageCount != null && thread.queuedMessageCount === 0) {
+          // Fast path: nothing queued
+        } else {
+          // Check queued messages via SDK queue list API
+          let queuedList: KeepaliveQueuedMessage[] | undefined;
+          let fetchFailed = false;
+          try {
+            if (deps.sdk.threads.queue?.list) {
+              const res = await deps.sdk.threads.queue.list({ threadId: thread.id });
+              queuedList = Array.isArray(res) ? res : undefined;
+            } else if (deps.sdk.threads.queuedMessages?.list) {
+              const res = await deps.sdk.threads.queuedMessages.list({ threadId: thread.id });
+              queuedList = Array.isArray(res) ? res : undefined;
+            }
+          } catch (qErr) {
+            fetchFailed = true;
+            log?.debug?.(`Cache keepalive: failed to list queue for thread ${thread.id}: ${String(qErr)}`);
+          }
+
+          if (fetchFailed) {
+            log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: could not inspect queued messages`);
+            continue;
+          }
+
+          if (queuedList != null) {
+            // If queuedMessageCount > 0 but queue list returned empty,
+            // treat as having queued messages due now unless proven otherwise.
+            if (queuedList.length === 0 && thread.queuedMessageCount != null && thread.queuedMessageCount > 0) {
+              log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: ${thread.queuedMessageCount} queued message(s) reported but list returned empty`);
+              continue;
+            }
+            // Check if any queued message blocks the ping:
+            // A queued message blocks the ping if it has no future sendAt (due now)
+            // or its sendAt is earlier than idleAt + 60 min (expiryMs).
+            // A queued message with sendAt >= expiryMs does NOT block.
+            const blockingMessage = queuedList.find((msg) => {
+              if (msg.sendAt == null) return true;
+              return msg.sendAt < expiryMs;
+            });
+            if (blockingMessage) {
+              log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: queued message due before cache expiry (sendAt=${blockingMessage.sendAt})`);
+              continue;
+            }
+          } else if (thread.queuedMessageCount != null && thread.queuedMessageCount > 0) {
+            // No list API available to inspect sendAt, but thread says messages are queued
+            log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: ${thread.queuedMessageCount} queued message(s) and queue list unavailable`);
+            continue;
+          }
+        }
+
+        // No pending interactions
+        if (deps.sdk.threads.interactions?.list) {
+          const interactions = await deps.sdk.threads.interactions.list({ threadId: thread.id });
+          if (interactions && interactions.length > 0) {
+            log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: ${interactions.length} pending interaction(s)`);
             continue;
           }
         }
 
         // Timing window: now >= idleAt + period and now < idleAt + 60 min
-        if (currentNow < idleAt + periodMs) continue;
-        if (currentNow >= idleAt + oneHourMs) continue;
+        if (currentNow < idleAt + periodMs) {
+          log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: before period window (now=${currentNow}, target=${idleAt + periodMs})`);
+          continue;
+        }
+        if (currentNow >= expiryMs) {
+          log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: past cache expiry window (now=${currentNow}, expiry=${expiryMs})`);
+          continue;
+        }
 
         // Ensure we haven't already pinged for this idle spell
-        if (pingPending.has(thread.id)) continue;
+        if (pingPending.has(thread.id)) {
+          log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: ping already pending`);
+          continue;
+        }
 
         const wakes = deps.store.getWakeCount(thread.id);
-        if (config.maxWakes > 0 && wakes >= config.maxWakes) continue;
+        if (config.maxWakes > 0 && wakes >= config.maxWakes) {
+          log?.debug?.(`Cache keepalive: skipping pinned Claude thread ${thread.id}: maxWakes reached (${wakes}/${config.maxWakes})`);
+          continue;
+        }
 
         // Ready to ping!
         const nextWake = wakes + 1;

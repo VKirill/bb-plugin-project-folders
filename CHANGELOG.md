@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.35 — Keepalive ignores far-future queued messages
+
+- Pinned Claude thread prompt cache keepalive no longer gets blocked by queued messages scheduled for after cache expiry (`sendAt >= idleAt + 60 min`).
+- Queued messages due earlier than `idleAt + 60 min` or due immediately continue to block keepalive pings.
+- Skips of pinned Claude threads are logged at debug level with the reason.
+- Implemented `recordPingSent` to record `lastPingAt` in the SQLite-backed store after dispatching keepalive pings.
+
 ## 0.6.34 — Lean default AGENTS.md templates
 
 - Shipped lean default `AGENTS.md` templates for projects and sections: trimmed owner-specific workflows (solo development, commit straight to main, unconditional service restart) and generic coding rules, keeping only non-inferable essentials.
