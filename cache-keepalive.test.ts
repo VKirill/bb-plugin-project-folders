@@ -427,4 +427,232 @@ describe("createCacheKeepalive with fake clock", () => {
     keepalive.dispose();
     expect(clearIntervalMock).toHaveBeenCalledWith(999);
   });
+
+  describe("queued messages sendAt filtering and logging", () => {
+    it("pings when a queued message has sendAt at or after idleAt + 60 min", async () => {
+      const thread: KeepaliveThread = {
+        id: "t-far-future",
+        providerId: "anthropic",
+        pinnedAt: fakeNow,
+        archivedAt: null,
+        status: "idle",
+        updatedAt: fakeNow,
+        queuedMessageCount: 1,
+      };
+      const { sdk, sentMessages } = createMockSdk([thread]);
+      const store = createInMemoryKeepaliveStore();
+      store.setIdleAt("t-far-future", fakeNow);
+
+      const idleAt = fakeNow;
+      const expiry = idleAt + 60 * 60 * 1000;
+      // Scheduled for 75 min after idleAt (past the 60m expiry)
+      sdk.threads.queuedMessages!.list = vi.fn(async () => [
+        { id: "qm-1", sendAt: expiry + 15 * 60 * 1000 },
+      ]);
+
+      const debugLogs: string[] = [];
+      const keepalive = createCacheKeepalive({
+        pluginId: "project-folders",
+        sdk,
+        store,
+        getConfig: () => ({ enabled: true, periodMinutes: 55, maxWakes: 0 }),
+        now: () => fakeNow,
+        setInterval: vi.fn(),
+        clearInterval: vi.fn(),
+        log: { debug: (msg) => debugLogs.push(msg) },
+      });
+
+      fakeNow += 55 * 60 * 1000;
+      await keepalive.sweep();
+
+      expect(sentMessages).toHaveLength(1);
+      expect(sentMessages[0].threadId).toBe("t-far-future");
+      keepalive.dispose();
+    });
+
+    it("does not ping when a queued message has sendAt earlier than idleAt + 60 min", async () => {
+      const thread: KeepaliveThread = {
+        id: "t-near-future",
+        providerId: "anthropic",
+        pinnedAt: fakeNow,
+        archivedAt: null,
+        status: "idle",
+        updatedAt: fakeNow,
+        queuedMessageCount: 1,
+      };
+      const { sdk, sentMessages } = createMockSdk([thread]);
+      const store = createInMemoryKeepaliveStore();
+      store.setIdleAt("t-near-future", fakeNow);
+
+      const idleAt = fakeNow;
+      // Scheduled 58 min after idleAt (before 60m cache expiry)
+      sdk.threads.queuedMessages!.list = vi.fn(async () => [
+        { id: "qm-2", sendAt: idleAt + 58 * 60 * 1000 },
+      ]);
+
+      const debugLogs: string[] = [];
+      const keepalive = createCacheKeepalive({
+        pluginId: "project-folders",
+        sdk,
+        store,
+        getConfig: () => ({ enabled: true, periodMinutes: 55, maxWakes: 0 }),
+        now: () => fakeNow,
+        setInterval: vi.fn(),
+        clearInterval: vi.fn(),
+        log: { debug: (msg) => debugLogs.push(msg) },
+      });
+
+      fakeNow += 55 * 60 * 1000;
+      await keepalive.sweep();
+
+      expect(sentMessages).toHaveLength(0);
+      expect(debugLogs.some((l) => l.includes("queued message due before cache expiry"))).toBe(true);
+      keepalive.dispose();
+    });
+
+    it("does not ping when a queued message has no sendAt (due now)", async () => {
+      const thread: KeepaliveThread = {
+        id: "t-due-now",
+        providerId: "anthropic",
+        pinnedAt: fakeNow,
+        archivedAt: null,
+        status: "idle",
+        updatedAt: fakeNow,
+        queuedMessageCount: 1,
+      };
+      const { sdk, sentMessages } = createMockSdk([thread]);
+      const store = createInMemoryKeepaliveStore();
+      store.setIdleAt("t-due-now", fakeNow);
+
+      // sendAt is null or undefined (waiting now)
+      sdk.threads.queuedMessages!.list = vi.fn(async () => [
+        { id: "qm-3", sendAt: null },
+      ]);
+
+      const debugLogs: string[] = [];
+      const keepalive = createCacheKeepalive({
+        pluginId: "project-folders",
+        sdk,
+        store,
+        getConfig: () => ({ enabled: true, periodMinutes: 55, maxWakes: 0 }),
+        now: () => fakeNow,
+        setInterval: vi.fn(),
+        clearInterval: vi.fn(),
+        log: { debug: (msg) => debugLogs.push(msg) },
+      });
+
+      fakeNow += 55 * 60 * 1000;
+      await keepalive.sweep();
+
+      expect(sentMessages).toHaveLength(0);
+      expect(debugLogs.some((l) => l.includes("queued message due before cache expiry"))).toBe(true);
+      keepalive.dispose();
+    });
+
+    it("does not call queue list if queuedMessageCount is 0", async () => {
+      const thread: KeepaliveThread = {
+        id: "t-empty-queue",
+        providerId: "anthropic",
+        pinnedAt: fakeNow,
+        archivedAt: null,
+        status: "idle",
+        updatedAt: fakeNow,
+        queuedMessageCount: 0,
+      };
+      const { sdk, sentMessages } = createMockSdk([thread]);
+      const store = createInMemoryKeepaliveStore();
+      store.setIdleAt("t-empty-queue", fakeNow);
+
+      const listSpy = vi.fn(async () => []);
+      sdk.threads.queuedMessages!.list = listSpy;
+
+      const keepalive = createCacheKeepalive({
+        pluginId: "project-folders",
+        sdk,
+        store,
+        getConfig: () => ({ enabled: true, periodMinutes: 55, maxWakes: 0 }),
+        now: () => fakeNow,
+        setInterval: vi.fn(),
+        clearInterval: vi.fn(),
+      });
+
+      fakeNow += 55 * 60 * 1000;
+      await keepalive.sweep();
+
+      expect(sentMessages).toHaveLength(1);
+      expect(listSpy).not.toHaveBeenCalled();
+      keepalive.dispose();
+    });
+
+    it("logs debug reason when skipping pinned Claude threads", async () => {
+      const activeThread: KeepaliveThread = {
+        id: "t-active",
+        providerId: "anthropic",
+        pinnedAt: fakeNow,
+        archivedAt: null,
+        status: "active",
+        updatedAt: fakeNow,
+      };
+      const { sdk } = createMockSdk([activeThread]);
+      const store = createInMemoryKeepaliveStore();
+      store.setIdleAt("t-active", fakeNow);
+
+      const debugLogs: string[] = [];
+      const keepalive = createCacheKeepalive({
+        pluginId: "project-folders",
+        sdk,
+        store,
+        getConfig: () => ({ enabled: true, periodMinutes: 55, maxWakes: 0 }),
+        now: () => fakeNow + 55 * 60 * 1000,
+        setInterval: vi.fn(),
+        clearInterval: vi.fn(),
+        log: { debug: (msg) => debugLogs.push(msg) },
+      });
+
+      fakeNow += 55 * 60 * 1000;
+      await keepalive.sweep();
+
+      expect(debugLogs.some((l) => l.includes("skipping pinned Claude thread t-active: not idle"))).toBe(true);
+      keepalive.dispose();
+    });
+  });
+
+  describe("createSqliteKeepaliveStore and recordPingSent", () => {
+    it("records lastPingAt in the SQLite store and updates on ping", () => {
+      const rows = new Map<string, any>();
+      const fakeDb = {
+        prepare: (sql: string) => ({
+          run: (...args: any[]) => {
+            const threadId = args[0];
+            const existing = rows.get(threadId) || { threadId, idleAt: 0, wakes: 0, updatedAt: 0, lastPingAt: null };
+            if (sql.includes("INSERT INTO thread_keepalive")) {
+              if (sql.includes("lastPingAt")) {
+                // INSERT INTO thread_keepalive (threadId, idleAt, wakes, updatedAt, lastPingAt) VALUES (?, 0, 0, ?, ?)
+                // args: [threadId, updatedAt, lastPingAt] -> args[1] = updatedAt, args[2] = lastPingAt
+                existing.updatedAt = args[1];
+                existing.lastPingAt = args[2];
+              } else if (sql.includes("idleAt=excluded.idleAt")) {
+                existing.idleAt = args[1];
+                existing.updatedAt = args[2];
+              } else if (sql.includes("wakes=excluded.wakes")) {
+                existing.wakes = args[1];
+                existing.updatedAt = args[2];
+              }
+              rows.set(threadId, existing);
+            } else if (sql.includes("DELETE FROM thread_keepalive")) {
+              rows.delete(threadId);
+            }
+            return { changes: 1 };
+          },
+          get: (threadId: string) => rows.get(threadId),
+        }),
+      };
+
+      const sqliteStore = createSqliteKeepaliveStore(fakeDb as any);
+      expect(sqliteStore.getLastPingAt?.("th-1")).toBeNull();
+
+      sqliteStore.recordPingSent?.("th-1", 1234567890);
+      expect(sqliteStore.getLastPingAt?.("th-1")).toBe(1234567890);
+    });
+  });
 });
