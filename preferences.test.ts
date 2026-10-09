@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   defaultPrefs,
+  prefsSchema,
+  startingFolderSchema,
   exportPayload,
   parseImport,
   parseItemStyles,
@@ -27,6 +29,45 @@ const look = (prefs = defaultPrefs, items = {}, id: string | null = null) =>
   });
 
 describe("preferences", () => {
+  it("defaults older preferences and exports to the home folder", () => {
+    const { projects, ...legacy } = defaultPrefs;
+    expect(parsePrefs(legacy).projects).toEqual(projects);
+    expect(prefsSchema.parse(legacy).projects).toEqual(projects);
+    expect(
+      parseImport(
+        JSON.stringify(exportPayload(legacy as typeof defaultPrefs, {})),
+      ).prefs.projects,
+    ).toEqual(projects);
+  });
+
+  it("preserves the starting folder across export and import, rejecting invalid paths", () => {
+    const prefs = {
+      ...defaultPrefs,
+      projects: { startingFolder: "/work/My projects" },
+    };
+    expect(parsePrefs(prefs)).toEqual(prefs);
+    expect(parseImport(JSON.stringify(exportPayload(prefs, {}))).prefs).toEqual(
+      prefs,
+    );
+    for (const startingFolder of [
+      "relative",
+      "~/Projects",
+      "/work\u0000bad",
+      "/work\n",
+      "/work\u007f",
+      "/" + "a".repeat(4096),
+    ]) {
+      expect(startingFolderSchema.safeParse(startingFolder).success).toBe(
+        false,
+      );
+      expect(
+        parsePrefs({ projects: { startingFolder } }).projects.startingFolder,
+      ).toBe("");
+    }
+    expect(startingFolderSchema.safeParse("").success).toBe(true);
+    expect(startingFolderSchema.safeParse("/").success).toBe(true);
+  });
+
   it("keeps valid fields and drops invalid ones one by one", () => {
     const prefs = parsePrefs({
       chatList: { sort: "title", limit: 500, inactiveHours: 6 },

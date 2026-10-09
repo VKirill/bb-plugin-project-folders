@@ -65,7 +65,15 @@ export const itemStyleSchema = styleSchema.extend({
   hidden: z.boolean().optional(),
 });
 export type ItemStyle = z.infer<typeof itemStyleSchema>;
+/** Plain patterns also validate at the RPC's JSON Schema boundary. */
+export const startingFolderSchema = z
+  .string()
+  .max(4096)
+  .regex(/^(?:|\/[^\x00-\x1f\x7f]*)(?![\s\S])/);
 export const prefsSchema = z.object({
+  projects: z.object({ startingFolder: startingFolderSchema }).default({
+    startingFolder: "",
+  }),
   chatList: z.object({
     sort: z.enum(CHAT_SORTS),
     limit: z.number().int().min(1).max(100),
@@ -96,6 +104,7 @@ export type Prefs = z.infer<typeof prefsSchema>;
 export type ItemStyles = Record<string, ItemStyle>;
 
 export const defaultPrefs: Prefs = {
+  projects: { startingFolder: "" },
   chatList: {
     sort: "activity",
     limit: 10,

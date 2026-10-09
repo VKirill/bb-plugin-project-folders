@@ -8,6 +8,8 @@ import { AppearanceSettings, TransferSettings } from "./appearance";
 import { AgentsMarkersHint, AgentsRulesEditor } from "./agents-apply";
 import { ExecutionSettings } from "./execution-ui";
 import { SettingRow, SettingsGroup, Switch } from "./settings-ui";
+import { usePrefs } from "./prefs-store";
+import { startingFolderSchema } from "./preferences";
 import {
   SessionPolicyEditor,
   useSessionPolicyAvailable,
@@ -18,6 +20,7 @@ import {
 } from "./cache-keepalive";
 
 export const SETTINGS_SECTIONS = [
+  "projects",
   "list",
   "appearance",
   "rules",
@@ -34,6 +37,11 @@ export const isSettingsSection = (v: string): v is SettingsSection =>
 
 const meta = (section: SettingsSection) =>
   ({
+    projects: {
+      icon: "Folder",
+      title: t("Проекты"),
+      hint: t("Начальная папка для новых проектов."),
+    },
     list: {
       icon: "ListTodo",
       title: t("Список чатов"),
@@ -80,6 +88,85 @@ const meta = (section: SettingsSection) =>
       hint: t("Перенос настроек, оформления и всех данных плагина через файл."),
     },
   })[section];
+
+export function ProjectSettings() {
+  const { prefs, loaded, savePrefs } = usePrefs();
+  const [draft, setDraft] = useState(prefs.projects.startingFolder);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(
+    () => setDraft(prefs.projects.startingFolder),
+    [prefs.projects.startingFolder],
+  );
+
+  const save = async () => {
+    if (!loaded || busy) return;
+    const startingFolder = draft.trim();
+    if (!startingFolderSchema.safeParse(startingFolder).success) {
+      setError(
+        t(
+          "Укажите абсолютный путь без управляющих символов или оставьте поле пустым.",
+        ),
+      );
+      return;
+    }
+    setDraft(startingFolder);
+    setError("");
+    if (startingFolder === prefs.projects.startingFolder) return;
+    setBusy(true);
+    try {
+      await savePrefs({
+        ...prefs,
+        projects: { ...prefs.projects, startingFolder },
+      });
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SettingsGroup title={t("Новые проекты")}>
+      <SettingRow
+        label={t("Начальная папка нового проекта")}
+        hint={t(
+          "Абсолютный путь на выбранном устройстве. Пустое поле — домашняя папка устройства.",
+        )}
+        htmlFor="pf-starting-folder"
+      >
+        <input
+          id="pf-starting-folder"
+          className="pf-sinput"
+          value={draft}
+          disabled={!loaded || busy}
+          aria-invalid={!!error}
+          aria-describedby={error ? "pf-starting-folder-error" : undefined}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setError("");
+          }}
+          onBlur={() => void save()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      </SettingRow>
+      {error && (
+        <p
+          id="pf-starting-folder-error"
+          role="alert"
+          className="text-destructive text-sm"
+        >
+          {error}
+        </p>
+      )}
+    </SettingsGroup>
+  );
+}
 
 export function CacheKeepaliveSettings() {
   const rpc = useRpc<typeof rpcContract>();
@@ -215,6 +302,7 @@ export function SettingsPane({
         <h2 id={`pf-spane-${section}`}>{m.title}</h2>
         <p>{m.hint}</p>
       </header>
+      {section === "projects" && <ProjectSettings />}
       {section === "list" && <ChatSettings />}
       {section === "appearance" && <AppearanceSettings />}
       {section === "rules" && (

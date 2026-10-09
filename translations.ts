@@ -1,5 +1,14 @@
 // English fallback and Russian translation catalog. User content is never translated.
 export const english = {
+  "Начальная папка для новых проектов.": "Starting folder for new projects.",
+  "Новые проекты": "New projects",
+  "Начальная папка нового проекта": "New project starting folder",
+  "Абсолютный путь на выбранном устройстве. Пустое поле — домашняя папка устройства.":
+    "Absolute path on the selected device. Leave blank to use the device’s home folder.",
+  "Укажите абсолютный путь без управляющих символов или оставьте поле пустым.":
+    "Enter an absolute path without control characters (up to 4096 characters), or leave blank.",
+  "Начальная папка недоступна. Используется домашняя папка выбранного устройства.":
+    "The starting folder is unavailable. Using the selected device’s home folder.",
   "Скрыть из дерева": "Hide from the tree",
   "Показать в дереве": "Show in the tree",
   "Показывать скрытые проекты и разделы": "Show hidden projects and sections",
