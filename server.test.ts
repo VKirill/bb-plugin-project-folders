@@ -535,10 +535,8 @@ describe("AGENTS.md template", () => {
       });
       await createSection(h, "Beta");
       expect(agentsWrites(h)).toHaveLength(0);
-      const stub = h.writes.find((w) =>
-        String(w.path).endsWith("/CLAUDE.md"),
-      ) as { content?: string } | undefined;
-      expect(stub?.content).toBe("@AGENTS.md\n");
+      // Claude Code reads AGENTS.md itself: no CLAUDE.md bridge is created.
+      expect(h.writes.filter((w) => String(w.path).endsWith("/CLAUDE.md"))).toHaveLength(0);
     } finally {
       await h.harness.lifecycle.dispose();
     }
@@ -1153,11 +1151,8 @@ describe("AGENTS.md template", () => {
       const claude = h.writes.filter((w) =>
         String(w.path).endsWith("/work/CLAUDE.md"),
       );
-      expect(claude.length).toBeGreaterThanOrEqual(1);
-      // The final CLAUDE.md state is the one-line bridge to AGENTS.md.
-      expect(String((claude.at(-1) as { content: string }).content)).toBe(
-        "@AGENTS.md\n",
-      );
+      // The project has no CLAUDE.md: the custom rule goes to AGENTS.md only, none is created.
+      expect(claude).toHaveLength(0);
       const rootAgents = h.writes.filter(
         (w) => String(w.path) === "/work/AGENTS.md",
       );
@@ -1170,7 +1165,7 @@ describe("AGENTS.md template", () => {
     }
   });
 
-  it("stamps a custom project template into AGENTS.md and bridges CLAUDE.md on every copy", async () => {
+  it("stamps a custom project template into AGENTS.md on every copy and writes no CLAUDE.md bridge", async () => {
     const { h } = await twoDeviceSetup();
     try {
       await h.harness.behavior.callRpc("copy_add", {
@@ -1193,18 +1188,14 @@ describe("AGENTS.md template", () => {
         expect(String((w as { content: string }).content)).toContain(
           "# Шаблон SelfyStudio",
         );
-      const bridges = h.writes.filter((w) =>
-        String(w.path).endsWith("CLAUDE.md"),
-      );
-      expect(bridges).toHaveLength(2);
-      for (const w of bridges)
-        expect(String((w as { content: string }).content)).toBe("@AGENTS.md\n");
+      // No CLAUDE.md bridge: an `@AGENTS.md` import above a section's folder is not expanded there.
+      expect(h.writes.filter((w) => String(w.path).endsWith("CLAUDE.md"))).toHaveLength(0);
     } finally {
       await h.harness.lifecycle.dispose();
     }
   });
 
-  it("bridges Claude Code with a CLAUDE.md import without overwriting an existing one", async () => {
+  it("creates no CLAUDE.md for a new section and leaves an existing one alone (Claude Code reads AGENTS.md itself)", async () => {
     const h = await setup();
     try {
       let claude: string | null = null;
@@ -1217,10 +1208,7 @@ describe("AGENTS.md template", () => {
         return "# Мои правила\n";
       });
       await createSection(h, "Theta");
-      const stub = h.writes.find((w) =>
-        String(w.path).endsWith("/CLAUDE.md"),
-      ) as { content?: string } | undefined;
-      expect(stub?.content).toBe("@AGENTS.md\n");
+      expect(h.writes.filter((w) => String(w.path).endsWith("/CLAUDE.md"))).toHaveLength(0);
       claude = "@AGENTS.md\n";
       await createSection(h, "Iota");
       expect(

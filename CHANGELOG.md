@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.36 — No CLAUDE.md bridge: sections get the project's rules again
+
+- The plugin no longer creates a one-line `CLAUDE.md` (`@AGENTS.md`) next to AGENTS.md, does not rewrite the project root's CLAUDE.md when project rules are saved, and adds the custom block only to a CLAUDE.md that already exists.
+- Why: Claude Code 2.1.277+ reads AGENTS.md itself when there is no CLAUDE.md, but it does not expand an `@AGENTS.md` import above the session's folder without an approval a BB session never gets. So the root bridge hid the project's rules from every section chat (seen live in «Клиенты»: a chat in a client folder answered «AGENTS.md is not in my context»; without the root CLAUDE.md it answered from the rules). Existing CLAUDE.md files are left as they are; remove a pure `@AGENTS.md` stub at a project root to let sections see the root rules.
+
 ## 0.6.35 — Keepalive ignores far-future queued messages
 
 - Pinned Claude thread prompt cache keepalive no longer gets blocked by queued messages scheduled for after cache expiry (`sendAt >= idleAt + 60 min`).

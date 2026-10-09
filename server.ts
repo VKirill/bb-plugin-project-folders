@@ -1671,16 +1671,6 @@ export default async function plugin(bb: BbPluginApi) {
       return null;
     }
   }
-  /** Claude Code reads CLAUDE.md, not AGENTS.md — bridge it with a one-line import. */
-  async function ensureClaudeStub(f: Folder) {
-    if ((await readAgents(f, "CLAUDE.md")) !== null) return;
-    await bb.sdk.files.write({
-      hostId: f.hostId,
-      rootPath: f.path,
-      path: path.join(f.path, "CLAUDE.md"),
-      content: "@AGENTS.md\n",
-    });
-  }
   async function writeAgents(f: Folder, content: string) {
     const r = await bb.sdk.files.write({
       hostId: f.hostId,
@@ -1697,22 +1687,23 @@ export default async function plugin(bb: BbPluginApi) {
     // reach this function: group_create inserts a group row and does not seed.
     if (!agents_auto_create) return;
     // An existing AGENTS.md belongs to the user: adopt the folder untouched.
-    if ((await readAgents(folder)) !== null) {
-      await ensureClaudeStub(folder);
-      return;
-    }
+    if ((await readAgents(folder)) !== null) return;
     const merged = applyRuleBlocks(
       null,
       effectiveSectionTemplate(parent, folder.projectId, agents_template),
       effectiveCustom(parent, folder.projectId, agents_custom),
     );
     if (merged !== null) await writeAgents(folder, merged);
-    await ensureClaudeStub(folder);
   }
   /** Custom rules are written to the bottom of AGENTS.md and CLAUDE.md when it exists. */
   async function syncClaudeCustom(f: Folder, custom: string) {
+    // Claude Code reads AGENTS.md itself when there is no CLAUDE.md (2.1.277+); a CLAUDE.md bridge with
+    // `@AGENTS.md` breaks the root rules for every section, because Claude Code does not expand an import
+    // above the session's folder without an approval a BB session never gets (Клиенты, 2026-10-09).
+    // So only a CLAUDE.md the user keeps gets the custom block; none is created.
     const existing = await readAgents(f, "CLAUDE.md");
-    const merged = applyCustomBlock(existing ?? "@AGENTS.md\n", custom);
+    if (existing === null) return;
+    const merged = applyCustomBlock(existing, custom);
     if (merged !== null)
       await bb.sdk.files.write({
         hostId: f.hostId,
@@ -1727,7 +1718,6 @@ export default async function plugin(bb: BbPluginApi) {
     if (!agents_auto_create) return;
     // An existing AGENTS.md belongs to the user: adopt the project untouched.
     if ((await readAgents(f)) !== null) {
-      await ensureClaudeStub(f);
       return;
     }
     const merged = applyRuleBlocks(
@@ -1736,7 +1726,6 @@ export default async function plugin(bb: BbPluginApi) {
       effectiveCustom(null, f.projectId, agents_custom),
     );
     if (merged !== null) await writeAgents(f, merged);
-    await ensureClaudeStub(f);
   }
   async function create(input: z.infer<typeof createSchema>) {
     const node = await target(input, { allowGroup: true, anyHost: true });
@@ -3072,18 +3061,6 @@ export default async function plugin(bb: BbPluginApi) {
             if (merged !== null) await writeAgents(t, merged);
             await syncClaudeCustom(t, fileCustom);
           }
-          if (!input.folderId) {
-            // CLAUDE.md becomes a one-line bridge; Claude Code reads
-            // AGENTS.md through it, so the rules stay in one place.
-            const claude = await readAgents(t, "CLAUDE.md");
-            if (claude !== "@AGENTS.md\n")
-              await bb.sdk.files.write({
-                hostId: t.hostId,
-                rootPath: t.path,
-                path: path.join(t.path, "CLAUDE.md"),
-                content: "@AGENTS.md\n",
-              });
-          }
         } catch (e) {
           failed.push(t.path);
           bb.log.warn(`Custom rules for ${t.path}: ${String(e)}`);
@@ -3302,7 +3279,6 @@ export default async function plugin(bb: BbPluginApi) {
             await writeAgents(folder, merged);
             updated++;
           }
-          await ensureClaudeStub(folder);
           await syncClaudeCustom(folder, custom);
         } catch (e) {
           failed++;
