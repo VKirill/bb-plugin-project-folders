@@ -2,7 +2,7 @@
 title: Prompt cache keepalive
 type: component
 created: 2026-10-09
-updated: 2026-10-10
+updated: 2026-10-19
 status: active
 confidence: medium
 tags: [cache, keepalive, claude, settings]
@@ -21,12 +21,12 @@ Cache keepalive is a plugin-wide setting for pinned Claude-family chats. Each pi
 
 ## How it works
 
-1. Server initialization loads `cache_keepalive` from the plugin `preferences` row, falls back to the default configuration, creates a SQLite-backed idle/wake store and starts the keepalive coordinator (`server.ts:753-767`).
+1. Server initialization loads `cache_keepalive` from the plugin `preferences` row, falls back to the default configuration, creates a SQLite-backed idle/wake store and starts the keepalive coordinator (`server.ts:777-792`).
 2. The coordinator runs an initial sweep and then sweeps once per minute. It exits immediately when disabled; a thread-list error is logged and ends that sweep (`cache-keepalive.ts:231-242`, `cache-keepalive.ts:393-403`).
 3. Each sweep selects only pinned, non-archived, non-deleted Claude-family threads whose status and runtime display status are idle. It skips due-now queued messages and messages scheduled before `idleAt + 60 minutes`; a message scheduled at or after that boundary does not block the ping. If queue inspection fails or is unavailable while the thread reports queued messages, the thread is skipped. Pending interactions also skip it (`cache-keepalive.ts:247-279`, `cache-keepalive.ts:281-341`).
 4. The first eligible sweep uses a stored idle timestamp or seeds it from `thread.updatedAt`; it sends only after the configured period and before the one-hour idle boundary. A positive `maxWakes` stops sends after that many wakes in one idle spell; zero has no count limit (`cache-keepalive.ts:258-270`, `cache-keepalive.ts:343-363`).
 5. Before sending, it increments the wake count, records the pending ping and writes `lastPingAt` with the current timestamp. The message asks for one line of at most seven words, and is sent as a plugin submission tagged `cache-keepalive` (`cache-keepalive.ts:365-382`, `cache-keepalive.ts:125-135`).
-6. A resulting idle event preserves the wake count and resets the idle timestamp. A real idle event resets the count. Archive/delete events clear the thread’s keepalive row; plugin disposal clears the sweep interval (`cache-keepalive.ts:211-229`, `server.ts:768-771`).
+6. A resulting idle event preserves the wake count and resets the idle timestamp. A real idle event resets the count. Archive/delete events clear the thread’s keepalive row; plugin disposal clears the sweep interval (`cache-keepalive.ts:211-229`, `server.ts:792-795`).
 
 | Configuration or thread state | Inputs and limits | Outcome |
 |---|---|---|
@@ -41,14 +41,14 @@ Cache keepalive is a plugin-wide setting for pinned Claude-family chats. Each pi
 - The provider ID matches the case-insensitive family pattern `claude|anthropic|opus|sonnet|haiku` (`cache-keepalive.ts:43-44`, `cache-keepalive.ts:186-188`).
 - Pings only run while the feature is enabled, and the coordinator allows at most one outstanding ping per thread (`cache-keepalive.ts:231-234`, `cache-keepalive.ts:353-363`).
 - The coordinator records `lastPingAt` before calling `threads.send`; a rejected send is logged without clearing the incremented wake count or the timestamp (`cache-keepalive.ts:365-385`, `cache-keepalive.ts:125-135`).
-- The configuration editor persists changes through `cache_keepalive_save`; validated values are stored under the `cache_keepalive` preference key (`plugin-settings.tsx:84-97`, `server.ts:3529-3537`).
+- The configuration editor persists changes through `cache_keepalive_save`; validated values are stored under the `cache_keepalive` preference key (`plugin-settings.tsx:84-97`, `server.ts:3559-3567`).
 
 ## Public API
 
 | RPC | Purpose | Evidence |
 |---|---|---|
-| `cache_keepalive_get` | Read the current feature configuration | `server.ts:616-619`, `server.ts:3529-3531` |
-| `cache_keepalive_save` | Validate and persist the feature configuration | `server.ts:620-623`, `server.ts:3532-3537` |
+| `cache_keepalive_get` | Read the current feature configuration | `server.ts:628-631`, `server.ts:3559-3561` |
+| `cache_keepalive_save` | Validate and persist the feature configuration | `server.ts:632-635`, `server.ts:3562-3567` |
 
 ## Failures
 

@@ -2,7 +2,7 @@
 title: API and commands
 type: component
 created: 2026-09-27
-updated: 2026-10-17
+updated: 2026-10-19
 status: active
 confidence: medium
 tags: [api, rpc, cli, host]
@@ -21,6 +21,7 @@ sources:
   - session-policy-server.ts
   - section-remove.ts
   - cache-keepalive.ts
+  - auto-archive.ts
   - backup.ts
   - github-remote.ts
   - repo-remote.ts
@@ -29,14 +30,14 @@ sources:
 ---
 # API and commands
 
-TL;DR: The plugin exposes typed BB plugin RPC, a read-only section-list RPC for other plugins, BB host operations and a `bb project-folders` CLI command group; it does not define standalone HTTP routes (`server.ts:166-623`, `server.ts:3537-3560`, `server.ts:3741-4042`).
+TL;DR: The plugin exposes typed BB plugin RPC, a read-only section-list RPC for other plugins, BB host operations and a `bb project-folders` CLI command group; it does not define standalone HTTP routes (`server.ts:173-630`, `server.ts:3579-3602`, `server.ts:3783-4084`).
 
 ## How it works
 
-1. The server defines the main plugin methods in `rpcContract` and registers their handlers with BB. Its `list` operation returns folders, project roots, environment bindings, manual placements, export errors and connected machine identities (`server.ts:2451-2511`). A separately registered, discoverable, read-only `sections_list` contract returns section metadata to other plugins and accepts an optional project ID (`server.ts:148-165`, `server.ts:3537-3560`).
+1. The server defines the main plugin methods in `rpcContract` and registers their handlers with BB. Its `list` operation returns folders, project roots, environment bindings, manual placements, export errors and connected machine identities (`server.ts:2484-2544`). A separately registered, discoverable, read-only `sections_list` contract returns section metadata to other plugins and accepts an optional project ID (`server.ts:155-172`, `server.ts:3579-3602`).
 2. Plugin UI surfaces call those RPC operations through the BB SDK (`app.tsx:60-70`, `composer-chip.tsx:154-180`).
-3. Server handlers and move coordinators dispatch device-specific filesystem, remote and inventory work through `moveHostContract`, with a target host ID in BB call options (`server.ts:878-880`, `server.ts:2439-2441`, `project-move.ts:172-175`, `session-policy-server.ts:221-224`, `host.ts:5-16`).
-4. BB registers the CLI command group `project-folders`; its handler validates args and calls the same domain operations (`server.ts:3741-3850`, `server.ts:3853-4042`).
+3. Server handlers and move coordinators dispatch device-specific filesystem, remote and inventory work through `moveHostContract`, with a target host ID in BB call options (`server.ts:911-913`, `server.ts:2472-2474`, `project-move.ts:172-175`, `session-policy-server.ts:228-231`, `host.ts:5-16`).
+4. BB registers the CLI command group `project-folders`; its handler validates args and calls the same domain operations (`server.ts:3783-3892`, `server.ts:3895-4084`).
 
 ## Modes
 
@@ -51,7 +52,7 @@ TL;DR: The plugin exposes typed BB plugin RPC, a read-only section-list RPC for 
 
 ### Plugin RPC operations
 
-The path column names each operation in the registered plugin RPC contract; these are contract calls, not literal HTTP URL paths. Contract branches and failures are detailed in [RPC and host contract behavior](api-contracts.md) (`server.ts:161-621`).
+The path column names each operation in the registered plugin RPC contract; these are contract calls, not literal HTTP URL paths. Contract branches and failures are detailed in [RPC and host contract behavior](api-contracts.md) (`server.ts:168-628`).
 
 ### Tree, projects and devices
 
@@ -70,9 +71,9 @@ The path column names each operation in the registered plugin RPC contract; thes
 | BB RPC | `reorder`, `section_reparent` | Management page | Reorder projects/sections or change tree parent | BB plugin RPC |
 | BB RPC | `copy_add`, `copy_remove`, `copy_edit` | Project card and copies dialog | Add, remove or repath a project copy | BB plugin RPC |
 
-Contract schemas: `server.ts:280-369`; project-copy checks and operations: `server.ts:2609-2689`.
+Contract schemas: `server.ts:287-376`; project-copy checks and operations: `server.ts:2642-2722`.
 
-`project_delete` accepts `files: "keep" | "archive"`; the handler delegates to `deleteProject`, which performs pending-work, chat-activity and filesystem-ownership checks before removing plugin rows and the BB project (`server.ts:301-310`, `server.ts:2608`, `project-delete.ts:27-124`). See [Project and section tree](features/project-tree.md) for the deletion rules.
+`project_delete` accepts `files: "keep" | "archive"`; the handler delegates to `deleteProject`, which performs pending-work, chat-activity and filesystem-ownership checks before removing plugin rows and the BB project (`server.ts:308-317`, `server.ts:2641`, `project-delete.ts:27-124`). See [Project and section tree](features/project-tree.md) for the deletion rules.
 
 ### Moves, placements and archives
 
@@ -85,7 +86,7 @@ Contract schemas: `server.ts:280-369`; project-copy checks and operations: `serv
 | BB RPC | `archive_list`, `archive_matches`, `archive`, `restore`, `forget` | Archive page and section menu | Find, archive and restore section subtrees | BB plugin RPC |
 | BB RPC | `section_remove` | Section delete dialog | Archive, unbind or purge a section | BB plugin RPC |
 
-Contract schemas: `server.ts:188-279`, `server.ts:350-399`; CLI equivalents call the same functions (`server.ts:3940-3956`, `server.ts:3741-3850`).
+Contract schemas: `server.ts:195-286`, `server.ts:357-406`; CLI equivalents call the same functions (`server.ts:3982-3998`, `server.ts:3783-3892`).
 
 ### Rules, execution and session context
 
@@ -101,16 +102,16 @@ Contract schemas: `server.ts:188-279`, `server.ts:350-399`; CLI equivalents call
 | BB RPC | `spawn` | Plugin new-chat composer | Start a thread with resolved project/section and composer values | BB plugin RPC |
 | BB RPC | `thread_section` | Thread section label | Resolve section label and path for a thread | BB plugin RPC |
 
-Contract schemas: `server.ts:415-573`; execution resolution: `execution.ts:97-129`; session policy registration: `session-policy-server.ts:144-150`.
+Contract schemas: `server.ts:422-580`; execution resolution: `execution.ts:97-129`; session policy registration: `session-policy-server.ts:151-157`.
 
-`makeSessionPolicies` maps scopes to keys (`g`, `p:<projectId>`, `f:<folderId>`), reads and validates stored JSON, normalizes writes and deletes empty policies. When the experimental core hook exists, it registers a resolver that maps the thread workspace to its deepest real section and resolves section, ancestor, project and global layers; without the hook it still exposes read, save and inventory operations with `available: false` (`session-policy-server.ts:57-86`, `session-policy-server.ts:88-150`).
+`makeSessionPolicies` maps scopes to keys (`g`, `p:<projectId>`, `f:<folderId>`), reads and validates stored JSON, normalizes writes and deletes empty policies. When the experimental core hook exists, it registers a resolver that maps the thread workspace to its deepest real section and resolves section, ancestor, project and global layers; without the hook it still exposes read, save and inventory operations with `available: false` (`session-policy-server.ts:57-93`, `session-policy-server.ts:95-157`).
 
 | Operation | Branch and outcome | Failure behavior |
 |---|---|---|
-| Read | Resolve scope placement, load own value, compute inherited/effective policy and report the user-instructions file path/existence (`session-policy-server.ts:152-172`). | Invalid JSON or schema data becomes an empty policy (`session-policy-server.ts:76-86`). |
-| Save | Validate scope placement and store normalized value; empty values delete the key (`session-policy-server.ts:88-95`, `session-policy-server.ts:174-177`). | Placement/database failures reject the save (`session-policy-server.ts:174-177`). |
-| Inventory | Gather plugin contributions, BB plugins, project skills and host MCP/CLI names for non-global scopes (`session-policy-server.ts:178-241`). | Optional plugin, skill and host sources fail independently to empty results (`session-policy-server.ts:194-224`). |
-| Core enforcement | Register `experimental_vkSessionPolicy` only when present, resolving each thread against its matching project, host and deepest section (`session-policy-server.ts:130-150`). | Without the extension, `available` is false and no resolver is registered (`session-policy-server.ts:67-68`, `session-policy-server.ts:144-150`). |
+| Read | Resolve scope placement, load own value, compute inherited/effective policy and report the user-instructions file path/existence (`session-policy-server.ts:159-179`). | Invalid JSON or schema data becomes an empty policy (`session-policy-server.ts:83-93`). |
+| Save | Validate scope placement and store normalized value; empty values delete the key (`session-policy-server.ts:95-102`, `session-policy-server.ts:181-184`). | Placement/database failures reject the save (`session-policy-server.ts:181-184`). |
+| Inventory | Gather plugin contributions, BB plugins, project skills and host MCP/CLI names for non-global scopes (`session-policy-server.ts:185-241`). | Optional plugin, skill and host sources fail independently to empty results (`session-policy-server.ts:201-231`). |
+| Core enforcement | Register `experimental_vkSessionPolicy` only when present, resolving each thread against its matching project, host and deepest section (`session-policy-server.ts:137-157`). | Without the extension, `available` is false and no resolver is registered (`session-policy-server.ts:74-75`, `session-policy-server.ts:151-157`). |
 
 ### Preferences and history
 
@@ -121,8 +122,25 @@ Contract schemas: `server.ts:415-573`; execution resolution: `execution.ts:97-12
 | BB RPC | `sync` | Thread actions/settings | Export one thread’s timeline to files | BB plugin RPC |
 | BB RPC | `backup_export`, `backup_import` | Transfer settings and CLI | Export/import durable plugin tables as JSON | BB plugin RPC |
 | BB RPC | `cache_keepalive_get`, `cache_keepalive_save` | Cache settings | Read/save cache keepalive configuration | BB plugin RPC |
+| BB RPC | `auto_archive_get`, `auto_archive_save`, `auto_archive_run` | Auto-archive settings | Read/save inactive-chat threshold and run a sweep | BB plugin RPC |
 
-Contract schemas: `server.ts:574-623`.
+Contract schemas: `server.ts:574-647`. Auto-archive behavior and eligibility rules are documented in [Section archive and restore](features/archive-and-restore.md#automatic-chat-archiving) (`auto-archive.ts:92-172`).
+
+### `isStale` eligibility
+
+The sweep passes each listed thread, the current parsed configuration and one captured clock value to `isStale`. The predicate short-circuits on excluded state before calculating age: archived/deleted, pinned, child, non-quiet thread status, non-quiet runtime display status, pending interaction, queued work other than `none`, or any positive activity counter returns `false` (`auto-archive.ts:92-107`).
+
+For an otherwise quiet thread, the comparison timestamp is the greatest of `updatedAt`, `latestAttentionAt` and `createdAt`, with missing/falsy values treated as zero. A zero timestamp is not stale; otherwise it qualifies at the inclusive boundary `now - last >= days * 24 hours` (`auto-archive.ts:73-85`, `auto-archive.ts:108-110`).
+
+| Predicate branch | Condition | Result |
+|---|---|---|
+| Excluded lifecycle/state | Already archived/deleted, pinned, has a parent, or status is not `idle`/`error` | `false` without an age check (`auto-archive.ts:97-101`). |
+| Runtime or pending work | A present runtime display status is not `idle`/`error`, interaction is pending, queued work is a non-empty value other than `none`, or an activity counter is positive | `false` (`auto-archive.ts:102-107`). |
+| No recorded time | All three activity timestamps are missing/falsy | `false` (`auto-archive.ts:78-85`, `auto-archive.ts:108-109`). |
+| Quiet and old enough | Latest activity exists and is at least the configured number of 24-hour days old | `true`; the sweep requests BB to archive the thread (`auto-archive.ts:108-110`, `auto-archive.ts:154-158`). |
+| Quiet but recent | Latest activity is newer than the threshold | `false` (`auto-archive.ts:108-110`). |
+
+The config range, default, sweep cadence and failure handling are owned by [Section archive and restore](features/archive-and-restore.md#automatic-chat-archiving) (`auto-archive.ts:3-12`, `auto-archive.ts:142-189`).
 
 ## Cross-plugin section listing
 
@@ -130,7 +148,7 @@ Contract schemas: `server.ts:574-623`.
 |---|---|---|---|---|
 | BB RPC | `sections_list` | Other plugins | Return section ID, project ID, parent, name, path, host and kind; optional project filter | BB plugin RPC; read-only |
 
-The separate contract is declared and registered in `server.ts:148-165`, `server.ts:3537-3560`.
+The separate contract is declared and registered in `server.ts:155-172`, `server.ts:3579-3602`.
 
 ## Host operations
 
@@ -169,19 +187,19 @@ Project relocation’s call sequence, preflight branches, journal outcomes and f
 
 ### `rpcContract` validation and outputs
 
-`rpcContract` declares the input and output schema for each RPC name, and `bb.rpc.register` binds that contract to the matching handler object (`server.ts:187-250`, `server.ts:3359-3360`). Its branches in this range are:
+`rpcContract` declares the input and output schema for each RPC name, and `bb.rpc.register` binds that contract to the matching handler object (`server.ts:194-257`, `server.ts:3392-3393`). Its branches in this range are:
 
 | Operation | Input branch | Output / failure behavior |
 |---|---|---|
-| `thread_move` | Target schema plus non-empty thread ID | Path and `asked` flag, defaulting to `false` (`server.ts:167-174`). |
-| `thread_section` | Thread ID string | Nullable section metadata and a `pending` flag (`server.ts:175-192`). |
-| `project_move` | Project ID, host ID and non-empty destination | Destination and completion flag (`server.ts:194-201`). |
-| `pending_moves` | `null` only | Array of project, host, destination and nullable error records (`server.ts:202-212`). |
-| `group_delete` | Non-empty folder ID | Returns `{ok:true}` after deleting a childless group; missing or non-group IDs and groups with children reject (`server.ts:217-220`, `server.ts:2250-2263`). |
-| `thread_place` | Non-empty thread/project IDs and nullable section ID | Returns `{ok:true}` after validating the thread and section belong to the same project and the target is not a group (`server.ts:221-229`, `server.ts:2264-2287`). |
-| `thread_place_clear` | Non-empty thread ID | Deletes the saved manual placement and returns `{ok:true}` (`server.ts:230-233`, `server.ts:2289-2293`). |
+| `thread_move` | Target schema plus non-empty thread ID | Path and `asked` flag, defaulting to `false` (`server.ts:174-181`). |
+| `thread_section` | Thread ID string | Nullable section metadata and a `pending` flag (`server.ts:182-199`). |
+| `project_move` | Project ID, host ID and non-empty destination | Destination and completion flag (`server.ts:201-208`). |
+| `pending_moves` | `null` only | Array of project, host, destination and nullable error records (`server.ts:209-219`). |
+| `group_delete` | Non-empty folder ID | Returns `{ok:true}` after deleting a childless group; missing or non-group IDs and groups with children reject (`server.ts:224-227`, `server.ts:2283-2296`). |
+| `thread_place` | Non-empty thread/project IDs and nullable section ID | Returns `{ok:true}` after validating the thread and section belong to the same project and the target is not a group (`server.ts:228-236`, `server.ts:2297-2320`). |
+| `thread_place_clear` | Non-empty thread ID | Deletes the saved manual placement and returns `{ok:true}` (`server.ts:237-240`, `server.ts:2322-2326`). |
 
-The contract continues with the remaining RPC operations in the route tables above; handler registration binds the full contract as one typed surface (`server.ts:166-623`, `server.ts:3537`).
+The contract continues with the remaining RPC operations in the route tables above; handler registration binds the full contract as one typed surface (`server.ts:173-630`, `server.ts:3579`).
 
 ### `linkDirectory` filesystem branch
 
@@ -217,9 +235,9 @@ Missing or unreadable files become empty input, and JSON parsing accepts line co
 | BB CLI | `bb project-folders move-section <folder-id> <absolute-path>` | Move or re-link section |
 | BB CLI | `bb project-folders archives` | List archive records |
 | BB CLI | `bb project-folders archive <folder-id>` | Archive section subtree |
-| BB CLI | `bb project-folders remove-section <folder-id> archive\|unbind\|purge` | Remove a section with the selected retention mode (`server.ts:3824-3828`, `server.ts:3940-3944`) |
-| BB CLI | `bb project-folders backup [--out file]` | Export plugin data as JSON, printing it or writing it to the `--out` path (`server.ts:3783-3785`, `server.ts:3954-3962`) |
-| BB CLI | `bb project-folders restore <archive-id\|file> [--merge]` | Restore a section archive or import a backup file (`server.ts:3776-3780`, `server.ts:3945-3953`) |
+| BB CLI | `bb project-folders remove-section <folder-id> archive\|unbind\|purge` | Remove a section with the selected retention mode (`server.ts:3866-3870`, `server.ts:3982-3986`) |
+| BB CLI | `bb project-folders backup [--out file]` | Export plugin data as JSON, printing it or writing it to the `--out` path (`server.ts:3825-3827`, `server.ts:3996-4004`) |
+| BB CLI | `bb project-folders restore <archive-id\|file> [--merge]` | Restore a section archive or import a backup file (`server.ts:3818-3822`, `server.ts:3987-3995`) |
 | BB CLI | `bb project-folders copy-add <project-id> <host-id> <path>` | Add working copy |
 | BB CLI | `bb project-folders copy-remove <project-id> <host-id>` | Remove working copy |
 | BB CLI | `bb project-folders forget <folder-id>` | Compatibility alias for `archive` |
@@ -227,27 +245,27 @@ Missing or unreadable files become empty input, and JSON parsing accepts line co
 | BB CLI | `bb project-folders rules show\|set <project-id> <folder-id-or-dash> [options]` | Read/save rules |
 | BB CLI | `bb project-folders sync <thread-id>` | Export chat history |
 
-Command definitions and argument parsing: `server.ts:3741-3850`, `server.ts:3853-4042`.
+Command definitions and argument parsing: `server.ts:3783-3892`, `server.ts:3895-4084`.
 
 ## Failures
 
-- Zod validation rejects invalid RPC and CLI inputs before their handlers run (`server.ts:187-200`, `server.ts:3853-4042`).
+- Zod validation rejects invalid RPC and CLI inputs before their handlers run (`server.ts:194-207`, `server.ts:3895-4084`).
 - BB and host SDK errors return through RPC/CLI error handling; filesystem moves preserve journals for retry (`section-move.ts:347-353`, `project-move.ts:228-246`).
-- Session-context settings can be stored even if the BB extension is unavailable, but no enforcement hook is installed (`session-policy-server.ts:52-68`).
+- Session-context settings can be stored even if the BB extension is unavailable, but no enforcement hook is installed (`session-policy-server.ts:52-75`).
 
 ## Business rules
 
-- Every RPC operation is registered against a typed input/output contract (`server.ts:166-623`, `server.ts:3537`).
-- `sections_list` is separate and read-only; its optional `projectId` filters the result (`server.ts:148-165`, `server.ts:3537-3560`).
-- CLI commands validate required arguments and call the domain handlers; `--json` is removed from the argument list before parsing (`server.ts:3853-4042`).
+- Every RPC operation is registered against a typed input/output contract (`server.ts:173-630`, `server.ts:3579`).
+- `sections_list` is separate and read-only; its optional `projectId` filters the result (`server.ts:155-172`, `server.ts:3579-3602`).
+- CLI commands validate required arguments and call the domain handlers; `--json` is removed from the argument list before parsing (`server.ts:3895-4084`).
 - Section removal rejects active chats, queued work, pending chat moves, pending section moves or archives; `purge` also refuses shared paths and project/environment ownership conflicts (`section-remove.ts:66-150`, `section-remove.ts:187-197`).
-- Backup import defaults to `replace`; `merge` inserts rows without replacing local rows, and both modes reject while a move or archive is in progress (`server.ts:3514-3527`, `backup.ts:127-165`, `backup.ts:179-190`).
-- Host operations target a host through BB call options; the host ID is not part of the `moveHostContract` operation payload (`project-move.ts:172-175`, `server.ts:2439-2441`, `move-contract.ts:10-56`).
+- Backup import defaults to `replace`; `merge` inserts rows without replacing local rows, and both modes reject while a move or archive is in progress (`server.ts:3547-3560`, `backup.ts:127-165`, `backup.ts:179-190`).
+- Host operations target a host through BB call options; the host ID is not part of the `moveHostContract` operation payload (`project-move.ts:172-175`, `server.ts:2472-2474`, `move-contract.ts:10-56`).
 
 ## Gotchas
 
-- RPC operation names are contract names, not stable HTTP paths; the BB plugin RPC transport owns the wire route (`server.ts:166-623`, `server.ts:3537`).
-- The `forget` RPC and CLI compatibility names archive a section; they do not permanently delete it (`server.ts:403`, `server.ts:2940-2945`, `server.ts:3818-3822`, `server.ts:3936-3939`).
+- RPC operation names are contract names, not stable HTTP paths; the BB plugin RPC transport owns the wire route (`server.ts:173-630`, `server.ts:3579`).
+- The `forget` RPC and CLI compatibility names archive a section; they do not permanently delete it (`server.ts:410`, `server.ts:2973-2978`, `server.ts:3860-3864`, `server.ts:3978-3981`).
 
 ## Related pages
 

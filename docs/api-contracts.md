@@ -2,7 +2,7 @@
 title: RPC and host contract behavior
 type: component
 created: 2026-10-09
-updated: 2026-10-17
+updated: 2026-10-19
 status: active
 confidence: high
 tags: [api, rpc, host, section-removal]
@@ -19,46 +19,67 @@ sources:
   - project-move.ts
   - archive.ts
   - section-move.ts
+  - auto-archive.ts
 ---
 # RPC and host contract behavior
 
-TL;DR: The plugin RPC contract validates calls at the BB boundary, the host contract dispatches typed filesystem and metadata operations to a selected machine, and `removeSection` coordinates section, chat and file removal (`server.ts:166-233`, `move-contract.ts:10-63`, `section-remove.ts:48-79`).
+TL;DR: The plugin RPC contract validates calls at the BB boundary, the host contract dispatches typed filesystem and metadata operations to a selected machine, and `removeSection` coordinates section, chat and file removal (`server.ts:173-240`, `move-contract.ts:10-63`, `section-remove.ts:48-79`).
 
 ## Purpose
 
-These contracts define the inputs and outputs shared by plugin surfaces, server handlers and connected-host handlers. The main RPC registers its contract with the server handler map; the host entry passes `moveHostContract` and maps its seven operations to host-local functions (`server.ts:3537`, `move-contract.ts:10-63`, `host.ts:8-18`).
+These contracts define the inputs and outputs shared by plugin surfaces, server handlers and connected-host handlers. The main RPC registers its contract with the server handler map. The host entry supplies `moveHostContract` as its schema and binds each declared operation to a host-local handler (`server.ts:3579`, `move-contract.ts:10-64`, `host.ts:8-19`).
 
 ## How it works
 
-1. `rpcContract` declares each RPC name with Zod input and output schemas. BB registers this contract against the server handler object; a client invokes a named operation and receives its declared output or a rejected call when validation or the handler fails (`server.ts:166-233`, `server.ts:3537`).
-2. BB keeps host selection outside the host payload: callers provide `{ hostId }` in call options while operation fields are validated against `moveHostContract`. The host entry maps `folder_edit`, `inspect`, `move`, `link`, `github_remotes`, `repo_remotes` and `session_inventory` to implementations (`move-contract.ts:10-63`, `host.ts:8-18`, `project-move.ts:172-175`).
+1. `rpcContract` declares each RPC name with Zod input and output schemas. BB registers this contract against the server handler object; a client invokes a named operation and receives its declared output or a rejected call when validation or the handler fails (`server.ts:173-240`, `server.ts:3579`).
+2. BB keeps host selection outside the host payload: callers provide `{ hostId }` in call options while operation fields are validated against `moveHostContract`. The schema declares each operation's payload and output; `host.ts` separately binds those operation names to implementations (`move-contract.ts:10-64`, `host.ts:8-19`, `project-move.ts:172-175`).
 3. `removeSection` resolves a real folder section, then refuses concurrent chat moves, an unfinished move for this section, or any pending section archive in its project. `archive` clears its GitHub cache entry and delegates to the archive coordinator; other modes calculate section members and eligible chats (`section-remove.ts:66-92`, `section-remove.ts:71-80`).
 4. For `unbind` and `purge`, it rejects a child section outside the selected subtree. Purge additionally rejects a nested BB project, a path shared by another section, a section outside its project root, or a ready environment from another project (`section-remove.ts:93-150`).
 5. It selects non-archived project chats by explicit placement in the subtree or by environment path. If the path is shared, environment matching only selects chats placed directly in the removed section. A selected chat with a child outside the set or active/queued work rejects removal (`section-remove.ts:151-197`).
 6. It syncs selected timelines, waits for pending exports, then processes leaf chats first. Each chat is re-read and stopped; `purge` deletes it, while `unbind` archives it. Purge then recursively removes the section directory if it exists. Finally, it clears GitHub cache entries, drops subtree rows, publishes `changed` and returns the selected mode (`section-remove.ts:199-238`).
 
-### RPC schema branches (`server.ts:166-233`)
+### RPC schema branches (`server.ts:173-240`)
 
 | Operation | Input branch | Output and handler outcome | Failure branch |
 |---|---|---|---|
-| `thread_move` | A target plus non-empty `threadId` | Returns path and `asked` flag; false is the default when the handler omits it (`server.ts:167-174`). | Invalid target or empty thread ID fails schema validation; move preconditions can reject in the handler. |
-| `thread_section` | A `threadId` string | Returns nullable section metadata and a `pending` flag, so a thread without an environment can be retried (`server.ts:175-192`). | Wrong input shape fails validation; unresolved section data is represented by the nullable result. |
-| `project_move` | `projectId`, `hostId`, and non-empty destination | Returns destination and completion state (`server.ts:194-201`). | Missing fields or empty destination fail schema validation; move ownership, activity and filesystem checks can reject the handler. |
-| `pending_moves` | `null` only | Returns project IDs, host, destination and nullable error for each journal (`server.ts:202-212`). | Non-null input fails schema validation. |
-| `group_create` | Tree target and trimmed name of 1–120 characters | Returns a folder-shaped group record (`server.ts:213-216`, `server.ts:2215-2248`). | Blank/overlong name or invalid target fails validation; duplicate or invalid parent is rejected by the handler. |
-| `group_delete` | Non-empty `folderId` | Returns `{ok:true}` after deleting an eligible empty group (`server.ts:217-220`, `server.ts:2250-2263`). | Missing ID, non-group ID or group with children rejects (`server.ts:2250-2257`). |
-| `thread_place` | Non-empty thread/project IDs; `folderId` is a non-empty section ID or `null` for project root | Returns `{ok:true}` after checking the thread and section belong to the same project and the target is not a group (`server.ts:221-229`, `server.ts:2264-2287`). | Invalid IDs or a section from another project reject at validation/handler checks. |
-| `thread_place_clear` | Non-empty `threadId` | Deletes a saved manual placement and returns `{ok:true}` (`server.ts:230-233`, `server.ts:2289-2293`). | Empty thread ID fails schema validation. |
+| `thread_move` | A target plus non-empty `threadId` | Returns path and `asked` flag; false is the default when the handler omits it (`server.ts:174-181`). | Invalid target or empty thread ID fails schema validation; move preconditions can reject in the handler. |
+| `thread_section` | A `threadId` string | Returns nullable section metadata and a `pending` flag, so a thread without an environment can be retried (`server.ts:182-199`). | Wrong input shape fails validation; unresolved section data is represented by the nullable result. |
+| `project_move` | `projectId`, `hostId`, and non-empty destination | Returns destination and completion state (`server.ts:201-208`). | Missing fields or empty destination fail schema validation; move ownership, activity and filesystem checks can reject the handler. |
+| `pending_moves` | `null` only | Returns project IDs, host, destination and nullable error for each journal (`server.ts:209-219`). | Non-null input fails schema validation. |
+| `group_create` | Tree target and trimmed name of 1–120 characters | Returns a folder-shaped group record (`server.ts:220-223`, `server.ts:2248-2281`). | Blank/overlong name or invalid target fails validation; duplicate or invalid parent is rejected by the handler. |
+| `group_delete` | Non-empty `folderId` | Returns `{ok:true}` after deleting an eligible empty group (`server.ts:224-227`, `server.ts:2283-2296`). | Missing ID, non-group ID or group with children rejects (`server.ts:2283-2290`). |
+| `thread_place` | Non-empty thread/project IDs; `folderId` is a non-empty section ID or `null` for project root | Returns `{ok:true}` after checking the thread and section belong to the same project and the target is not a group (`server.ts:228-236`, `server.ts:2297-2320`). | Invalid IDs or a section from another project reject at validation/handler checks. |
+| `thread_place_clear` | Non-empty `threadId` | Deletes a saved manual placement and returns `{ok:true}` (`server.ts:237-240`, `server.ts:2322-2326`). | Empty thread ID fails schema validation. |
+| `auto_archive_get` | `null` | Returns the saved `{enabled, days}` configuration (`server.ts:636-639`, `server.ts:3569-3570`). | Non-null input fails schema validation; invalid persisted settings are normalized by the settings parser (`server.ts:636-639`, `auto-archive.ts:14-30`). |
+| `auto_archive_save` | Auto-archive configuration schema | Parses, stores and returns the configuration (`server.ts:640-642`, `server.ts:3570-3575`). | Contract schema rejects invalid input; parser behavior and setting limits are documented in [Section archive and restore](features/archive-and-restore.md#automatic-chat-archiving) (`auto-archive.ts:3-30`). |
+| `auto_archive_run` | `null` | Runs or joins the active sweep and returns `{archived:integer}` (`server.ts:644-647`, `server.ts:3577`, `auto-archive.ts:167-173`). | Per-thread list/archive failures are logged and counted as no successful archive for that call (`auto-archive.ts:146-164`). |
 
-Schema failures reject the RPC call; output schemas constrain the values a handler can return. Handler failures remain operation-specific and are not converted to successful result objects unless the schema explicitly models that outcome (`server.ts:166-233`, `server.ts:3537`). The complete route inventory is in [API and commands](api.md).
+Schema failures reject the RPC call; output schemas constrain the values a handler can return. Handler failures remain operation-specific and are not converted to successful result objects unless the schema explicitly models that outcome (`server.ts:173-240`, `server.ts:3579`). The complete route inventory is in [API and commands](api.md).
+
+### `createAutoArchive` sweep lifecycle
+
+1. The coordinator accepts the BB thread SDK, a live config getter, optional clock and interval functions, and an optional logger object. Missing clock/timer functions use the platform defaults; it keeps one shared in-flight promise (`auto-archive.ts:60-71`, `auto-archive.ts:113-118`).
+2. Creating the coordinator immediately starts an initial sweep and installs an hourly interval. Both callers catch unexpected sweep rejection and log it; `dispose` clears the interval (`auto-archive.ts:175-190`).
+3. Each sweep reads config at run time. Disabled config returns zero without listing. Enabled config pages unarchived threads by 200, deduplicates repeated IDs, and stops on a short page or a page that adds no new IDs (`auto-archive.ts:120-150`).
+4. It captures one `now` value for the sweep, passes each thread/config/clock value to `isStale`, and sequentially archives eligible IDs. Successful archive calls increment the returned count; each rejected archive is debug-logged and the loop continues (`auto-archive.ts:142-164`). The predicate's decision sequence is in [API and commands](api.md#isstale-eligibility) (`auto-archive.ts:92-110`).
+5. `sweep()` joins an existing run; after it settles, `finally` clears the shared promise so a later call can start a fresh run (`auto-archive.ts:167-173`).
+
+| Branch or failure | Outcome |
+|---|---|
+| Disabled at sweep time | Resolves `0`; no SDK list call (`auto-archive.ts:142-145`). |
+| Thread listing rejects | Debug-logs and resolves `0`; no thread archive calls follow (`auto-archive.ts:145-151`). |
+| A thread archive rejects | Debug-logs that thread and continues; its failure does not reject the sweep or increment the count (`auto-archive.ts:154-164`). |
+| Unexpected run rejection | `sweep()` rejects to its caller after clearing the in-flight slot; initial startup converts the rejection to `0`, and the interval handler logs it (`auto-archive.ts:167-183`). |
+| Concurrent sweep call | Receives the same promise and result as the active sweep (`auto-archive.ts:167-173`). |
 
 ### `moveHostContract` dispatch and branches
 
-1. `moveHostContract` is the shared host RPC schema. Its move payload is a strict object containing non-empty `source` and `destination` strings; the selected device is passed separately in BB call options, such as the project move’s `hostId` (`move-contract.ts:7-9`, `project-move.ts:135-139`).
-2. The host entry binds `folder_edit` → `editFolder`, `inspect` → `inspectMove`, `move` → `moveDirectory`, `link` → `linkDirectory`, `github_remotes` → `githubRemotes`, `repo_remotes` → `repoRemotes`, and `session_inventory` → `sessionInventory` (`host.ts:1-18`). Project relocation calls `inspect` and then `move`; section relocation can call `inspect`, `move`, or `link` depending on whether the old folder still exists (`project-move.ts:135-139`, `project-move.ts:172-176`, `section-move.ts:258-293`).
-3. `folder_edit` takes a parent path, a 1–255 character name, `create|delete`, and optional protected paths; its result is the resulting path. `inspect`, `move`, and `link` share the strict path input and `{source,destination,moved}` output. `repo_remotes` accepts at most 128 non-empty paths, each at most 4096 characters, and returns nullable URLs; the legacy GitHub method accepts path strings and returns the same nullable-URL shape (`move-contract.ts:10-63`).
-4. BB validates the selected operation’s payload against the contract before dispatching it to the selected host. Host filesystem checks add constraints the contract does not encode, including absolute-path checks, symlink rules, ownership protections and destination existence (`host.ts:8-18`, `folder-files.ts:3-40`, `move-files.ts:14-117`).
-5. Successful host results pass through to the server operation. A schema, dispatch, filesystem or metadata read error rejects the call; the project and section move coordinators persist errors only after their journals have been written (`host.ts:8-18`, `project-move.ts:234-243`, `section-move.ts:347-356`).
+1. `moveHostContract` declares seven operation schemas. The selected device is supplied separately in BB call options, while operation payloads contain only the fields each handler needs (`move-contract.ts:10-64`, `project-move.ts:135-139`, `project-move.ts:172-175`).
+2. The host entry supplies this contract and binds `folder_edit` to `editFolder`, `inspect` to `inspectMove`, `move` to `moveDirectory`, `link` to `linkDirectory`, and the remote/inventory names to their collectors (`host.ts:1-19`). Project relocation inspects and then moves; section relocation chooses inspect/move for existing source paths or link for a path renamed outside BB (`project-move.ts:135-139`, `project-move.ts:172-176`, `section-move.ts:243-293`).
+3. Before handler work, the contract validates each input and output shape. `folder_edit` takes a non-empty parent, a 1–255 character name, `create|delete`, and optional protected paths. `inspect`, `move` and `link` require strict non-empty source/destination strings and return those paths with `moved`. Remote methods return one nullable URL per requested path; `repo_remotes` limits the input to 128 paths of 1–4096 characters. `session_inventory` uses its imported input/output schemas (`move-contract.ts:7-63`, `session-inventory.ts:6-22`).
+4. Handler branches then apply operation-specific checks. Folder creation rejects an existing destination; deletion rejects protected paths, symlinks, non-directories and non-empty directories. `inspect` accepts a source already linked to the requested destination as `moved:true`; a new move requires a real source and free destination. `move` renames the source and creates a compatibility link, while `link` requires an absent source and an existing real destination (`folder-files.ts:3-41`, `move-files.ts:14-117`).
+5. The remaining handlers collect remote URLs or session inventory. Missing/non-repository remote paths produce nullable URLs; inventory readers contribute available configured names, while unreadable or malformed files contribute no names (`github-remote.ts:1-30`, `repo-remote.ts:187-198`, `session-inventory.ts:26-124`).
+6. A contract validation, host dispatch, filesystem or metadata-read error rejects the host call. The project and section move coordinators persist operation errors only if their journals have already been written; their surrounding server handlers receive the rejection (`host.ts:8-19`, `project-move.ts:234-243`, `section-move.ts:347-356`).
 
 | Operation and branch | Condition | Outcome | Failure behavior |
 |---|---|---|---|
@@ -68,8 +89,10 @@ Schema failures reject the RPC call; output schemas constrain the values a handl
 | `inspect`: new move is eligible | Source is a real directory and destination does not exist | Returns normalized paths with `moved:false` after platform, path, ownership, same-volume and linked-worktree checks (`move-files.ts:18-72`). | Rejects Windows, relative/control-character or nested paths, symlink parents, missing/non-real source, protected roots, occupied destination, cross-volume moves and linked worktrees (`move-files.ts:18-71`). |
 | `move`: already moved / new move | `inspect` reports moved / reports eligible | Returns the inspected result unchanged / renames the directory, creates an old-path compatibility link and returns `moved:true` (`move-files.ts:74-91`). | A failed link attempts to restore the rename only when the old source is still absent, then rejects with a recovery instruction (`move-files.ts:82-89`). |
 | `link`: externally relocated section | Old source is absent; destination is a real directory with no symlink parent | Creates a compatibility symlink at the old path and returns `moved:true` (`section-move.ts:287-293`, `move-files.ts:94-117`). | Invalid or nested paths, occupied source, missing/non-real destination, symlink parents or symlink failure reject (`move-files.ts:100-116`). |
-| `github_remotes` / `repo_remotes` | One of the remote metadata operations is requested | Returns one path and nullable URL per input path (`move-contract.ts:48-63`, `github-remote.ts:1-30`, `repo-remote.ts:187-198`). | Contract shape errors or host read errors reject; the tree caller catches refresh failures to keep listing available (`server.ts:942-990`). |
+| `github_remotes` / `repo_remotes` | One of the remote metadata operations is requested | Returns one path and nullable URL per input path (`move-contract.ts:48-63`, `github-remote.ts:1-30`, `repo-remote.ts:187-198`). | Contract shape errors or host read errors reject; the tree caller catches refresh failures to keep listing available (`server.ts:975-1023`). |
 | `session_inventory` | The editor requests host inventory | Returns configured MCP and native-plugin names under the declared output schema (`move-contract.ts:44-47`, `session-inventory.ts:26-97`). | Missing or malformed config contributes no names; handler or host dispatch errors reject (`session-inventory.ts:99-124`). |
+
+`moveHostContract` has no shared catch or error-to-result conversion: a handler rejection is returned as a rejected host call. Filesystem recovery is operation-specific; for example, `moveDirectory` attempts to rename the destination back if compatibility-link creation fails, then rejects with a recovery message (`host.ts:8-19`, `move-files.ts:74-91`).
 
 #### `linkDirectory` steps and outcomes
 
@@ -82,7 +105,7 @@ Schema failures reject the RPC call; output schemas constrain the values a handl
 |---|---|
 | Inputs valid, source absent and destination a real directory | Creates the compatibility symlink and returns `{source, destination, moved:true}` (`move-files.ts:100-117`). |
 | Relative paths, control characters, nested/equal paths, occupied source, missing/non-directory/symlink destination, or symlink parent | Throws before returning success (`move-files.ts:102-115`). |
-| Symlink creation fails | The filesystem error rejects the host operation (`move-files.ts:116-117`). |
+| Symlink creation fails | `linkDirectory` does not catch the `symlink` rejection, so the host operation rejects (`move-files.ts:96-118`). |
 
 #### `sessionInventory` collection and outcomes
 
@@ -132,17 +155,17 @@ A sync/export, late status check, stop/delete/archive, or filesystem failure rej
 
 ## Business rules
 
-- `folderId: null` means project-root placement; it does not mean “no placement” (`server.ts:221-229`).
+- `folderId: null` means project-root placement; it does not mean “no placement” (`server.ts:228-236`).
 - `moveHostContract` operation schemas omit `hostId`; server callers select the destination host through the BB host client's call options (`move-contract.ts:10-55`, `project-move.ts:135-139`, `project-move.ts:172-175`).
 - Section removal preserves a shared directory for `unbind`; purge refuses a shared path (`section-remove.ts:119-150`, `section-remove.ts:222-233`).
 
 ## Public API
 
-The plugin registers `rpcContract` on BB RPC; host operations use `moveHostContract` through BB’s host client (`server.ts:3537`, `move-contract.ts:10-63`). See [API and commands](api.md) for the operation inventory.
+The plugin registers `rpcContract` on BB RPC; host operations use `moveHostContract` through BB’s host client (`server.ts:3579`, `move-contract.ts:10-63`). See [API and commands](api.md) for the operation inventory.
 
 ## Gotchas
 
-- `thread_section` returns `pending: true` while a thread has no environment; once an environment exists, unresolved section data returns `pending: false` (`server.ts:2180-2187`).
+- `thread_section` returns `pending: true` while a thread has no environment; once an environment exists, unresolved section data returns `pending: false` (`server.ts:2213-2220`).
 - `move` and `link` can both return `moved: true`; callers use that result to finish metadata updates without repeating filesystem work (`move-files.ts:74-91`, `move-files.ts:94-118`).
 - A failed `removeSection` call can follow successful per-chat archive/delete operations; those effects are not rolled back (`section-remove.ts:199-238`).
 
