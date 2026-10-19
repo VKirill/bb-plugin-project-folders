@@ -2,7 +2,7 @@
 title: Appearance and preferences
 type: component
 created: 2026-09-27
-updated: 2026-10-13
+updated: 2026-10-19
 status: active
 confidence: medium
 tags: [appearance, preferences, settings]
@@ -22,17 +22,17 @@ TL;DR: Shared preferences control chat lists, tree density and level styling; op
 
 ## Purpose
 
-The plugin stores common preferences on the BB server so the sidebar, management page and settings page read the same values (`preferences.ts:3-7`, `server.ts:3460-3505`).
+The plugin stores common preferences on the BB server so the sidebar, management page and settings page read the same values (`preferences.ts:3-7`, `server.ts:3493-3538`).
 
 ## How it works
 
 1. `usePrefs` exposes one module-level preference snapshot to sidebar, panel and settings subscribers through `useSyncExternalStore`; the first subscriber loads `prefs_get` and later `prefs` realtime events reload it (`prefs-store.tsx:17-19`, `prefs-store.tsx:58-68`).
 2. The store parses shared preferences and per-item styles before publishing them. If the server has no saved preferences, it reads the legacy browser chat-list key, merges valid values and attempts to save the migrated preferences (`prefs-store.tsx:32-55`, `preferences.ts:170-215`).
 3. Preference saves update the shared snapshot before calling `prefs_save`; a rejected call restores the previous snapshot and is rethrown. Item-style saves do the same with `item_style_save`, sending `null` when the style is empty (`prefs-store.tsx:69-103`).
-4. `prefs_get` returns parsed shared preferences, per-item styles and whether UI preferences have been saved (`server.ts:581-589`, `server.ts:3460-3477`).
+4. `prefs_get` returns parsed shared preferences, per-item styles and whether UI preferences have been saved (`server.ts:588-596`, `server.ts:3493-3510`).
 5. Parsing merges partial or old data with defaults, then validates each field and style (`preferences.ts:170-215`).
-6. The appearance editor selects a preset or edits level styles, then `prefs_save` persists global preferences and can replace all item styles (`appearance.tsx:707-766`, `server.ts:3479-3495`).
-7. A project/section style is saved or deleted using its `p:`/`f:` key; the UI resolves inherited styles and renders glyphs, colors and fills (`preferences.ts:216-225`, `appearance.tsx:391-447`, `server.ts:3496-3505`).
+6. The appearance editor selects a preset or edits level styles, then `prefs_save` persists global preferences and can replace all item styles (`appearance.tsx:707-766`, `server.ts:3512-3528`).
+7. A project/section style is saved or deleted using its `p:`/`f:` key; the UI resolves inherited styles and renders glyphs, colors and fills (`preferences.ts:216-225`, `appearance.tsx:391-447`, `server.ts:3529-3538`).
 8. List settings determine sort order, list limits, idle hiding, section ordering and automatic collapse (`preferences.ts:68-119`, `chat-list.ts:14-32`, `chat-list.ts:415-504`).
 
 ## Modes
@@ -72,26 +72,26 @@ The settings page has two JSON transfer scopes. Appearance export/import carries
 
 ## Business rules
 
-- Per-item keys use `p:<projectId>` or `f:<folderId>` (`preferences.ts:216-225`, `server.ts:598-604`).
+- Per-item keys use `p:<projectId>` or `f:<folderId>` (`preferences.ts:216-225`, `server.ts:605-611`).
 - A nested section inherits an ancestor’s appearance only when that style has `cascade` enabled (`preferences.ts:59-64`, `appearance.tsx:439-447`).
 - Item styles can store a `hidden` flag for a project or section; tree filtering and the show-hidden switch are described in [Project and section tree](project-tree.md#modes) (`preferences.ts:59-64`, `app.tsx:2155-2167`).
 - Invalid persisted preferences are repaired field-by-field; unsupported item keys/styles are dropped (`preferences.ts:170-211`).
 - A browser-only chat-list setting is migrated only when the server reports no stored preferences; the migration save failure is swallowed and the migrated value remains in the current snapshot (`prefs-store.tsx:39-48`).
-- Import can replace global settings and optionally replace all per-item looks (`server.ts:590-597`, `server.ts:3479-3495`).
+- Import can replace global settings and optionally replace all per-item looks (`server.ts:597-604`, `server.ts:3512-3528`).
 - Full backup import is separate from appearance import; replacement affects all durable plugin tables, and both import modes reject while moves or archives are unfinished (`backup.ts:7-28`, `backup.ts:105-139`, `backup.ts:179-190`).
 
 ## Public API
 
 | RPC | Purpose | Evidence |
 |---|---|---|
-| `prefs_get`, `prefs_save` | Read and save shared settings; optional bulk item-style replacement | `server.ts:581-597` |
-| `item_style_save` | Upsert or delete one project/section style | `server.ts:598-604`, `server.ts:3496-3505` |
-| `backup_export`, `backup_import` | Export/import durable plugin tables, with replacement or merge mode | `server.ts:605-614`, `backup.ts:7-19`, `backup.ts:159-190` |
+| `prefs_get`, `prefs_save` | Read and save shared settings; optional bulk item-style replacement | `server.ts:588-604` |
+| `item_style_save` | Upsert or delete one project/section style | `server.ts:605-611`, `server.ts:3529-3538` |
+| `backup_export`, `backup_import` | Export/import durable plugin tables, with replacement or merge mode | `server.ts:612-621`, `backup.ts:7-19`, `backup.ts:159-190` |
 
 ## Gotchas
 
-- Language selection is browser-local; the rest of these preferences are stored in BB plugin storage (`i18n.tsx:39-48`, `server.ts:3460-3505`).
-- Changing a preset replaces level appearance settings, while per-item appearance has its own storage (`preferences.ts:117-153`, `server.ts:3484-3490`).
+- Language selection is browser-local; the rest of these preferences are stored in BB plugin storage (`i18n.tsx:39-48`, `server.ts:3493-3538`).
+- Changing a preset replaces level appearance settings, while per-item appearance has its own storage (`preferences.ts:117-153`, `server.ts:3517-3523`).
 - Full replacement import deletes existing durable plugin table rows before inserting the backup; the UI asks for confirmation (`backup.ts:179-190`, `appearance.tsx:1079-1094`).
 
 <!-- lane-pilot:backlinks -->

@@ -1,6 +1,6 @@
 # Projects & Sections
 
-Projects & Sections is a BB plugin that organizes project chats into sections backed by folders on connected devices. It also provides per-place rules and chat defaults, archives, history exports, appearance controls, optional session-context filtering and opt-in prompt-cache keepalive for pinned Claude chats.
+Projects & Sections is a BB plugin that organizes project chats into sections backed by folders on connected devices. It also provides per-place rules and chat defaults, section archives, automatic archiving of quiet chats, history exports, appearance controls, optional session-context filtering and opt-in prompt-cache keepalive for pinned Claude chats.
 
 ## Install
 

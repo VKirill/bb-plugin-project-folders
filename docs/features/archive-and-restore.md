@@ -2,7 +2,7 @@
 title: Section archive and restore
 type: component
 created: 2026-09-27
-updated: 2026-10-09
+updated: 2026-10-19
 status: active
 confidence: medium
 tags: [archive, restore, sections]
@@ -13,6 +13,8 @@ sources:
   - thread-move.ts
   - project-delete.ts
   - section-remove.ts
+  - auto-archive.ts
+  - plugin-settings.tsx
   - README.md
 ---
 # Section archive and restore
@@ -23,7 +25,27 @@ TL;DR: Section removal offers archive, unbind or purge; archive journals and ret
 
 Archives provide a reversible way to remove a section subtree from the active tree while retaining files and chat records in an archive entry (`archive.ts:15-28`, `archive.ts:50-72`).
 
+Automatic chat archiving moves eligible quiet chats into BB’s chat archive after a configured inactive period. It is disabled by default and uses the same page for its settings and manual sweep (`auto-archive.ts:9-12`, `plugin-settings.tsx:279-315`).
+
 ## How it works
+
+### Automatic chat archiving
+
+1. Startup loads the `auto_archive` preference or uses `{ enabled: false, days: 7 }`, creates the coordinator, starts its initial sweep, and registers disposal of its hourly timer (`server.ts:796-809`, `auto-archive.ts:73-76`, `auto-archive.ts:175-189`).
+2. Each sweep reads the current setting. When disabled it returns zero without listing chats; when enabled it requests unarchived chats in pages of 200, removes duplicate IDs, and stops when a short page or a page with no new IDs arrives (`auto-archive.ts:120-150`).
+3. `isStale` excludes archived/deleted chats, pinned chats, child chats, statuses other than `idle` or `error`, non-quiet runtime statuses, pending interactions, non-empty `queuedWork` other than `none`, and positive activity counters. It compares the greatest of `updatedAt`, `latestAttentionAt` and `createdAt` against the configured number of 24-hour days (`auto-archive.ts:73-76`, `auto-archive.ts:79-110`).
+4. The coordinator archives matching chats one at a time through `threads.archive`, counts successes and logs failures. Concurrent sweep calls share the same promise. Startup runs one sweep immediately and the timer requests another every hour (`auto-archive.ts:142-189`).
+
+| Branch | Input/condition | Result | Failure behavior |
+|---|---|---|---|
+| Configuration | `enabled` is boolean; `days` is an integer from 1 to 365; default is disabled with 7 days | Valid config is used as saved; invalid persisted fields fall back independently to defaults (`auto-archive.ts:3-12`, `auto-archive.ts:14-30`). | The parser preserves a valid field when the other field is invalid (`auto-archive.ts:14-30`). |
+| Disabled | `enabled` is false | Return `0` without listing chats (`auto-archive.ts:142-145`). | None. |
+| Enabled | `enabled` is true | List unarchived chats and archive only those accepted by `isStale` (`auto-archive.ts:120-164`). | A list failure is debug-logged and returns `0`; an archive failure is logged and the sweep continues to later chats (`auto-archive.ts:146-161`). |
+| Overlapping calls | A sweep promise is already running | Reuse that promise; clear it when the sweep settles (`auto-archive.ts:167-173`). | An unexpected sweep rejection is caught and logged by the initial or periodic caller (`auto-archive.ts:175-183`). |
+
+The settings editor loads and saves `enabled` and `days`, and its Run now action calls the manual sweep and displays the successful archive count (`plugin-settings.tsx:279-315`).
+
+### Section archive coordinator
 
 1. The archive operation serializes through a queue and either resumes an existing `archiving` record or validates the requested section (`archive.ts:96-126`).
 2. It inventories project threads and environments, rejects active work, external project overlap, child threads outside the subtree and sections that cross ownership boundaries (`archive.ts:128-218`).
@@ -40,6 +62,7 @@ Archives provide a reversible way to remove a section subtree from the active tr
 4. For a new archive, the coordinator resolves the section and project root, rejects a nested BB project or a ready foreign-project environment, and selects threads whose environments lie under the section. When another section shares the same host path, only threads manually placed in the selected section are included. A selected thread with a child outside the selection, busy status, queued work or positive activity rejects the request; so does a child section outside the archived subtree. Selected histories are synced before the `archiving` record is written (`archive.ts:119-240`, `archive.ts:241-268`).
 5. An existing record for the same folder in `archiving` state resumes with its saved members and thread IDs. After journaling, the coordinator drains pending exports, rescans for late chats, rejects late busy work, records eligible late threads, and stops/archives threads that were not already archived. An internal unshared directory moves under the project archive with a manifest; an external or shared directory stays in place. Both source and destination existing, or neither existing, rejects without replacing a folder (`archive.ts:119-126`, `archive.ts:250-268`, `archive.ts:270-358`).
 6. Finalization runs in a database transaction: it removes each member’s folder-path and folder rows, sets `state` to `archived` and clears the journal error (`archive.ts:360-368`). The change notification follows the transaction (`archive.ts:369`). Failures before the journal is written reject without an archive retry record; failures caught after journaling save the error and notify listeners, leaving an `archiving` record for retry (`archive.ts:238-268`, `archive.ts:371-377`).
+7. The factory returns `list`, `matches`, `blocked`, `moving`, `archive` and `restore`. The first four are read/guard operations; `archive` and `restore` enter the serial queue and resolve to an archive record or restored folder, while validation and operation errors reject their caller (`archive.ts:63-100`, `archive.ts:119-126`, `archive.ts:379-387`, `archive.ts:467-468`).
 
 | Archive state | Entry and next action | Failure behavior |
 |---|---|---|
@@ -57,6 +80,9 @@ Archives provide a reversible way to remove a section subtree from the active tr
 | External/shared folder | Folder is outside the root or shares a path with another section | Keep files at their current path; archive the tree membership and chats (`archive.ts:294-311`, `archive.ts:322-324`). |
 | Preflight or history-sync failure | Ownership, thread boundaries, activity checks or a history sync fails before the journal write | Reject without creating an archive retry record (`archive.ts:128-240`, `archive.ts:251-268`). |
 | Post-journal failure | Pending export drain, late-chat check, thread archive, path check or filesystem operation fails | Save the error on the `archiving` record; a later archive call can resume it (`archive.ts:270-377`). |
+| Restore branch | Requested ID is missing, project is moving, state is `archiving`, parent is missing, or the original path is occupied/used by another tree record | Reject; a failure after the restoring record is saved persists the error on that archive record (`archive.ts:379-421`, `archive.ts:459-466`). |
+
+`matches` returns only completed archives for the exact project and host and compares the trimmed requested name with both stored section name and original-path basename after NFC normalization and lowercasing. `blocked` is true when any archive record lists the chat ID; `moving` canonicalizes the query path and checks containment in a same-host non-archived record (`archive.ts:73-95`).
 
 ## Modes
 
@@ -135,10 +161,11 @@ State and location fields: `archive.ts:15-28`, `archive.ts:219-240`, `archive.ts
 
 | RPC / command | Purpose | Evidence |
 |---|---|---|
-| `archive_list`, `archive_matches`, `archive`, `restore`, `forget` | List, match, archive, restore or use archive compatibility operation | `server.ts:361-399` |
-| `section_remove` | Remove a section using `archive`, `unbind` or `purge` | `server.ts:359-368`, `server.ts:2385-2437`, `section-remove.ts:48-79` |
-| `bb project-folders remove-section <folder-id> archive\|unbind\|purge` | CLI section-removal operation | `server.ts:3827-3832`, `server.ts:3943-3947` |
-| `bb project-folders archives`, `archive`, `restore`, `forget` | CLI archive operations | `server.ts:3565-3577`, `server.ts:3715-3722` |
+| `auto_archive_get`, `auto_archive_save`, `auto_archive_run` | Read/save auto-archive settings and run a sweep; settings use the `enabled` and `days` fields | `server.ts:636-647`, `server.ts:3569-3577`, `auto-archive.ts:3-6` |
+| `archive_list`, `archive_matches`, `archive`, `restore`, `forget` | List, match, archive, restore or use archive compatibility operation | `server.ts:368-406` |
+| `section_remove` | Remove a section using `archive`, `unbind` or `purge` | `server.ts:366-375`, `server.ts:2418-2470`, `section-remove.ts:48-79` |
+| `bb project-folders remove-section <folder-id> archive\|unbind\|purge` | CLI section-removal operation | `server.ts:3869-3874`, `server.ts:3985-3989` |
+| `bb project-folders archives`, `archive`, `restore`, `forget` | CLI archive operations | `server.ts:3607-3619`, `server.ts:3757-3764` |
 
 ## Gotchas
 
@@ -149,5 +176,8 @@ State and location fields: `archive.ts:15-28`, `archive.ts:219-240`, `archive.ts
 ## Referenced by
 
 - [RPC and host contract behavior](../api-contracts.md)
+- [API and commands](../api.md)
+- [Architecture](../architecture.md)
 - [Data model](../data-model.md)
 - [Project and section tree](project-tree.md)
+- [Projects & Sections — Overview](../overview.md)

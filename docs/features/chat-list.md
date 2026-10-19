@@ -2,7 +2,7 @@
 title: Chat list and activity
 type: component
 created: 2026-09-27
-updated: 2026-10-17
+updated: 2026-10-19
 status: active
 confidence: medium
 tags: [chat-list, activity, sidebar]
@@ -23,7 +23,7 @@ The plugin replaces a flat thread listing with project/section rows and per-plac
 
 ## How it works
 
-1. The app reads BB sidebar threads and the plugin’s `list` RPC response, then associates each thread with its environment section or an explicit manual placement (`app.tsx:60-70`, `server.ts:2451-2511`, `chat-list.ts:257-266`).
+1. The app reads BB sidebar threads and the plugin’s `list` RPC response, then associates each thread with its environment section or an explicit manual placement (`app.tsx:60-70`, `server.ts:2484-2544`, `chat-list.ts:257-266`).
 2. Chats are ordered by pinned status first; then by title, creation time or activity time (`chat-list.ts:44-70`).
 3. When a list is collapsed, the filter keeps pinned, unread, active, busy or recent chats and applies the configured per-list limit (`chat-list.ts:146-177`).
 4. Activity sorting uses the latest of update, attention and creation timestamps, while treating an update within two seconds of `lastReadAt` as a read-only event (`chat-list.ts:180-199`).
@@ -55,7 +55,7 @@ Values and defaults come from `preferences.ts:68-119`; collapsed-list sorting an
 - Pinned chats sort before unpinned chats under all sort modes (`chat-list.ts:59-75`).
 - Unread, pinned, active, busy and active-thread chats bypass idle hiding (`chat-list.ts:146-161`).
 - `isThreadBusy` recognizes active status, non-none indicator, pending interaction and active workflow/background activity (`chat-list.ts:202-220`).
-- A manual placement overrides the section inferred from the chat environment; clearing the saved placement lets `placeOf` fall back to the environment binding (`chat-list.ts:257-269`, `server.ts:2289-2293`).
+- A manual placement overrides the section inferred from the chat environment; clearing the saved placement lets `placeOf` fall back to the environment binding (`chat-list.ts:257-269`, `server.ts:2322-2326`).
 - Chat-list settings are parsed field-by-field with defaults when stored data is invalid (`chat-list.ts:14-32`, `preferences.ts:170-197`).
 - Activity ordering ranks a folder with unread or pending-reply chats first, then one with busy work, then one with the latest conversation activity; manual order resolves equal ranks (`chat-list.ts:415-504`).
 - Activity age for collapsing sections excludes a read-only `updatedAt` when it is within two seconds of `lastReadAt`; idle hiding instead counts `lastReadAt` as access (`chat-list.ts:131-160`, `chat-list.ts:180-199`).
@@ -65,10 +65,10 @@ Values and defaults come from `preferences.ts:68-119`; collapsed-list sorting an
 
 | RPC | Purpose | Evidence |
 |---|---|---|
-| `list` | Return folders, roots, environment bindings, manual placements, hosts and export errors | `server.ts:2451-2511` |
-| `thread_place`, `thread_place_clear` | File a chat in the tree without changing its workspace, or clear its manual placement | `server.ts:221-233`, `server.ts:2264-2293` |
-| `prefs_get`, `prefs_save` | Read/save shared list and view preferences | `server.ts:578-593` |
-| `reorder` | Persist the complete project order or sibling section order | `server.ts:404-418`, `server.ts:3211-3257` |
+| `list` | Return folders, roots, environment bindings, manual placements, hosts and export errors | `server.ts:2484-2544` |
+| `thread_place`, `thread_place_clear` | File a chat in the tree without changing its workspace, or clear its manual placement | `server.ts:228-240`, `server.ts:2297-2326` |
+| `prefs_get`, `prefs_save` | Read/save shared list and view preferences | `server.ts:585-600` |
+| `reorder` | Persist the complete project order or sibling section order | `server.ts:411-425`, `server.ts:3244-3290` |
 
 ## Gotchas
 
