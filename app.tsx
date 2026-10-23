@@ -108,6 +108,7 @@ import {
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Icon } from "./components/ui/icon";
+import { useIsCompactViewport } from "./components/ui/hooks/use-compact-viewport";
 import { RepoLink } from "./repo-link";
 import { statusLabels, threadStatus } from "./thread-status";
 import {
@@ -2090,6 +2091,9 @@ function FolderHeading({
   onMarkAllRead?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // On a phone the row is too narrow: the name needs the room, so the
+  // GitHub link goes and «New chat» moves into the «…» menu.
+  const compact = useIsCompactViewport();
   const row = rowDecoration(look);
   return (
     <div
@@ -2122,8 +2126,8 @@ function FolderHeading({
         <span>{folder.name}</span>
         {device && <span className="pf-host-badge">{device}</span>}
       </button>
-      {!group && <RepoLink folder={folder} />}
-      {!group && (
+      {!group && !compact && <RepoLink folder={folder} />}
+      {!group && !compact && (
         <button
           className="pf-icon"
           title={t("Новый чат")}
@@ -2143,6 +2147,12 @@ function FolderHeading({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {!group && compact && (
+            <DropdownMenuItem onSelect={onNewChat}>
+              <Icon name="MessageCirclePlus" />
+              {t("Новый чат")}
+            </DropdownMenuItem>
+          )}
           {onMarkAllRead && (
             <DropdownMenuItem onSelect={onMarkAllRead}>
               <Icon name="Check" />

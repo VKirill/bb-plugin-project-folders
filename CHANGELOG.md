@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.6 — Roomier section rows on phones
+
+- On a phone, section rows no longer show the GitHub link and the «New chat» button, so section names stay readable; «New chat» is now the first item of the row's «…» menu.
+
 ## 0.7.5 — Auto-archive failed chats too
 
 - Auto-archive now also moves old chats whose last run ended in an error. Running, starting, waiting and pinned chats are still left alone.
