@@ -1,10 +1,11 @@
 ---
 title: Projects & Sections — Project facts
-updated: 2026-10-19
+updated: 2026-10-25
 sources:
   - package.json
   - server.ts
   - app.tsx
+  - components/ui/hooks/use-compact-viewport.tsx
   - host.ts
   - repo-remote.ts
   - project-delete.ts
@@ -26,7 +27,7 @@ sources:
 ## Entry points
 
 - Server: RPC contract, persistence, BB SDK integration, CLI commands — [API](docs/api.md), [architecture](docs/architecture.md) (`server.ts:194-628`, `server.ts:650-737`).
-- App: plugin surfaces and settings (`app.tsx:1-70`).
+- App: sidebar, management surfaces and settings; project and section headings switch actions at the compact viewport breakpoint (`app.tsx:1-70`, `app.tsx:2031-2155`, `components/ui/hooks/use-compact-viewport.tsx:16-27`).
 - Host: filesystem, move/link, repository remote and session inventory operations (`host.ts:8-18`, `repo-remote.ts:187-198`).
 - Domain modules: archive, project move, section move, thread move, preferences, execution, session policy and export queue — [data model](docs/data-model.md), [features](docs/features/project-tree.md).
 

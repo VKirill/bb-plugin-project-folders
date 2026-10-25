@@ -179,5 +179,4 @@ State and location fields: `archive.ts:15-28`, `archive.ts:219-240`, `archive.ts
 - [API and commands](../api.md)
 - [Architecture](../architecture.md)
 - [Data model](../data-model.md)
-- [Project and section tree](project-tree.md)
 - [Projects & Sections — Overview](../overview.md)
