@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.7 — A failed section move no longer locks the project
+
+- If a section move failed but the section already points at its new folder, repeating the move now closes it. Before, the leftover record kept blocking messages in every chat of the project with «The chat section is archived or moving».
+
 ## 0.7.6 — Roomier section rows on phones
 
 - On a phone, section rows no longer show the GitHub link and the «New chat» button, so section names stay readable; «New chat» is now the first item of the row's «…» menu.

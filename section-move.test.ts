@@ -268,3 +268,37 @@ it("refuses occupied destinations and paths outside the project", async () => {
     await f.close();
   }
 });
+
+it("closes a failed move once the section already points at its destination", async () => {
+  const f = await setup();
+  try {
+    const section = await f.createSection("Work", "x/work");
+    const real = path.join(f.root, "work");
+    await rename(path.join(f.root, "x/work"), real);
+    await rm(path.join(f.root, "x"), { recursive: true });
+    // The compatibility link cannot be made: its parent folder is gone.
+    await expect(
+      f.h.harness.behavior.callRpc("section_move", {
+        folderId: section.id,
+        destination: real,
+      }),
+    ).rejects.toThrow();
+    await f.h.harness.behavior.callRpc("section_path_set", {
+      folderId: section.id,
+      hostId: "h1",
+      path: real,
+    });
+    const pending = () =>
+      f.h.harness.behavior.callRpc("pending_section_moves") as Promise<
+        unknown[]
+      >;
+    expect((await pending()).length).toBe(1);
+    await f.h.harness.behavior.callRpc("section_move", {
+      folderId: section.id,
+      destination: real,
+    });
+    expect((await pending()).length).toBe(0);
+  } finally {
+    await f.close();
+  }
+});

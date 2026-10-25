@@ -88,7 +88,17 @@ export function makeSectionMoves(
         complete: false,
         error: null,
       };
-      if (folder.path === destination) return { destination, complete: true };
+      if (folder.path === destination) {
+        // The section already points here: a failed move whose path was fixed
+        // elsewhere must not keep the whole project blocked.
+        if (saved) {
+          m.complete = true;
+          m.error = null;
+          put(m);
+          deps.changed();
+        }
+        return { destination, complete: true };
+      }
       if (within(folder.path, destination) || within(destination, folder.path))
         throw new Error(
           "The new path must not be inside the section or contain it.",
