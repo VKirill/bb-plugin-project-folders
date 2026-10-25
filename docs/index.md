@@ -24,8 +24,11 @@ Built by Lane Pilot from page frontmatter.
 | [Chat list and activity](features/chat-list.md) | component | active | 2026-10-19 |
 | [Device copies and moves](features/devices-and-moves.md) | component | active | 2026-10-19 |
 | [Execution defaults](features/execution-settings.md) | component | active | 2026-10-19 |
+| [Folder browser](features/folder-browser.md) | component | active | 2026-10-25 |
 | [Interface language](features/language.md) | component | active | 2026-09-27 |
-| [Project and section tree](features/project-tree.md) | component | active | 2026-10-19 |
+| [Plugin initialization](features/plugin-initialization.md) | component | active | 2026-10-25 |
+| [Project and section removal](features/project-tree-lifecycle.md) | component | active | 2026-10-25 |
+| [Project and section tree](features/project-tree.md) | component | active | 2026-10-25 |
 | [Starting chats in sections](features/section-chats.md) | component | active | 2026-10-19 |
 | [Session context](features/session-context.md) | component | active | 2026-09-30 |
 | [Gotchas](gotchas.md) | gotchas | active | 2026-09-30 |
