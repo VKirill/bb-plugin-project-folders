@@ -1,6 +1,6 @@
 ---
 title: Projects & Sections — Project facts
-updated: 2026-10-25
+updated: 2026-10-26
 sources:
   - package.json
   - server.ts
@@ -35,7 +35,7 @@ sources:
 
 - Groups are organizational nodes with synthetic paths; use a real section for a chat environment (`server.ts:2255-2281`, `server.ts:3706-3714`).
 - The composer accepts a section only when it belongs to the selected project, is a real folder section, has a path binding on the chosen host, and is not moving or archiving (`server.ts:3697-3733`).
-- Filesystem section moves persist a journal before changing files; failures retain an error for retry (`section-move.ts:268-293`, `section-move.ts:347-353`).
+- Filesystem section moves persist a journal before changing files; failures retain an error for retry (`section-move.ts:279-304`, `section-move.ts:358-364`).
 - Project deletion and its file-retention constraints: [project and section tree](docs/features/project-tree.md#how-it-works).
 - Section removal modes, preconditions and chat/file outcomes: [section archive and restore](docs/features/archive-and-restore.md#modes) (`section-remove.ts:48-79`).
 - Automatic chat-archive eligibility, sweep behavior and RPC settings: [section archive and restore](docs/features/archive-and-restore.md#automatic-chat-archiving) (`auto-archive.ts:92-172`, `server.ts:636-647`).
@@ -54,7 +54,7 @@ sources:
 ## Common gotchas
 
 - A fallback chat relocation requires one agent turn and a provider with the `update_environment_directory` tool ([gotchas](docs/gotchas.md#critical), `thread-move.ts:138-168`).
-- Occupied move destinations are not merged or overwritten (`section-move.ts:255-266`).
+- Occupied move destinations are not merged or overwritten (`section-move.ts:266-277`).
 - Required session items cannot be excluded (`session-policy.ts:32-47`).
 
 ## Useful commands

@@ -2,7 +2,7 @@
 title: API and commands
 type: component
 created: 2026-09-27
-updated: 2026-10-19
+updated: 2026-10-26
 status: active
 confidence: medium
 tags: [api, rpc, cli, host]
@@ -104,14 +104,14 @@ Contract schemas: `server.ts:195-286`, `server.ts:357-406`; CLI equivalents call
 
 Contract schemas: `server.ts:422-580`; execution resolution: `execution.ts:97-129`; session policy registration: `session-policy-server.ts:151-157`.
 
-`makeSessionPolicies` maps scopes to keys (`g`, `p:<projectId>`, `f:<folderId>`), reads and validates stored JSON, normalizes writes and deletes empty policies. When the experimental core hook exists, it registers a resolver that maps the thread workspace to its deepest real section and resolves section, ancestor, project and global layers; without the hook it still exposes read, save and inventory operations with `available: false` (`session-policy-server.ts:57-93`, `session-policy-server.ts:95-157`).
+Detailed `makeSessionPolicies` steps, scope modes, inheritance, hook registration and failures are documented in [Session policy service](api/session-policy-service.md) (`session-policy-server.ts:57-177`).
 
 | Operation | Branch and outcome | Failure behavior |
 |---|---|---|
 | Read | Resolve scope placement, load own value, compute inherited/effective policy and report the user-instructions file path/existence (`session-policy-server.ts:159-179`). | Invalid JSON or schema data becomes an empty policy (`session-policy-server.ts:83-93`). |
-| Save | Validate scope placement and store normalized value; empty values delete the key (`session-policy-server.ts:95-102`, `session-policy-server.ts:181-184`). | Placement/database failures reject the save (`session-policy-server.ts:181-184`). |
+| Save | Validate scope placement and store normalized value; empty values delete the key (`session-policy-server.ts:88-95`, `session-policy-server.ts:174-177`). | Placement or database errors propagate from the save call (`session-policy-server.ts:88-95`, `session-policy-server.ts:174-177`). |
 | Inventory | Gather plugin contributions, BB plugins, project skills and host MCP/CLI names for non-global scopes (`session-policy-server.ts:185-241`). | Optional plugin, skill and host sources fail independently to empty results (`session-policy-server.ts:201-231`). |
-| Core enforcement | Register `experimental_vkSessionPolicy` only when present, resolving each thread against its matching project, host and deepest section (`session-policy-server.ts:137-157`). | Without the extension, `available` is false and no resolver is registered (`session-policy-server.ts:74-75`, `session-policy-server.ts:151-157`). |
+| Core enforcement | Register `experimental_vkSessionPolicy` only when present, resolving each thread against its matching project, host and deepest section (`session-policy-server.ts:131-150`). | The `available` value is the hook-presence check; the resolver branch is skipped when it is false (`session-policy-server.ts:66-68`, `session-policy-server.ts:144-153`). |
 
 ### Preferences and history
 
@@ -126,21 +126,7 @@ Contract schemas: `server.ts:422-580`; execution resolution: `execution.ts:97-12
 
 Contract schemas: `server.ts:574-647`. Auto-archive behavior and eligibility rules are documented in [Section archive and restore](features/archive-and-restore.md#automatic-chat-archiving) (`auto-archive.ts:92-172`).
 
-### `isStale` eligibility
-
-The sweep passes each listed thread, the current parsed configuration and one captured clock value to `isStale`. The predicate short-circuits on excluded state before calculating age: archived/deleted, pinned, child, non-quiet thread status, non-quiet runtime display status, pending interaction, queued work other than `none`, or any positive activity counter returns `false` (`auto-archive.ts:92-107`).
-
-For an otherwise quiet thread, the comparison timestamp is the greatest of `updatedAt`, `latestAttentionAt` and `createdAt`, with missing/falsy values treated as zero. A zero timestamp is not stale; otherwise it qualifies at the inclusive boundary `now - last >= days * 24 hours` (`auto-archive.ts:73-85`, `auto-archive.ts:108-110`).
-
-| Predicate branch | Condition | Result |
-|---|---|---|
-| Excluded lifecycle/state | Already archived/deleted, pinned, has a parent, or status is not `idle`/`error` | `false` without an age check (`auto-archive.ts:97-101`). |
-| Runtime or pending work | A present runtime display status is not `idle`/`error`, interaction is pending, queued work is a non-empty value other than `none`, or an activity counter is positive | `false` (`auto-archive.ts:102-107`). |
-| No recorded time | All three activity timestamps are missing/falsy | `false` (`auto-archive.ts:78-85`, `auto-archive.ts:108-109`). |
-| Quiet and old enough | Latest activity exists and is at least the configured number of 24-hour days old | `true`; the sweep requests BB to archive the thread (`auto-archive.ts:108-110`, `auto-archive.ts:154-158`). |
-| Quiet but recent | Latest activity is newer than the threshold | `false` (`auto-archive.ts:108-110`). |
-
-The config range, default, sweep cadence and failure handling are owned by [Section archive and restore](features/archive-and-restore.md#automatic-chat-archiving) (`auto-archive.ts:3-12`, `auto-archive.ts:142-189`).
+`isStale` eligibility steps, predicate branches and exclusions are documented in [Chat staleness predicate](api/chat-staleness.md) (`auto-archive.ts:92-112`). The config range and sweep behavior are owned by [Section archive and restore](features/archive-and-restore.md#automatic-chat-archiving) (`auto-archive.ts:3-12`, `auto-archive.ts:142-189`).
 
 ## Cross-plugin section listing
 
@@ -157,7 +143,7 @@ The separate contract is declared and registered in `server.ts:155-172`, `server
 | BB host contract | `folder_edit` | Server folder browser RPC | Create/delete an empty directory | BB host dispatch to connected device | `host.ts:7-16`, `folder-files.ts:3-41` |
 | BB host contract | `inspect` | Project/section move modules | Inspect paths and detect completed move/link | BB host dispatch to connected device | `host.ts:7-16`, `move-files.ts:14-73` |
 | BB host contract | `move` | Project/section move modules | Move a directory and create compatibility path | BB host dispatch to connected device | `host.ts:8-18`, `move-files.ts:74-95` |
-| BB host contract | `link` | Section move module | Link a folder renamed outside BB | BB host dispatch to connected device | `host.ts:8-18`, `section-move.ts:287-293`, `move-files.ts:96-118` |
+| BB host contract | `link` | Section move module | Link a folder renamed outside BB | BB host dispatch to connected device | `host.ts:8-18`, `section-move.ts:298-304`, `move-files.ts:96-118` |
 | BB host contract | `github_remotes` | Project tree metadata refresh | Resolve GitHub remote metadata for compatibility | BB host dispatch to connected device | `host.ts:8-18`, `github-remote.ts:1-30` |
 | BB host contract | `repo_remotes` | Project tree metadata refresh | Resolve supported repository remote metadata | BB host dispatch to connected device | `host.ts:8-18`, `repo-remote.ts:187-198` |
 | BB host contract | `session_inventory` | Session policy editor | List host MCP servers and native CLI plugins | BB host dispatch to connected device | `host.ts:7-16`, `session-inventory.ts:1-45` |
@@ -207,7 +193,7 @@ The contract continues with the remaining RPC operations in the route tables abo
 2. Require the old source path to be absent and destination to be an existing real directory, not a symlink; require `realpath(destination)` to equal the path so no parent component is a symlink (`move-files.ts:109-117`).
 3. Create a directory symlink from the old source path to the destination and return both normalized paths with `moved: true` (`move-files.ts:116-118`).
 
-There is no fallback branch: validation errors or a symlink creation error reject the host call, and the caller’s move journal retains its error for retry (`move-files.ts:102-118`, `section-move.ts:347-353`).
+There is no fallback branch: validation errors or a symlink creation error reject the host call, and the caller’s move journal retains its error for retry (`move-files.ts:102-118`, `section-move.ts:358-364`).
 
 ### `sessionInventory` collection
 
@@ -250,7 +236,7 @@ Command definitions and argument parsing: `server.ts:3783-3892`, `server.ts:3895
 ## Failures
 
 - Zod validation rejects invalid RPC and CLI inputs before their handlers run (`server.ts:194-207`, `server.ts:3895-4084`).
-- BB and host SDK errors return through RPC/CLI error handling; filesystem moves preserve journals for retry (`section-move.ts:347-353`, `project-move.ts:228-246`).
+- BB and host SDK errors return through RPC/CLI error handling; filesystem moves preserve journals for retry (`section-move.ts:358-364`, `project-move.ts:228-246`).
 - Session-context settings can be stored even if the BB extension is unavailable, but no enforcement hook is installed (`session-policy-server.ts:52-75`).
 
 ## Business rules

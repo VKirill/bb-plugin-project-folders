@@ -2,7 +2,7 @@
 title: Data model
 type: data-model
 created: 2026-09-27
-updated: 2026-10-19
+updated: 2026-10-26
 status: active
 confidence: medium
 tags: [data-model, sqlite, persistence]
@@ -132,7 +132,7 @@ erDiagram
   }
 ```
 
-Project and thread IDs in these tables point to BB-owned entities; the BB records are not plugin-created tables (`server.ts:730-771`).
+The plugin migrations create the tables documented here. Their `projectId` and `threadId` values store BB SDK entity IDs, which move and placement handlers resolve through BB's project and thread APIs (`server.ts:735-771`, `project-move.ts:54-63`, `server.ts:2297-2305`).
 
 ## Archive store coordinator
 
@@ -172,7 +172,7 @@ Purpose: Section and group tree nodes for BB projects.
 | `sort` | Sibling ordering integer | Default `0` |
 | `kind` | `folder` or `group` | Default `folder` |
 
-Writers: section creation, group creation, move/repath, archive restore and reorder handlers (`server.ts:1774-1851`, `server.ts:2248-2275`, `section-move.ts:294-309`, `archive.ts:439-453`, `server.ts:3249-3295`). Readers: tree/list, section environment validation, move/archive logic and appearance rules (`server.ts:859-883`, `server.ts:3697-3757`, `archive.ts:63-95`).
+Writers: section creation, group creation, move/repath, archive restore and reorder handlers (`server.ts:1774-1851`, `server.ts:2248-2275`, `section-move.ts:305-320`, `archive.ts:439-453`, `server.ts:3249-3295`). Readers: tree/list, section environment validation, move/archive logic and appearance rules (`server.ts:859-883`, `server.ts:3697-3757`, `archive.ts:63-95`).
 
 ### `folder_rules`
 
@@ -193,9 +193,9 @@ Mode lifecycle (the same transition behavior applies to `project_rules.mode`):
 
 | From | To | Function and condition |
 |---|---|---|
-| absent or any saved mode | `manual` | `rules_settings_save` stores the rule row, then returns before file writes (`server.ts:3033-3073`) |
-| absent or any saved mode | `inherit` | Saves mode; updates/removes the custom file block, while the effective template resolves through inheritance (`server.ts:1029-1044`, `server.ts:2923-2986`) |
-| absent or any saved mode | `custom` | Saves mode and stamps the selected project/section template plus file-targeted custom block (`server.ts:2923-2981`) |
+| absent or any saved mode | `manual` | `rules_settings_save` stores the selected rule row and returns before file writes (`server.ts:3051-3090`) |
+| absent or any saved mode | `inherit` | Saves the selected mode, then updates/removes custom file blocks; effective templates resolve from the nearest custom section or project template (`server.ts:3051-3062`, `server.ts:3110-3114`, `server.ts:1105-1128`) |
+| absent or any saved mode | `custom` | Saves the selected mode and writes the selected template; custom text goes to files only when `customTarget` includes `file` (`server.ts:3051-3085`, `server.ts:3057-3062`, `server.ts:3097-3109`) |
 
 ### `project_rules`
 
@@ -337,7 +337,7 @@ Purpose: Retry journal for section folder moves and relinks.
 | `folderId` | Section being moved | Primary key / logical `folders.id` |
 | `data` | JSON move record | Source/destination, completion and error details |
 
-State-like lifecycle: a metadata-only shared-path update writes a completed journal with the path binding; a filesystem move writes an incomplete journal before draining exports, then marks it complete after descendant paths, exports and archive manifests are rebased. A failure after journal creation stores an error for retry (`section-move.ts:227-241`, `section-move.ts:268-273`, `section-move.ts:294-353`). Writers/readers: `makeSectionMoves` reads rows for its journal list and writes move updates; project cleanup reads rows to identify and delete journals owned by the removed project (`section-move.ts:24-50`, `server.ts:2094-2101`).
+State-like lifecycle: a metadata-only shared-path update writes a completed journal with the path binding; a filesystem move writes an incomplete journal before draining exports, then marks it complete after descendant paths, exports and archive manifests are rebased. A failure after journal creation stores an error for retry. If a retry finds the section path already equals its saved destination, it marks that journal complete and clears its error (`section-move.ts:238-252`, `section-move.ts:279-284`, `section-move.ts:305-364`, `section-move.ts:91-100`). Writers/readers: `makeSectionMoves` reads rows for its journal list and writes move updates; project cleanup reads rows to identify and delete journals owned by the removed project (`section-move.ts:24-50`, `server.ts:2094-2101`).
 
 ### `thread_moves`
 
@@ -371,7 +371,7 @@ Purpose: Last chat export path or persisted error.
 | `error` | Last export error | `NULL` on success, error text on failure |
 | `updatedAt` | Last state update, Unix milliseconds | Integer |
 
-State lifecycle: success stores a path and `error=NULL`; a non-transient export error stores `path=NULL` and an error; deleted threads remove the row; error rows older than one hour are pruned during `list` (`server.ts:2018-2022`, `server.ts:2044-2058`, `server.ts:2497-2500`). Writers/readers: export pipeline and move modules that rebase paths (`server.ts:1852-2022`, `section-move.ts:310-317`).
+State lifecycle: success stores a path and `error=NULL`; a non-transient export error stores `path=NULL` and an error; deleted threads remove the row; error rows older than one hour are pruned during `list` (`server.ts:2018-2022`, `server.ts:2044-2058`, `server.ts:2497-2500`). Writers/readers: export pipeline and move modules that rebase paths (`server.ts:1852-2022`, `section-move.ts:321-328`).
 
 ### `pending_exports`
 

@@ -2,7 +2,7 @@
 title: Gotchas
 type: gotchas
 created: 2026-09-27
-updated: 2026-09-30
+updated: 2026-10-26
 status: active
 confidence: high
 tags: [gotchas, constraints, operations]
@@ -33,11 +33,11 @@ TL;DR: The sharp edges are tied to the physical device behind each section, asyn
 
 ### Directory moves do not merge or overwrite occupied destinations
 
-**Problem:** The section move checks source and destination existence. If both exist, it calls host `inspect` and accepts the pair only when the source is a compatibility link from a completed move (`section-move.ts:243-266`).
+**Problem:** The section move checks source and destination existence. If both exist, it calls host `inspect` and accepts the pair only when the source is a compatibility link from a completed move (`section-move.ts:254-277`).
 
 **Risk:** A retry can stop with a persisted journal and require operator resolution of the two paths.
 
-**Workaround:** Inspect both folders and resolve the collision before retrying the pending move (`section-move.ts:243-266`). The section-move catch records the error in its journal and rethrows it (`section-move.ts:347-353`).
+**Workaround:** Inspect both folders and resolve the collision before retrying the pending move (`section-move.ts:254-277`). The section-move catch records the error in its journal and rethrows it (`section-move.ts:358-364`).
 
 ## High
 
@@ -47,7 +47,7 @@ TL;DR: The sharp edges are tied to the physical device behind each section, asyn
 
 **Risk:** Persisted settings do not enforce session filtering on a BB build without this hook.
 
-**Workaround:** Read `session_policy_capability`; it returns the availability value from the session-policy subsystem (`server.ts:2094-2096`).
+**Workaround:** Read `session_policy_capability`; its handler returns `sessionPolicies.available`, which reflects whether BB exposes the experimental hook (`server.ts:2197-2199`, `session-policy-server.ts:68`).
 
 ### Required plugins and MCP servers cannot be excluded
 
@@ -61,11 +61,11 @@ TL;DR: The sharp edges are tied to the physical device behind each section, asyn
 
 ### A group has no folder and cannot own a chat or rules
 
-**Problem:** A group stores a synthetic path that is not a filesystem location (`server.ts:2152-2178`, `section-tree.ts:8-11`). Section-environment validation refuses it, and the rules handlers reject group nodes (`server.ts:3485-3509`, `server.ts:2818-2827`, `server.ts:2890-2895`).
+**Problem:** A group stores a synthetic `@group/<id>` path that is not a filesystem location (`server.ts:2255-2279`, `section-tree.ts:8-11`). Section-environment validation refuses it, and the rules read, save and settings handlers reject group nodes (`server.ts:3694-3714`, `server.ts:2985-2987`, `server.ts:3035-3037`, `server.ts:3051-3056`).
 
 **Risk:** Passing a group ID where a section ID is required fails instead of starting a chat.
 
-**Workaround:** Select a real section nested under the group (`server.ts:3485-3509`).
+**Workaround:** Select a real section nested under the group (`server.ts:3694-3715`).
 
 ### Archiving blocks active work and keeps external folders in place
 

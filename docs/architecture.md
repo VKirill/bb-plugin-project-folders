@@ -2,7 +2,7 @@
 title: Architecture
 type: architecture
 created: 2026-09-27
-updated: 2026-10-19
+updated: 2026-10-26
 status: active
 confidence: low
 tags: [architecture, bb-plugin, runtime]
@@ -129,7 +129,7 @@ sequenceDiagram
   Server-->>UI: completion or persisted error
 ```
 
-For distinct paths, the move implementation checks relevant chats, records a journal before filesystem changes, drains pending exports, rechecks/stops chats, and updates folder, export and archive paths in a transaction; failures remain retryable. If the source path is shared or the destination already belongs to a section, it updates only the selected section’s path binding and completes the journal without a filesystem operation (`section-move.ts:186-241`, `section-move.ts:268-353`).
+For distinct paths, the move implementation checks relevant chats, records a journal before filesystem changes, drains pending exports, rechecks/stops chats, and updates folder, export and archive paths in a transaction; failures remain retryable. If the source path is shared or the destination already belongs to a section, it updates only the selected section’s path binding and completes the journal without a filesystem operation (`section-move.ts:197-252`, `section-move.ts:279-364`).
 
 ### Project relocation coordinator
 
@@ -157,13 +157,13 @@ The archive module inventories matching chats and files, saves chat exports, rec
 
 - A group stores the synthetic path `@group/<id>`; the group creation handler labels it as non-filesystem state, and tree helpers treat groups as having no folder (`server.ts:2241-2249`, `section-tree.ts:8-11`).
 - Section environment selection must match project and host and rejects groups or folders covered by an active move/archive (`server.ts:3697-3733`).
-- Project, section and chat moves persist operation state so retries can resume without overwriting occupied destinations (`project-move.ts:26-31`, `section-move.ts:268-293`, `section-move.ts:243-266`, `thread-move.ts:108-136`).
+- Project, section and chat moves persist operation state so retries can resume without overwriting occupied destinations (`project-move.ts:26-31`, `section-move.ts:279-304`, `section-move.ts:254-277`, `thread-move.ts:108-136`).
 - Chat history in BB remains canonical; exported files are snapshots written beneath the section folder (`server.ts:1803-1816`, `server.ts:1862-1872`).
 - Session-context enforcement registers only when BB exposes the experimental extension (`session-policy-server.ts:52-75`, `session-policy-server.ts:151-157`).
 
 ## Cross-cutting concerns
 
-RPC input/output shapes are Zod-backed contracts registered with BB’s plugin RPC service (`server.ts:194-630`, `server.ts:3582-3606`). The server publishes `changed` after state updates (`server.ts:1687`); the host entry separates device-specific operations from the central server (`host.ts:7-16`). Move and archive errors are persisted in journals; history export records errors and retries through a queue (`section-move.ts:347-353`, `archive.ts:371-375`, `export-queue.ts:27-45`).
+RPC input/output shapes are Zod-backed contracts registered with BB’s plugin RPC service (`server.ts:194-630`, `server.ts:3582-3606`). The server publishes `changed` after state updates (`server.ts:1687`); the host entry separates device-specific operations from the central server (`host.ts:7-16`). Move and archive errors are persisted in journals; history export records errors and retries through a queue (`section-move.ts:358-364`, `archive.ts:371-375`, `export-queue.ts:27-45`).
 
 <!-- lane-pilot:backlinks -->
 ## Referenced by
