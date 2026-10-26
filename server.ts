@@ -81,6 +81,16 @@ import {
   type Execution,
   type ExecutionLayer,
 } from "./execution";
+import {
+  bbDatabasePath,
+  bbDefaultsSchema,
+  bbSyncSchema,
+  parseRemembered,
+  sameRemembered,
+  wantedRemembered,
+  writeRemembered,
+  type BbSync,
+} from "./bb-remembered";
 
 const defaultAgentsTemplate = `# Section rules
 
@@ -488,11 +498,22 @@ export const rpcContract = defineRpcContract({
       /** What BB itself would start with here: shown, and used as the seed. */
       fallback: executionFallbackSchema.nullable(),
       agents: agentCatalogSchema,
+      /** The project page only: BB's remembered row beside the plugin's pins. */
+      bb: bbDefaultsSchema.nullable().optional(),
     }),
   },
   execution_save: {
     input: z.object({ scope: executionScopeSchema, value: executionSchema }),
-    output: z.object({ ok: z.literal(true) }),
+    output: z.object({
+      ok: z.literal(true),
+      /** A project save also writes BB's remembered defaults; this is how it went. */
+      bb: bbSyncSchema.optional(),
+    }),
+  },
+  /** Writes the project's plugin setting into BB's remembered defaults again. */
+  execution_remember: {
+    input: z.object({ projectId: z.string().min(1) }),
+    output: bbSyncSchema,
   },
   /** Whether the running BB can enforce session context rules at all. */
   session_policy_capability: {
@@ -1309,6 +1330,88 @@ export default async function plugin(bb: BbPluginApi) {
         : null;
     } catch {
       return null;
+    }
+  };
+  /** The provider is registered and has a live bridge on that machine. */
+  const providerLive = async (hostId: string | null, providerId: string) => {
+    const providers = await bb.sdk.providers.list(hostId ? { hostId } : {});
+    return providers.some((p) => p.id === providerId && p.available);
+  };
+  const rememberedNow = async (projectId: string) => {
+    try {
+      return parseRemembered(
+        await bb.sdk.projects.defaultExecutionOptions({ projectId }),
+      );
+    } catch {
+      return null;
+    }
+  };
+  /**
+   * BB's remembered row against the plugin's project setting: the project's
+   * own pins, else the plugin-wide default. Sections never count here — BB
+   * keeps one row per project, and a chat started without a section lands in
+   * the project root.
+   */
+  const bbDefaultsFor = async (projectId: string, hostId: string | null) => {
+    const remembered = await rememberedNow(projectId);
+    const wanted = wantedRemembered(
+      effectiveExecution(null, projectId),
+      remembered,
+    );
+    const live = async (id: string | undefined) => {
+      if (!id) return false;
+      try {
+        return await providerLive(hostId, id);
+      } catch {
+        return false;
+      }
+    };
+    return {
+      remembered,
+      rememberedAvailable: await live(remembered?.providerId),
+      wanted,
+      wantedAvailable: await live(wanted?.providerId),
+      matches: !wanted || sameRemembered(remembered, wanted),
+    };
+  };
+  /**
+   * Writes the project setting into BB's remembered defaults, so a chat made
+   * without an explicit provider starts on the same provider and model. A
+   * provider without a live bridge is never written: BB would hand every such
+   * chat to a provider that cannot run it.
+   */
+  const rememberInBb = async (projectId: string): Promise<BbSync> => {
+    const remembered = await rememberedNow(projectId);
+    const wanted = wantedRemembered(
+      effectiveExecution(null, projectId),
+      remembered,
+    );
+    if (!wanted) return { status: "nothing", providerId: null, message: null };
+    const { providerId } = wanted;
+    try {
+      const { hostId } = await executionPlace({ kind: "project", projectId });
+      if (!(await providerLive(hostId, providerId)))
+        return {
+          status: "unavailable",
+          providerId,
+          message: `Provider "${providerId}" has no live bridge on this project's machine.`,
+        };
+      const status = writeRemembered(
+        db.constructor as Parameters<typeof writeRemembered>[0],
+        bbDatabasePath(bb.server.experimental_dataDir),
+        projectId,
+        wanted,
+      );
+      return { status, providerId, message: null };
+    } catch (e) {
+      bb.log.warn(
+        `Could not write BB's remembered defaults for ${projectId}: ${String(e)}`,
+      );
+      return {
+        status: "failed",
+        providerId,
+        message: (e as Error).message || String(e),
+      };
     }
   };
   const executionOrigin = (scope: ExecutionScope) => ({
@@ -3145,6 +3248,10 @@ export default async function plugin(bb: BbPluginApi) {
         hosts: await executionHosts(scope, place, knownHosts),
         knownHosts,
         fallback: await executionFallback(scope, place.hostId),
+        bb:
+          scope.kind === "project"
+            ? await bbDefaultsFor(scope.projectId, place.hostId)
+            : null,
         agents:
           scope.kind === "global" || !providerId
             ? {
@@ -3184,8 +3291,13 @@ export default async function plugin(bb: BbPluginApi) {
       }
       saveExecution(executionKey(scope), value);
       changed();
-      return { ok: true as const };
+      // Sections and the plugin-wide default leave BB's row alone: a section
+      // pin applies only to chats started in that section, and the
+      // plugin-wide one would overwrite every project's remembered choice.
+      if (scope.kind !== "project") return { ok: true as const };
+      return { ok: true as const, bb: await rememberInBb(scope.projectId) };
     },
+    execution_remember: ({ projectId }) => rememberInBb(projectId),
     section_pick: ({ projectId, hostId, folderId }) => {
       const folder = folders().find((f) => f.id === folderId);
       if (!folder || folder.projectId !== projectId)

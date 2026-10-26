@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.8 — The project's provider becomes BB's remembered choice
+
+- Saving «Provider, model and agent» on a project now also writes it into BB's remembered project defaults. A chat created without a provider (`bb thread spawn` without `--provider`, a new chat outside a section) starts on the same provider, model, reasoning and access mode instead of whatever BB remembered last.
+- Only the project level writes: a section pin keeps applying to that section's chats alone, and the plugin-wide default never overwrites every project. A project that inherits the plugin-wide default gets a «Save to BB» button.
+- A provider with no live bridge on the project's machine is never written. The project page warns when BB remembers such a provider (chats without a flag would fail) or something other than the plugin's setting.
 ## 0.7.7 — A failed section move no longer locks the project
 
 - If a section move failed but the section already points at its new folder, repeating the move now closes it. Before, the leftover record kept blocking messages in every chat of the project with «The chat section is archived or moving».

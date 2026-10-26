@@ -1097,6 +1097,24 @@
   line-height: 1.6;
   margin: 0 0 10px;
 }
+.pf-exec-bb {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+.pf-exec-bb p {
+  margin: 0;
+}
+.pf-exec-bb-warn {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pk-warning, var(--warning-text, var(--foreground)));
+}
 .pf-agents-editor {
   display: flex;
   flex-direction: column;

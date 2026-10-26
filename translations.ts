@@ -431,6 +431,22 @@ export const english = {
     "A new chat created here starts with these settings. A group left off is inherited: the nearest section above, then the project, then the plugin settings, then BB's usual choice.",
   "Свой провайдер и модель": "Own provider and model",
   "Свой режим доступа": "Own permission mode",
+  "Записано в BB: треды без явного провайдера пойдут сюда.":
+    "Saved to BB: chats started without an explicit provider will go here.",
+  "Не записано в BB: у выбранного провайдера нет моста на машине проекта.":
+    "Not saved to BB: the chosen provider has no bridge on the project's machine.",
+  "Не удалось записать в BB:":
+    "Could not save to BB:",
+  "Запомнено в BB:":
+    "Remembered in BB:",
+  "BB ничего не запомнил для проекта.":
+    "BB has nothing remembered for this project.",
+  "У этого провайдера нет моста на машине проекта: треды без явного провайдера упадут.":
+    "This provider has no bridge on the project's machine: chats started without an explicit provider will fail.",
+  "Расходится с настройкой здесь: треды без явного провайдера (bb thread spawn, новый чат вне раздела) пойдут туда.":
+    "Differs from the setting here: chats started without an explicit provider (bb thread spawn, a new chat outside a section) will go there.",
+  "Записать в BB":
+    "Save to BB",
   "Своя среда": "Own environment",
   "Своя машина": "Own machine",
   "неизвестная машина": "unknown machine",

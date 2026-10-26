@@ -706,3 +706,64 @@ it("does not argue with the picker about a service tier it dropped", async () =>
   );
   view.lifecycle.unmount();
 });
+
+it("warns that BB's remembered provider cannot run and writes the project setting on request", async () => {
+  const remembered = {
+    providerId: "acp-antigravity",
+    model: "gemini-3.8-flash",
+    reasoningLevel: "high",
+    serviceTier: "default",
+    permissionMode: "full",
+  };
+  const view = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "" },
+    {
+      rpc: {
+        ...rpc,
+        execution_read: (input: { scope: { kind: string } }) => ({
+          ...rpc.execution_read(),
+          bb:
+            input.scope.kind === "project"
+              ? {
+                  remembered,
+                  rememberedAvailable: false,
+                  wanted: {
+                    ...remembered,
+                    providerId: "claude-code",
+                    model: "claude-opus-5",
+                  },
+                  wantedAvailable: true,
+                  matches: false,
+                }
+              : null,
+        }),
+        execution_remember: () => ({
+          status: "written",
+          providerId: "claude-code",
+          message: null,
+        }),
+      },
+    },
+  );
+  (await view.findByText("Project")).click();
+  fireEvent.click(await view.findByRole("tab", { name: "Provider" }));
+  await view.findByText("Provider, model and agent");
+  expect(view.baseElement.textContent).toContain(
+    "Remembered in BB: acp-antigravity · gemini-3.8-flash · high · full.",
+  );
+  expect(view.baseElement.textContent).toContain(
+    "chats started without an explicit provider will fail",
+  );
+  fireEvent.click(view.getByRole("button", { name: "Save to BB" }));
+  await waitFor(() =>
+    expect(view.baseElement.textContent).toContain(
+      "Saved to BB: chats started without an explicit provider will go here.",
+    ),
+  );
+  expect(
+    view.inspection.rpcCalls.find((c) => c.method === "execution_remember")!
+      .input,
+  ).toEqual({ projectId: "p1" });
+  view.lifecycle.unmount();
+});

@@ -22,6 +22,7 @@ import {
   type ResolvedExecution,
   type ServiceTier,
 } from "./execution";
+import type { BbDefaults, BbSync, Remembered } from "./bb-remembered";
 import { t } from "./i18n";
 import { Help } from "./agents-apply";
 import { Button } from "./components/ui/button";
@@ -37,6 +38,7 @@ type Loaded = {
   knownHosts?: { id: string; name: string }[];
   fallback: ExecutionFallback | null;
   agents: AgentCatalog;
+  bb?: BbDefaults | null;
 };
 type PickerValue = {
   providerId: string;
@@ -45,6 +47,69 @@ type PickerValue = {
   serviceTier?: ServiceTier;
 };
 const INHERIT = "__inherit";
+
+const rememberedLabel = (r: Remembered) =>
+  [r.providerId, r.model, r.reasoningLevel, r.permissionMode].join(" · ");
+
+/**
+ * BB's own remembered provider for the project, shown when it disagrees with
+ * the plugin's project setting or cannot run at all: a chat started without
+ * an explicit provider goes there, not to what this page shows.
+ */
+function BbDefaultsNotice({
+  bb,
+  sync,
+  busy,
+  onRemember,
+}: {
+  bb: BbDefaults | null | undefined;
+  sync: BbSync | null;
+  busy: boolean;
+  onRemember: () => void;
+}) {
+  const result =
+    sync?.status === "written"
+      ? { tone: "ok", text: t("Записано в BB: треды без явного провайдера пойдут сюда.") }
+      : sync?.status === "unavailable"
+        ? { tone: "warn", text: t("Не записано в BB: у выбранного провайдера нет моста на машине проекта.") }
+        : sync?.status === "failed"
+          ? { tone: "warn", text: `${t("Не удалось записать в BB:")} ${sync.message ?? ""}` }
+          : null;
+  const broken = !!bb?.remembered && !bb.rememberedAvailable;
+  const differs = !!bb && !bb.matches;
+  if (!result && !broken && !differs) return null;
+  return (
+    <div className="pf-exec-bb" role="status">
+      {result && (
+        <p className={result.tone === "ok" ? "pf-agents-hint" : "pf-exec-bb-warn"}>
+          {result.text}
+        </p>
+      )}
+      {(broken || differs) && bb && (
+        <>
+          <p className="pf-exec-bb-warn">
+            {bb.remembered
+              ? `${t("Запомнено в BB:")} ${rememberedLabel(bb.remembered)}. `
+              : `${t("BB ничего не запомнил для проекта.")} `}
+            {broken
+              ? t("У этого провайдера нет моста на машине проекта: треды без явного провайдера упадут.")
+              : t("Расходится с настройкой здесь: треды без явного провайдера (bb thread spawn, новый чат вне раздела) пойдут туда.")}
+          </p>
+          {differs && bb.wanted && !bb.wantedAvailable && sync?.status !== "unavailable" && (
+            <p className="pf-exec-bb-warn">
+              {t("Не записано в BB: у выбранного провайдера нет моста на машине проекта.")}
+            </p>
+          )}
+          {differs && bb.wanted && bb.wantedAvailable && (
+            <Button variant="outline" size="sm" disabled={busy} onClick={onRemember}>
+              {t("Записать в BB")}
+            </Button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 const NO_AGENT = "__none";
 
 /** Where a value that is not pinned here comes from, in one short phrase. */
@@ -83,6 +148,7 @@ export function ExecutionEditor({
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [sync, setSync] = useState<BbSync | null>(null);
   const key =
     scope.kind === "folder"
       ? `f:${scope.folderId}`
@@ -101,6 +167,7 @@ export function ExecutionEditor({
     setState(null);
     setError("");
     setSaved(false);
+    setSync(null);
     load().catch((e) => {
       if (live) setError(String(e));
     });
@@ -192,10 +259,11 @@ export function ExecutionEditor({
       // A switched-off group leaves `undefined` behind in the draft, and
       // `undefined` is not a JSON value: normalizing drops those keys instead
       // of sending them.
-      await rpc.call("execution_save", {
+      const result = (await rpc.call("execution_save", {
         scope,
         value: normalizeExecution(draft),
-      });
+      })) as { bb?: BbSync };
+      setSync(result.bb ?? null);
       await load();
       setSaved(true);
     } catch (e) {
@@ -204,8 +272,33 @@ export function ExecutionEditor({
       setBusy(false);
     }
   };
+  const remember = async () => {
+    if (scope.kind !== "project") return;
+    setBusy(true);
+    setError("");
+    try {
+      setSync(
+        (await rpc.call("execution_remember", {
+          projectId: scope.projectId,
+        })) as BbSync,
+      );
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   const controls = (
     <div className="pf-exec-rows">
+      {scope.kind === "project" && (
+        <BbDefaultsNotice
+          bb={state.bb}
+          sync={sync}
+          busy={busy}
+          onRemember={() => void remember()}
+        />
+      )}
       <div className="pf-exec-row">
         <Switch
           checked={modelOn}

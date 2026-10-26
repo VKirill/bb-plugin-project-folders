@@ -2,7 +2,7 @@
 title: Execution defaults
 type: component
 created: 2026-09-27
-updated: 2026-10-19
+updated: 2026-10-26
 status: active
 confidence: medium
 tags: [execution, provider, model, agent]
@@ -12,6 +12,7 @@ sources:
   - server.ts
   - composer-chip.tsx
   - README.md
+  - bb-remembered.ts
 ---
 # Execution defaults
 
@@ -29,6 +30,16 @@ Execution defaults seed new chats with settings without replacing BB’s own def
 4. Permission mode, environment and machine each have their own switch and inherit independently. Environment choices are `folder` or `worktree`; machine choices are hosts where the project or section has a folder binding. The editor labels inherited values and uses the place’s host when no machine pin applies (`execution-ui.tsx:153-184`, `execution-ui.tsx:285-350`, `server.ts:1321-1353`).
 5. Agent selection is disabled for global scope, while saving, or when CLI Agents is absent/unsupported. Save normalizes the draft, calls `execution_save`, reloads the saved state and shows success; RPC errors render as an alert and busy state is cleared (`execution-ui.tsx:186-205`, `execution-ui.tsx:405-415`).
 6. For new chats, server-side resolution combines independently inherited field groups with BB fallback settings. Before `threads.spawn`, the server binds an applicable pinned agent; failures name the project or section that supplied it. A hand-picked composer agent or Lane Pilot profile takes precedence, and non-CLI-agent providers skip this binding (`server.ts:1431-1476`, `server.ts:3429-3447`).
+
+### BB's remembered project defaults
+
+BB keeps one remembered provider, model, reasoning, service tier and permission mode per project; a chat created without an explicit provider (`bb thread spawn` without `--provider`, a new chat outside a section) starts from it.
+
+- Saving the **project** scope writes the project's resolved setting into that row: the project's own pins, else the plugin-wide default. Fields the plugin does not pin keep BB's value for the same provider, else BB's defaults (`medium`, `default`, `auto`). With no provider pinned only the permission mode changes; with nothing pinned BB's row stays as it is (`bb-remembered.ts`).
+- **Sections never write**: a section pin applies only to chats started in that section. The **plugin-wide default does not write** either: it would overwrite every project's row. A project that inherits it shows a mismatch and a «Save to BB» button.
+- A provider without a live bridge on the project's machine is never written; the save itself still succeeds and reports «Not saved to BB».
+- The project page warns when BB's row names a provider without a bridge (chats without a flag would fail) or differs from the plugin's setting, and offers «Save to BB» (`execution_remember`).
+- Why the plugin writes BB's database itself, and what replaces it: [decision 004](../decisions.md).
 
 ### Execution editor states
 
@@ -85,7 +96,8 @@ Schemas and hierarchy: `execution.ts:14-70`, `execution.ts:110-161`; offered hos
 
 | RPC | Purpose | Evidence |
 |---|---|---|
-| `execution_read`, `execution_save` | Read/save pin values and resolved inheritance | `server.ts:469-487` |
+| `execution_read`, `execution_save` | Read/save pin values and resolved inheritance; on the project scope also BB's remembered row (`bb`) and the result of writing it | `server.ts` |
+| `execution_remember` | Write the project's setting into BB's remembered defaults again | `server.ts`, `bb-remembered.ts` |
 | `execution_agents` | Query native agent catalog for a provider | `server.ts:541-547` |
 | `spawn` | Start a chat with resolved composer fields | `server.ts:577-580` |
 

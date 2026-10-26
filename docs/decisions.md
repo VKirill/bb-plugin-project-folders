@@ -2,7 +2,7 @@
 title: Decisions
 type: decisions
 created: 2026-09-27
-updated: 2026-10-19
+updated: 2026-10-26
 status: active
 confidence: low
 tags: [decisions, architecture, project-folders]
@@ -51,3 +51,15 @@ TL;DR: The recorded choices below are supported by implementation details and Gi
 **Consequences:** Other plugins can enumerate the tree through a narrow read contract; changes remain in the main plugin RPC handlers (`server.ts:194-609`, `server.ts:3247-3261`).
 
 **Sources:** `server.ts:177-192`, `server.ts:3247-3261`; commit `812830d9d512a883d59c6281aca590e980fed6c9`.
+
+## 004. Write BB's remembered project defaults directly until core has a setter (active)
+
+**Context:** A chat created without an explicit provider (`bb thread spawn` without `--provider`, a new chat outside a section) starts from BB's `project_execution_defaults` row. Core writes that row only for chats created in its own composer (`origin === "app"`); section chats go through `threads.spawn` with `origin: "plugin"`, so the plugin's choice never reached BB. Plugin SDK 0.6.80 and core `main` (2026-10-25) only read the row. On 2026-10-26 project `proj_9tzjyzsumb` kept `acp-antigravity`, a provider with no bridge, and every chat spawned there without a flag failed.
+
+**Decision:** Saving the project scope writes the project's resolved setting (its own pins, else the plugin-wide default) into BB's row in `<experimental_dataDir>/bb.db`, through the server's own better-sqlite3 build: `busy_timeout` 5000, one `INSERT … ON CONFLICT(project_id) DO UPDATE` in a `BEGIN IMMEDIATE` transaction, same as core's `upsertProjectExecutionDefaults`. The write is refused when the table lacks a column core uses, when BB has no such project, or when the provider has no live bridge on the project's machine. Sections and the plugin-wide default never write (`bb-remembered.ts`, `server.ts`).
+
+**Status:** active, temporary — to be replaced by a core setter (`experimental_vkSetProjectExecutionDefaults` or an upstream `projects.setDefaultExecutionOptions`) that calls `upsertProjectExecutionDefaults` itself.
+
+**Consequences:** The plugin depends on BB's table layout; a changed layout makes the write fail with a visible message instead of writing a wrong row. BB's own composer may show the old choice until it reloads its project data.
+
+**Sources:** `bb-remembered.ts`, `server.ts` (`rememberInBb`, `bbDefaultsFor`); core `apps/server/src/services/threads/project-execution-defaults.ts`.

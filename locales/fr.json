@@ -449,5 +449,13 @@
   "Через сколько дней": "Après combien de jours",
   "От 1 до 365 дней. По умолчанию 7.": "De 1 à 365 jours. 7 par défaut.",
   "Проверить сейчас": "Vérifier maintenant",
-  "Не ждать часовой проверки.": "Ne pas attendre la vérification horaire."
+  "Не ждать часовой проверки.": "Ne pas attendre la vérification horaire.",
+  "Записано в BB: треды без явного провайдера пойдут сюда.": "Enregistré dans BB : les discussions sans fournisseur explicite iront ici.",
+  "Не записано в BB: у выбранного провайдера нет моста на машине проекта.": "Non enregistré dans BB : le fournisseur choisi n’a pas de pont sur la machine du projet.",
+  "Не удалось записать в BB:": "Échec de l’enregistrement dans BB :",
+  "Запомнено в BB:": "Mémorisé dans BB :",
+  "BB ничего не запомнил для проекта.": "BB n’a rien mémorisé pour ce projet.",
+  "У этого провайдера нет моста на машине проекта: треды без явного провайдера упадут.": "Ce fournisseur n’a pas de pont sur la machine du projet : les discussions sans fournisseur explicite échoueront.",
+  "Расходится с настройкой здесь: треды без явного провайдера (bb thread spawn, новый чат вне раздела) пойдут туда.": "Diffère du réglage ici : les discussions sans fournisseur explicite (bb thread spawn, nouvelle discussion hors section) iront là-bas.",
+  "Записать в BB": "Enregistrer dans BB"
 }
