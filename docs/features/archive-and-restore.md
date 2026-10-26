@@ -175,7 +175,6 @@ State and location fields: `archive.ts:15-28`, `archive.ts:219-240`, `archive.ts
 <!-- lane-pilot:backlinks -->
 ## Referenced by
 
-- [RPC and host contract behavior](../api-contracts.md)
 - [API and commands](../api.md)
 - [Architecture](../architecture.md)
 - [Data model](../data-model.md)

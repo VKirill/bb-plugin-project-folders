@@ -2,7 +2,7 @@
 title: Project and section tree
 type: component
 created: 2026-09-27
-updated: 2026-10-25
+updated: 2026-10-26
 status: active
 confidence: medium
 tags: [sections, projects, groups, feature]
@@ -31,13 +31,18 @@ The tree organizes BB project chats by their working folder and supports nested 
 
 ## How it works
 
-Plugin startup order, the single shared agent-settings load/migration, registration branches and initialization failures are described in [Plugin initialization](plugin-initialization.md) (`server.ts:682-867`).
+Plugin startup starts by declaring the legacy agent settings and opening BB plugin storage. It sends the ordered tree, rules, journal, preference and execution migrations to `bb.storage.migrate`; a storage-open or migration error rejects the async plugin entry before runtime setup (`server.ts:682-776`). On success, startup proceeds to runtime settings and domain-service construction ([Plugin initialization](plugin-initialization.md), `server.ts:735-809`).
+
+| Startup branch | Condition | Outcome or failure |
+|---|---|---|
+| Storage and migrations | BB storage opens and the migration call resolves | Continue to runtime settings and service setup (`server.ts:735-777`). |
+| Storage failure | Opening storage or applying migrations throws | Plugin initialization rejects before later registration (`server.ts:735-776`, `server.ts:3579-3789`). |
 
 1. The management UI calls `list` to load folder rows, project roots, workspace bindings, manual chat placements, errors and host state (`server.ts:287-307`, `server.ts:2477-2545`).
 2. Creating a section resolves the selected project/parent and host folder, validates relative paths, then creates the directory through the host filesystem API and persists a row in `folders` (`server.ts:1576-1627`, `server.ts:650-667`, `server.ts:1774-1851`).
 3. Folder rows store parent identity and sort order. Reparenting changes the tree parent and sibling order; it does not move files (`server.ts:266-273`, `server.ts:2320-2381`).
 4. `group_create` stores a synthetic `@group/<id>` path and kind `group`; the path is not a filesystem location, and a section can be created beneath a group (`server.ts:2248-2275`, `server.ts:1774-1851`).
-5. `rename` changes a section’s stored display name or the BB project name; it does not change a section path. `section_move` handles path changes: it moves/re-links distinct paths, while shared-source or occupied-destination sections update their path binding without moving files (`server.ts:2950-2981`, `server.ts:2383-2389`, `section-move.ts:227-241`, `section-move.ts:243-293`).
+5. `rename` changes a section’s stored display name or the BB project name; it does not change a section path. `section_move` handles path changes: it moves/re-links distinct paths, while shared-source or occupied-destination sections update their path binding without moving files (`server.ts:2950-2981`, `server.ts:2383-2389`, `section-move.ts:238-252`, `section-move.ts:254-304`).
 6. `reorder` saves the full project order or sibling-section order and publishes `changed`; the management app refreshes on that event (`server.ts:3249-3295`, `server.ts:1603`, `app.tsx:359`).
 7. Project deletion checks and the `keep`/`archive` file modes are described in [Project and section removal](project-tree-lifecycle.md#project-deletion) (`project-delete.ts:27-124`).
 8. Section deletion checks and the `archive`/`unbind`/`purge` modes are described in [Project and section removal](project-tree-lifecycle.md#section-removal) (`app.tsx:569-574`, `server.ts:366-375`, `section-remove.ts:48-239`).
@@ -101,7 +106,7 @@ Folder browser steps, states, host-side validation and failure outcomes are docu
 ## Gotchas
 
 - Section creation can choose another connected host’s project copy even when its tree parent is elsewhere; an absolute path outside that project folder is checked against project ownership on the selected host (`server.ts:1594-1639`, `server.ts:1645-1652`, `server.ts:1654-1703`, `server.ts:1781-1792`).
-- Renaming a section changes its display name. For a path change, use `section_move`; shared paths can change binding without a filesystem move (`server.ts:2829-2843`, `server.ts:2320-2326`, `section-move.ts:227-241`).
+- Renaming a section changes its display name. For a path change, use `section_move`; shared paths can change binding without a filesystem move (`server.ts:2829-2843`, `server.ts:2320-2326`, `section-move.ts:238-252`).
 - Deleting a group is constrained to an empty group (`server.ts:2276-2288`).
 
 <!-- lane-pilot:backlinks -->
