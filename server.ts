@@ -74,6 +74,8 @@ import {
   executionSchema,
   isAgentProvider,
   normalizeExecution,
+  hasAgentPin,
+  hasModelPin,
   offeredMachineIds,
   resolvedExecutionSchema,
   resolveExecution,
@@ -513,6 +515,30 @@ export const rpcContract = defineRpcContract({
       /** A project save also writes BB's remembered defaults; this is how it went. */
       bb: bbSyncSchema.optional(),
     }),
+  },
+  /** Projects and sections that pin their own model or agent over the plugin-wide default. */
+  execution_overrides: {
+    input: z.object({}).strict(),
+    output: z.object({
+      places: z.array(
+        z.object({
+          projectId: z.string(),
+          projectName: z.string().nullable(),
+          folderId: z.string().nullable(),
+          folderName: z.string().nullable(),
+          model: z.boolean(),
+          agent: z.boolean(),
+        }),
+      ),
+    }),
+  },
+  /**
+   * Drops every project and section model and agent pin, so they all take the
+   * plugin-wide default. Machine, environment and access pins stay.
+   */
+  execution_reset_all: {
+    input: z.object({}).strict(),
+    output: z.object({ ok: z.literal(true), places: z.number().int() }),
   },
   /** Writes the project's plugin setting into BB's remembered defaults again. */
   execution_remember: {
@@ -1214,6 +1240,15 @@ export default async function plugin(bb: BbPluginApi) {
     const parsed = executionSchema.safeParse(safeJson(row.data));
     return parsed.success ? normalizeExecution(parsed.data) : {};
   };
+  /** Project and section rows that pin a model or an agent of their own. */
+  const executionOverrides = () =>
+    (
+      db.prepare("SELECT key FROM execution_defaults WHERE key <> 'g' ORDER BY key").all() as {
+        key: string;
+      }[]
+    )
+      .map(({ key }) => ({ key, value: executionAt(key) }))
+      .filter(({ value }) => hasModelPin(value) || hasAgentPin(value));
   const saveExecution = (key: string, value: Execution) => {
     const clean = normalizeExecution(value);
     if (Object.keys(clean).length === 0)
@@ -3300,6 +3335,48 @@ export default async function plugin(bb: BbPluginApi) {
       // plugin-wide one would overwrite every project's remembered choice.
       if (scope.kind !== "project") return { ok: true as const };
       return { ok: true as const, bb: await rememberInBb(scope.projectId) };
+    },
+    execution_overrides: async () => {
+      const names = new Map<string, string>();
+      try {
+        for (const p of await bb.sdk.projects.list()) names.set(p.id, p.name);
+      } catch {
+        // ids only
+      }
+      const byId = new Map(folders().map((f) => [f.id, f]));
+      return {
+        places: executionOverrides().map(({ key, value }) => {
+          const folder = key.startsWith("f:") ? byId.get(key.slice(2)) : undefined;
+          const projectId = folder?.projectId ?? key.slice(2);
+          return {
+            projectId,
+            projectName: names.get(projectId) ?? null,
+            folderId: key.startsWith("f:") ? key.slice(2) : null,
+            folderName: folder?.name ?? null,
+            model: hasModelPin(value),
+            agent: hasAgentPin(value),
+          };
+        }),
+      };
+    },
+    execution_reset_all: async () => {
+      const reset = executionOverrides();
+      for (const { key, value } of reset)
+        saveExecution(key, {
+          ...value,
+          providerId: undefined,
+          model: undefined,
+          reasoningLevel: undefined,
+          serviceTier: undefined,
+          agentMode: undefined,
+          agentId: undefined,
+        });
+      changed();
+      // A project's pin also lived in BB's remembered defaults: write the
+      // plugin-wide choice there now, as a project save does.
+      for (const { key } of reset)
+        if (key.startsWith("p:")) await rememberInBb(key.slice(2));
+      return { ok: true as const, places: reset.length };
     },
     execution_remember: ({ projectId }) => rememberInBb(projectId),
     section_pick: ({ projectId, hostId, folderId }) => {

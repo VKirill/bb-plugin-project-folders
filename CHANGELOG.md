@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.10 — Reset every project to the shared model and agent at once
+
+- The plugin settings page («Provider, model and agent») now lists the projects and sections that pin their own model or agent, with a «Reset everywhere» button. After a confirmation every one of them takes the plugin-wide model and agent again; machine, environment and access pins stay. Projects that pinned a model also get the shared choice written into BB's remembered defaults, as a project save does.
+
 ## 0.7.9 — Other plugins see a section's folder on every device
 
 - `sections_list` now also returns `paths`: the section's folder on each device set with `path-set`. A section whose home copy is on one machine and a second copy on another is no longer seen by other plugins as living on the first machine only; Lane Pilot uses it for nightly docs and section settings in every copy.

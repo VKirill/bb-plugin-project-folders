@@ -1909,6 +1909,20 @@
   border: 1px solid var(--border);
   border-radius: 10px;
 }
+.pf-exec-asides {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.pf-exec-overrides {
+  margin: 0;
+  padding-left: 16px;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
 .pf-exec-aside h4 {
   margin: 0;
   font-size: 13px;
