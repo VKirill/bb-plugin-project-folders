@@ -175,6 +175,10 @@ export const sectionsContract = defineRpcContract({
           path: z.string(),
           hostId: z.string(),
           kind: z.enum(["folder", "group"]),
+          /** The section's folder on each device (`path-set`); `hostId`/`path` stay its home copy. */
+          paths: z
+            .array(z.object({ hostId: z.string(), path: z.string() }))
+            .optional(),
         }),
       ),
     }),
@@ -3704,6 +3708,7 @@ export default async function plugin(bb: BbPluginApi) {
             path: f.path,
             hostId: f.hostId,
             kind: f.kind ?? "folder",
+            paths: withPaths(f).paths ?? [],
           })),
       }),
     },

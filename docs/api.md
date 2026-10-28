@@ -133,7 +133,7 @@ Contract schemas: `server.ts:574-647`. Auto-archive behavior and eligibility rul
 
 | Method | Path | Caller | Purpose | Auth |
 |---|---|---|---|---|
-| BB RPC | `sections_list` | Other plugins | Return section ID, project ID, parent, name, path, host and kind; optional project filter | BB plugin RPC; read-only |
+| BB RPC | `sections_list` | Other plugins | Return section ID, project ID, parent, name, home path and host, kind, and the folder on each device (`paths`); optional project filter | BB plugin RPC; read-only |
 
 The separate contract is declared and registered in `server.ts:155-172`, `server.ts:3579-3602`.
 
