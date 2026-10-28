@@ -367,3 +367,29 @@ describe("project setting → BB's remembered defaults", () => {
     }
   });
 });
+
+describe("giving every project the plugin-wide model and agent back", () => {
+  it("lists the pins, drops their model and agent, keeps the machine and writes BB's row", async () => {
+    const dir = bbDataDir([["p1", antigravity]]);
+    const h = await setup(dir);
+    try {
+      const call = h.harness.behavior.callRpc;
+      const shared = { providerId: "codex", model: "gpt-6", reasoningLevel: "high" as const };
+      await call("execution_save", { scope: { kind: "global" }, value: shared });
+      await call("execution_save", { scope: project, value: { ...opus, agentMode: "none", hostId: "h1" } });
+      expect(await call("execution_overrides", {})).toEqual({
+        places: [{ projectId: "p1", projectName: "Test", folderId: null, folderName: null, model: true, agent: true }],
+      });
+      expect(await call("execution_reset_all", {})).toEqual({ ok: true, places: 1 });
+      expect(await call("execution_overrides", {})).toEqual({ places: [] });
+      const read = (await call("execution_read", { scope: project })) as { own: unknown; effective: { model: { providerId: string; model: string } | null } };
+      // Access and machine are not who answers: they stay.
+      expect(read.own).toEqual({ permissionMode: opus.permissionMode, hostId: "h1" });
+      expect(read.effective.model).toMatchObject({ providerId: "codex", model: "gpt-6" });
+      expect(((await call("execution_read", { scope: { kind: "global" } })) as { own: unknown }).own).toEqual(shared);
+      expect(rowOf(dir)).toMatchObject({ providerId: "codex", model: "gpt-6" });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+});

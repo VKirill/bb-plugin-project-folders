@@ -97,6 +97,8 @@ Contract schemas: `server.ts:195-286`, `server.ts:357-406`; CLI equivalents call
 | BB RPC | `agents_config`, `agents_config_save` | Plugin-wide rules settings | Read/write shared templates and custom rule settings | BB plugin RPC |
 | BB RPC | `execution_read`, `execution_save` | Provider/agent settings card | Read/save execution pins and their effective inheritance | BB plugin RPC |
 | BB RPC | `execution_remember` | Project provider card | Write the project's setting into BB's remembered project defaults | BB plugin RPC |
+| BB RPC | `execution_overrides` | Plugin settings page | List projects and sections that pin their own model or agent | BB plugin RPC; read-only |
+| BB RPC | `execution_reset_all` | Plugin settings page «Reset everywhere» | Drop every project and section model and agent pin (machine, environment and access stay); write BB remembered defaults for reset projects | BB plugin RPC |
 | BB RPC | `execution_agents` | Execution editor | List native agents for a provider | BB plugin RPC |
 | BB RPC | `session_policy_capability`, `session_policy_read`, `session_policy_save`, `session_policy_inventory` | Session-context editor and BB experimental hook | Report support, read/write rules and inventory names | BB plugin RPC |
 | BB RPC | `section_pick` | BB composer environment picker | Remember the selected section for the composer | BB plugin RPC |
