@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.9 — Other plugins see a section's folder on every device
+
+- `sections_list` now also returns `paths`: the section's folder on each device set with `path-set`. A section whose home copy is on one machine and a second copy on another is no longer seen by other plugins as living on the first machine only; Lane Pilot uses it for nightly docs and section settings in every copy.
+
 ## 0.7.8 — The project's provider becomes BB's remembered choice
 
 - Saving «Provider, model and agent» on a project now also writes it into BB's remembered project defaults. A chat created without a provider (`bb thread spawn` without `--provider`, a new chat outside a section) starts on the same provider, model, reasoning and access mode instead of whatever BB remembered last.
