@@ -202,6 +202,8 @@ describe("project folder boundaries", () => {
         model: "selected-model",
         reasoningLevel: "medium",
         permissionMode: "full",
+        serviceTier: "fast",
+        sessionOptions: { autoApprovePlans: true, mode: "plan" },
         environment: { type: "project-default" },
         executionInputSources: { model: "explicit" },
         input: [
@@ -249,6 +251,8 @@ describe("project folder boundaries", () => {
       expect(JSON.stringify(calls)).toContain("selected-model");
       expect(JSON.stringify(calls)).toContain("attachment.pdf");
       expect(calls[0]?.[0]).toMatchObject({
+        serviceTier: "fast",
+        sessionOptions: { autoApprovePlans: true, mode: "plan" },
         pluginSubmission: { pluginId: "lane-pilot", data: { token: "t1" } },
       });
       await expect(

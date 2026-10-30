@@ -158,6 +158,9 @@ const requestSchema = z.object({
   input: z.array(z.json()),
   executionInputSources: z.record(z.string(), z.json()),
   serviceTier: z.string().optional(),
+  sessionOptions: z
+    .record(z.string(), z.union([z.string(), z.boolean()]))
+    .optional(),
   sendAt: z.number().int().optional(),
   pluginSubmission: z
     .object({ pluginId: z.string(), data: z.json() })
