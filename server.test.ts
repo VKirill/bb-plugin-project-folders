@@ -202,6 +202,12 @@ describe("project folder boundaries", () => {
         model: "selected-model",
         reasoningLevel: "medium",
         permissionMode: "full",
+        serviceTier: "fast",
+        // Test-only keys exercise generic forwarding, not provider behavior.
+        sessionOptions: {
+          testOnlyBoolean: true,
+          testOnlyString: "value",
+        },
         environment: { type: "project-default" },
         executionInputSources: { model: "explicit" },
         input: [
@@ -249,6 +255,12 @@ describe("project folder boundaries", () => {
       expect(JSON.stringify(calls)).toContain("selected-model");
       expect(JSON.stringify(calls)).toContain("attachment.pdf");
       expect(calls[0]?.[0]).toMatchObject({
+        serviceTier: "fast",
+        // Test-only keys exercise generic forwarding, not provider behavior.
+        sessionOptions: {
+          testOnlyBoolean: true,
+          testOnlyString: "value",
+        },
         pluginSubmission: { pluginId: "lane-pilot", data: { token: "t1" } },
       });
       await expect(
