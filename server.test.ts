@@ -1488,6 +1488,16 @@ describe("multi-device working copies", () => {
           { hostId: "h2", path: "/srv/selfy/seo" },
         ]),
       );
+      // Other plugins (Lane Pilot's nightly docs, settings scopes) read every device copy too.
+      const shared = (await h.harness.behavior.callRpc("sections_list", { projectId: "p1" })) as {
+        sections: { id: string; paths?: { hostId: string; path: string }[] }[];
+      };
+      expect(shared.sections.find((f) => f.id === section.id)?.paths).toEqual(
+        expect.arrayContaining([
+          { hostId: "h1", path: "/work/seo" },
+          { hostId: "h2", path: "/srv/selfy/seo" },
+        ]),
+      );
     } finally {
       await h.harness.lifecycle.dispose();
     }

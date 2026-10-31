@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.11 — Compact chat tree on phones
+
+- The «Inactive» status pill is gone at every width: an idle chat needs no label.
+- On phones (narrower than 768px) a chat's status is an 8px dot on its provider icon instead of a text pill, so titles get most of the row.
+- On phones the ⋯ button shows only on the open chat; hold any other row for half a second to open its menu.
+- On phones each nesting level takes 8px, chat rows start at their section's edge, and the whole row height is tappable.
+- On phones «New project» is an icon button.
+- With no saved language and no Russian page language, the phone's own language decides, so a Russian phone shows Russian labels.
+
+## 0.7.10 — Reset every project to the shared model and agent at once
+
+- The plugin settings page («Provider, model and agent») now lists the projects and sections that pin their own model or agent, with a «Reset everywhere» button. After a confirmation every one of them takes the plugin-wide model and agent again; machine, environment and access pins stay. Projects that pinned a model also get the shared choice written into BB's remembered defaults, as a project save does.
+
+## 0.7.9 — Other plugins see a section's folder on every device
+
+- `sections_list` now also returns `paths`: the section's folder on each device set with `path-set`. A section whose home copy is on one machine and a second copy on another is no longer seen by other plugins as living on the first machine only; Lane Pilot uses it for nightly docs and section settings in every copy.
+
 ## 0.7.8 — The project's provider becomes BB's remembered choice
 
 - Saving «Provider, model and agent» on a project now also writes it into BB's remembered project defaults. A chat created without a provider (`bb thread spawn` without `--provider`, a new chat outside a section) starts on the same provider, model, reasoning and access mode instead of whatever BB remembered last.

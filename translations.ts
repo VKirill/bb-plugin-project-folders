@@ -608,4 +608,20 @@ export const english = {
     "Check now",
   "Не ждать часовой проверки.":
     "Don't wait for the hourly check.",
+  "модель":
+    "model",
+  "агент":
+    "agent",
+  "Свои модели и агенты в проектах":
+    "Own models and agents in projects",
+  "Эти проекты и разделы выбрали свою модель или агента вместо общих настроек.":
+    "These projects and sections pick their own model or agent instead of the shared settings.",
+  "Сбросить везде":
+    "Reset everywhere",
+  "Все проекты и разделы берут общие настройки.":
+    "Every project and section takes the shared settings.",
+  "Вернуть всем общие настройки?":
+    "Give everyone the shared settings back?",
+  "Проекты и разделы потеряют свои модели и агентов и возьмут общие. Машина, окружение и доступ останутся.":
+    "The projects and sections lose their own models and agents and take the shared ones. Machine, environment and access stay.",
 } as const;

@@ -457,5 +457,13 @@
   "BB ничего не запомнил для проекта.": "BB no recuerda nada para este proyecto.",
   "У этого провайдера нет моста на машине проекта: треды без явного провайдера упадут.": "Este proveedor no tiene puente en la máquina del proyecto: los chats sin proveedor explícito fallarán.",
   "Расходится с настройкой здесь: треды без явного провайдера (bb thread spawn, новый чат вне раздела) пойдут туда.": "Difiere del ajuste de aquí: los chats sin proveedor explícito (bb thread spawn, un chat nuevo fuera de una sección) irán allí.",
-  "Записать в BB": "Guardar en BB"
+  "Записать в BB": "Guardar en BB",
+  "модель": "modelo",
+  "агент": "agente",
+  "Свои модели и агенты в проектах": "Modelos y agentes propios en proyectos",
+  "Эти проекты и разделы выбрали свою модель или агента вместо общих настроек.": "Estos proyectos y secciones eligen su propio modelo o agente en lugar de los ajustes comunes.",
+  "Сбросить везде": "Restablecer en todas partes",
+  "Все проекты и разделы берут общие настройки.": "Todos los proyectos y secciones usan los ajustes comunes.",
+  "Вернуть всем общие настройки?": "¿Devolver a todos los ajustes comunes?",
+  "Проекты и разделы потеряют свои модели и агентов и возьмут общие. Машина, окружение и доступ останутся.": "Los proyectos y secciones pierden sus modelos y agentes propios y usan los comunes. Máquina, entorno y acceso se mantienen."
 }

@@ -26,6 +26,14 @@ import type { BbDefaults, BbSync, Remembered } from "./bb-remembered";
 import { t } from "./i18n";
 import { Help } from "./agents-apply";
 import { Button } from "./components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./components/ui/dialog";
 import { Icon } from "./components/ui/icon";
 import { Switch } from "./settings-ui";
 
@@ -548,6 +556,126 @@ export function CliAgentsCard({ installed }: { installed: boolean }) {
   );
 }
 
+type Override = {
+  projectId: string;
+  projectName: string | null;
+  folderId: string | null;
+  folderName: string | null;
+  model: boolean;
+  agent: boolean;
+};
+
+/**
+ * Projects and sections that pin their own model or agent, and one action
+ * that gives them all the plugin-wide default back.
+ */
+export function ExecutionOverridesCard() {
+  const rpc = useRpc<typeof rpcContract>();
+  const [places, setPlaces] = useState<Override[] | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const load = useCallback(
+    () =>
+      rpc.call("execution_overrides", {}).then(
+        (r) => setPlaces((r as { places: Override[] }).places),
+        (e) => setError(String((e as Error).message ?? e)),
+      ),
+    [rpc],
+  );
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const reset = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await rpc.call("execution_reset_all", {});
+      await load();
+      setConfirming(false);
+    } catch (e) {
+      setError(String((e as Error).message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const list = places?.length ? (
+    <ul className="pf-exec-overrides" data-testid="execution-overrides-list">
+      {places.map((p) => (
+        <li key={`${p.projectId}/${p.folderId ?? ""}`}>
+          {p.projectName ?? p.projectId}
+          {p.folderId ? ` · ${p.folderName ?? p.folderId}` : ""}
+          {" — "}
+          {[p.model ? t("модель") : "", p.agent ? t("агент") : ""]
+            .filter(Boolean)
+            .join(", ")}
+        </li>
+      ))}
+    </ul>
+  ) : null;
+  return (
+    <aside className="pf-exec-aside" data-testid="execution-overrides">
+      <h4>{t("Свои модели и агенты в проектах")}</h4>
+      {places === null ? null : list ? (
+        <>
+          <p>
+            {t(
+              "Эти проекты и разделы выбрали свою модель или агента вместо общих настроек.",
+            )}
+          </p>
+          {list}
+          <Button
+            variant="outline"
+            disabled={busy}
+            data-testid="execution-overrides-reset"
+            onClick={() => setConfirming(true)}
+          >
+            {t("Сбросить везде")}
+          </Button>
+        </>
+      ) : (
+        <p>{t("Все проекты и разделы берут общие настройки.")}</p>
+      )}
+      {error && (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      )}
+      {confirming && (
+        <Dialog open onOpenChange={(open) => !open && setConfirming(false)}>
+          <DialogContent className="pf-dialog pf">
+            <DialogHeader>
+              <DialogTitle>{t("Вернуть всем общие настройки?")}</DialogTitle>
+              <DialogDescription>
+                {t(
+                  "Проекты и разделы потеряют свои модели и агентов и возьмут общие. Машина, окружение и доступ останутся.",
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            {list}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => setConfirming(false)}
+              >
+                {t("Отмена")}
+              </Button>
+              <Button
+                disabled={busy}
+                data-testid="execution-overrides-confirm"
+                onClick={() => void reset()}
+              >
+                {t("Сбросить")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </aside>
+  );
+}
+
 /** The plugin-wide default, on the settings page. */
 export function ExecutionSettings() {
   const rpc = useRpc<typeof rpcContract>();
@@ -570,7 +698,12 @@ export function ExecutionSettings() {
   return (
     <ExecutionEditor
       scope={{ kind: "global" }}
-      aside={<CliAgentsCard installed={installed} />}
+      aside={
+        <div className="pf-exec-asides">
+          <CliAgentsCard installed={installed} />
+          <ExecutionOverridesCard />
+        </div>
+      }
     />
   );
 }
