@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.11 — Compact chat tree on phones
+
+- The «Inactive» status pill is gone at every width: an idle chat needs no label.
+- On phones (narrower than 768px) a chat's status is an 8px dot on its provider icon instead of a text pill, so titles get most of the row.
+- On phones the ⋯ button shows only on the open chat; hold any other row for half a second to open its menu.
+- On phones each nesting level takes 8px, chat rows start at their section's edge, and the whole row height is tappable.
+- On phones «New project» is an icon button.
+- With no saved language and no Russian page language, the phone's own language decides, so a Russian phone shows Russian labels.
+
 ## 0.7.10 — Reset every project to the shared model and agent at once
 
 - The plugin settings page («Provider, model and agent») now lists the projects and sections that pin their own model or agent, with a «Reset everywhere» button. After a confirmation every one of them takes the plugin-wide model and agent again; machine, environment and access pins stay. Projects that pinned a model also get the shared choice written into BB's remembered defaults, as a project save does.
