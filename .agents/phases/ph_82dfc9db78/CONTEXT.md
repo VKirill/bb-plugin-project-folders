@@ -3,46 +3,40 @@
 Goal: Есть предложения как можно улучшить дизайн архитектуру нашего плагина на телефонах? А то как-то не очень компактно UI смотрится чтоли
 
 ## Appetite
-One phase, two writer tasks (A: management page + settings nav on phones; B: tree width + touch sizes), one patch release 0.7.9. Roughly under 400 changed lines across app.tsx, style.css, plugin-settings.tsx and tests; about one working day including browser QA at 375 and 390px.
+One writer task (~1–2 h), roughly ~60–80 changed lines across app.tsx, style.css, i18n.tsx and tests; patch release 0.7.9.
 
-Scope: medium; recommendation: go_with_conditions; confidence: 66.
+Scope: small; recommendation: go_with_conditions; confidence: 92.
 
 ## Decisions
-- **L1** (locked): Keep the BB-native look: .pf-tabs pills, Button/DropdownMenu from components/ui, existing tokens only, no new colours, fonts or shadows.
-- **L2** (locked): Ship as a patch version bump with a CHANGELOG entry and a GitHub release.
-- **L3** (locked): Phone fixes must not shrink touch targets: no auto 'compact' density on phones, no rows under the current 32-36px.
-- **L4** (locked): Re-run the GitNexus analyze, then impact on Panel / Tree / ThreadRow / FolderHeading / SettingsNav before any edit; detect_changes before commit.
-- **L5** (locked): Desktop layout above 860px stays unchanged; all changes are scoped to useIsCompactViewport (767px) or phone media/container queries.
-- **F1** (free): Management page on phones: list then details with a back button (recommended), or minimal fixes (no nested 320px scroll, scroll to details on select).
-- **F2** (free): Settings nav on phones as horizontal chips, reusing the rail styles, or as a collapsible group.
-- **F3** (free): Phone spacing values for .pf-panel padding, h1 size, .pf-card padding and margin, and whether the intro paragraph is shown or collapsed.
-- **F4** (free): Save tree width on phones: smaller per-level step, status pill as a dot, shorter device badge.
-- **F5** (free): Adopt BB coarse-pointer sizes for .pf-icon and tree rows.
-- **F6** (free): Whether «Новый проект» above the tree becomes an icon in a header row on phones.
-- **D1** (deferred): BB host sidebar width and drawer behaviour (BB core, not this repo).
-- **D2** (deferred): Composer chip / section-environment phone layout: not inspected in gather.
-- **D3** (deferred): Dialogs and menus: already bottom drawers on phones.
-- **D4** (deferred): Removing the chat-row ⋯ on phones.
+- **L1** (locked): The screen is the sidebar tree only. Management page and settings are not touched (owner confirmed scope).
+- **L2** (locked): All mobile changes are scoped to useIsCompactViewport() (<= 767px), except dropping the Inactive pill everywhere.
+- **L3** (locked): On compact viewports, status for non-inactive chats is a dot badge on the provider icon with translated aria-label, not a text pill.
+- **L4** (locked): On compact viewports, the per-row ⋯ button is rendered only on the active chat row; non-active rows open menu via long-press (~450ms touch timer).
+- **L5** (locked): On compact viewports, per-level indent is at most 8px; row heights stay >= 32px (no touch target reduction).
+- **L6** (locked): On compact viewports, «Новый проект» is an icon-only button; stays first child button of .pf-tree to preserve theme anchoring.
+- **L7** (locked): Language fallback: navigator.language decides before falling back to English when no stored choice exists and document.documentElement.lang lacks ru.
+- **L8** (locked): Drill-down navigation is an opt-in setting with nested tree as default (owner instruction); deferred to future phase.
+- **F1** (free): Exact dot size and position on provider icon; touch timer duration within 400-600 ms.
+- **D1** (deferred): Drill-down navigation design spec and implementation (deferred to future phase after design-lead spec).
+- **D2** (deferred): Pokecut theme project card border flattening on phones (handled in separate bb-plugin-pokecut-theme repo).
 
 ## No-gos
-- No new colours, fonts, shadows or design tokens.
-- No changes to the desktop layout above 860px.
-- No server, RPC or host changes.
-- No changes to dialog, dropdown or responsive-overlay primitives.
-- No shrinking of touch targets and no auto 'compact' density on phones.
-- No removal of the chat-row ⋯ button.
-- No BB core patches.
+- No desktop (>= 768px) layout changes other than dropping the «Inactive» status pill.
+- No new colors, fonts or design tokens; reuse existing state tokens (--pk-info, --pk-warning, --pk-danger, --pk-success).
+- No server, RPC, host or BB core changes.
+- No shrinking of touch targets or row heights below 32px.
+- No removal of the ⋯ menu button on the active chat row.
+- No drill-down navigation in this phase (deferred to later phase as opt-in setting).
 
 ## Risks
-- value: The owner may mean the sidebar tree rather than the management page; fixing the wrong screen leaves the complaint standing.
-- usability: Hiding the chat-row ⋯ on phones would leave iOS users without the chat menu: the only alternative is onContextMenu (app.tsx:1821-1825), which iOS Safari is not known to fire on long-press (platform knowledge, not checked on a device).; A list-then-details layout on phones changes navigation; links into the page (subPath select/chat, app.tsx:3181, 2459-2460, 2691-2692) and the back button must land on the right view.; Narrowing the tree indent on phones can make deep hierarchies harder to read.
-- feasibility: The 860/719/559px CSS breakpoints can't be exercised in jsdom; test-match-media.ts only switches the 767px query, so regressions can only be seen in a browser.; app.tsx is 4916 lines and the GitNexus index is 10 commits behind, so impact results may miss callers of Panel or Tree internals.
-- viability: Custom phone layout drifts from BB-native mobile patterns and can break after BB updates its shell or tokens.
+- value: Chat titles at deep nesting (depth 5+) could still suffer truncation; mitigated by 8px indent clamp and freeing ~150px per row.
+- usability: Long-press gesture is less discoverable than ⋯ button; mitigated by keeping ⋯ on active row and canceling timer on scroll movement > 10px.
+- feasibility: jsdom tests cannot simulate real iOS Safari touch gestures or rendering; mitigated by testing DOM state in vitest and browser QA.
+- viability: Pokecut theme relies on .pf-tree button:first-child; keeping Новый проект as the first child button prevents CSS breakage.
+- security: none seen
 
 ## Open questions
-- Which screen looks bloated on the phone: the sidebar tree, the management page, or both? A screenshot would settle it.
-- iOS or Android? This decides whether long-press can replace ⋯ (R1).
-- Management page on phones: list then details with a back button (F1, recommended), or only spacing fixes plus settings chips?
-- Does the owner use the 'compact' density setting on the phone today?
+- Exact long-press threshold: 450 ms (within 400–600 ms range)?
+- Exact dot badge diameter: 6px or 8px on top-right of .pf-provider?
 
 Written by Lane Pilot from the analysis (lp.analyze); the plan stands on this file.
