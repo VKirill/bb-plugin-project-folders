@@ -1767,8 +1767,47 @@ function ThreadRow({
   const renamePending = useRef(false);
   const cancelled = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // On phones the ⋯ button lives only on the active row; every other row
+  // opens the same menu through a 450 ms hold inside the link. The hold
+  // eats the tap that follows it so the menu does not close into a chat.
+  const compact = useIsCompactViewport();
+  const holdTimer = useRef<number | null>(null);
+  const holdOrigin = useRef({ x: 0, y: 0 });
+  const holdSwallowed = useRef(false);
+  const swallowTimer = useRef<number | null>(null);
+  const clearHold = () => {
+    if (holdTimer.current !== null) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+  };
+  const clearSwallowTimer = () => {
+    if (swallowTimer.current !== null) {
+      clearTimeout(swallowTimer.current);
+      swallowTimer.current = null;
+    }
+  };
+  /** The flag clears by itself: 700 ms after firing, or 400 ms after touchend. */
+  const armSwallowClear = (timeout: number) => {
+    clearSwallowTimer();
+    swallowTimer.current = window.setTimeout(() => {
+      swallowTimer.current = null;
+      holdSwallowed.current = false;
+    }, timeout);
+  };
+  useEffect(() => {
+    if (!compact) clearHold();
+  }, [compact]);
+  useEffect(
+    () => () => {
+      clearHold();
+      clearSwallowTimer();
+    },
+    [],
+  );
   const beginRename = () => {
     cancelled.current = false;
+    clearHold();
     setDraft(thread.title || thread.titleFallback || "");
     setRenameError("");
     setMenuOpen(false);
@@ -1801,6 +1840,46 @@ function ThreadRow({
     }
   };
   const status = threadStatus(thread);
+  const touchHandlers = compact
+    ? {
+        onTouchStart: (event: React.TouchEvent<HTMLAnchorElement>) => {
+          // The tap after a fired hold opens the chat again only once a new
+          // touch (or the swallow timer) has cleared the flag.
+          holdSwallowed.current = false;
+          clearSwallowTimer();
+          const touch = event.touches[0];
+          if (!touch || event.touches.length > 1) {
+            clearHold();
+            return;
+          }
+          holdOrigin.current = { x: touch.clientX, y: touch.clientY };
+          clearHold();
+          holdTimer.current = window.setTimeout(() => {
+            holdTimer.current = null;
+            holdSwallowed.current = true;
+            armSwallowClear(700);
+            setMenuOpen(true);
+          }, 450);
+        },
+        onTouchMove: (event: React.TouchEvent<HTMLAnchorElement>) => {
+          if (holdTimer.current === null) return;
+          const touch = event.touches[0];
+          if (
+            touch &&
+            Math.hypot(
+              touch.clientX - holdOrigin.current.x,
+              touch.clientY - holdOrigin.current.y,
+            ) > 10
+          )
+            clearHold();
+        },
+        onTouchEnd: () => {
+          if (holdTimer.current !== null) clearHold();
+          else if (holdSwallowed.current) armSwallowClear(400);
+        },
+        onTouchCancel: () => clearHold(),
+      }
+    : {};
   return (
     <div
       className={"pf-thread " + (active === thread.id ? "pf-active" : "")}
@@ -1821,6 +1900,9 @@ function ThreadRow({
       onContextMenu={(event) => {
         if (editing) return;
         event.preventDefault();
+        // The fired hold already opened this menu; the browser's own
+        // long-press contextmenu must not reopen what the user closed.
+        if (holdSwallowed.current) return;
         setMenuOpen(true);
       }}
     >
@@ -1853,10 +1935,12 @@ function ThreadRow({
           data-sidebar-thread-id={thread.id}
           onClick={(e) => {
             e.preventDefault();
+            if (holdSwallowed.current) return;
             a.open(thread.id, { split: e.metaKey || e.ctrlKey });
             onNavigate();
           }}
           title={thread.indicatorLabel ?? undefined}
+          {...touchHandlers}
         >
           {threadDisplay === "classic" && (
             <span
@@ -1882,6 +1966,13 @@ function ThreadRow({
                 provider={provider ?? { id: thread.providerId }}
                 className="pf-provider-icon"
               />
+              {compact && status !== "inactive" && (
+                <span
+                  className={`pf-thread-state-dot pf-state-${status}`}
+                  role="img"
+                  aria-label={t(statusLabels[status])}
+                />
+              )}
             </span>
           )}
           {thread.isPinned && <Icon name="Pin" />}
@@ -1895,14 +1986,16 @@ function ThreadRow({
           >
             {thread.title || thread.titleFallback}
           </span>
-          {threadDisplay === "provider-status" && (
-            <span
-              className={`pf-thread-state pf-state-${status}`}
-              title={thread.indicatorLabel ?? t(statusLabels[status])}
-            >
-              {t(statusLabels[status])}
-            </span>
-          )}
+          {threadDisplay === "provider-status" &&
+            !compact &&
+            status !== "inactive" && (
+              <span
+                className={`pf-thread-state pf-state-${status}`}
+                title={thread.indicatorLabel ?? t(statusLabels[status])}
+              >
+                {t(statusLabels[status])}
+              </span>
+            )}
           {worksIn && (
             <span className="pf-host-badge" title={worksIn.path}>
               {worksIn.label}
@@ -1916,11 +2009,14 @@ function ThreadRow({
         </span>
       )}
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger asChild>
-          <button className="pf-icon" aria-label={t("Действия чата")}>
-            <Icon name="MoreHorizontal" />
-          </button>
-        </DropdownMenuTrigger>
+        {(!compact || active === thread.id) && (
+          <DropdownMenuTrigger asChild>
+            <button className="pf-icon" aria-label={t("Действия чата")}>
+              <Icon name="MoreHorizontal" />
+            </button>
+          </DropdownMenuTrigger>
+        )}
+        {/* Other rows on a phone open this menu through the row hold. */}
         <DropdownMenuContent
           align="end"
           onCloseAutoFocus={(event) => {
@@ -2468,15 +2564,27 @@ function Tree(props: PluginThreadListProps) {
       (showHidden || !isHidden(r, true)),
   );
   const treeLayout = sidebarTreeLayout(prefs.view.indent);
+  // On a phone the chat title gets the width: level step collapses to the
+  // 7px padding + 1px guide, regardless of the desktop indent preference.
+  const compact = useIsCompactViewport();
   // Inline geometry also wins over themes that restyle the legacy child margins.
-  const childrenStyle: React.CSSProperties = {
-    marginInlineStart: treeLayout.guideOffset,
-    marginInlineEnd: 0,
-    paddingInlineStart: treeLayout.childPadding,
-    paddingInlineEnd: 0,
-    borderInlineStartWidth: 1,
-    borderInlineEndWidth: 0,
-  };
+  const childrenStyle: React.CSSProperties = compact
+    ? {
+        marginInlineStart: 0,
+        marginInlineEnd: 0,
+        paddingInlineStart: 7,
+        paddingInlineEnd: 0,
+        borderInlineStartWidth: 1,
+        borderInlineEndWidth: 0,
+      }
+    : {
+        marginInlineStart: treeLayout.guideOffset,
+        marginInlineEnd: 0,
+        paddingInlineStart: treeLayout.childPadding,
+        paddingInlineEnd: 0,
+        borderInlineStartWidth: 1,
+        borderInlineEndWidth: 0,
+      };
   const rows = (
     ts: readonly PluginSidebarThread[],
     group: string,
@@ -2499,7 +2607,7 @@ function Tree(props: PluginThreadListProps) {
     return (
       <div
         className="pf-chats"
-        style={{ marginInlineStart: treeLayout.chatOffset }}
+        style={{ marginInlineStart: compact ? 0 : treeLayout.chatOffset }}
       >
         {shown.map((thread) => (
           <ThreadRow
@@ -2720,24 +2828,28 @@ function Tree(props: PluginThreadListProps) {
       className={
         "pf pf-tree" + (prefs.view.density === "compact" ? " pf-compact" : "")
       }
-      style={{
-        "--pf-indent": `${prefs.view.indent}px`,
-        "--pf-tree-row-padding": `${TREE_ROW_PADDING}px`,
-        "--pf-tree-content-padding": `${TREE_CONTENT_PADDING}px`,
-        "--pf-tree-chevron-width": `${TREE_CHEVRON_WIDTH}px`,
-        "--pf-tree-label-gap": `${TREE_LABEL_GAP}px`,
-        "--pf-tree-marker-width": `${TREE_MARKER_WIDTH}px`,
-      } as React.CSSProperties}
+      style={
+        {
+          ...(compact ? {} : { "--pf-indent": `${prefs.view.indent}px` }),
+          "--pf-tree-row-padding": `${TREE_ROW_PADDING}px`,
+          "--pf-tree-content-padding": `${TREE_CONTENT_PADDING}px`,
+          "--pf-tree-chevron-width": `${TREE_CHEVRON_WIDTH}px`,
+          "--pf-tree-label-gap": `${TREE_LABEL_GAP}px`,
+          "--pf-tree-marker-width": `${TREE_MARKER_WIDTH}px`,
+        } as React.CSSProperties
+      }
       data-bb-ru-skip=""
       dir={direction()}
     >
+      {/* First child button of .pf-tree: themes anchor on it (Pokecut). */}
       <Button
         variant="ghost"
         className="mb-2 w-full justify-start"
+        aria-label={compact ? t("Новый проект") : undefined}
         onClick={() => setNewProject(true)}
       >
         <Icon name="FolderPlus" />
-        {t("Новый проект")}
+        {!compact && t("Новый проект")}
       </Button>
       {error && (
         <p role="alert" className="text-destructive">

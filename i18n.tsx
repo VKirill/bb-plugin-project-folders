@@ -39,10 +39,21 @@ export type Language = keyof typeof languages;
 const key = "project-folders:language";
 function preference(): string {
   try {
-    return localStorage.getItem(key) || (document.documentElement.lang.toLowerCase().startsWith("ru") ? "ru" : "en");
+    const saved = localStorage.getItem(key) || "";
+    if (saved) return saved;
   } catch {
-    return "en";
+    // Storage failure means no saved choice: fall through to the environment.
   }
+  if (
+    typeof document !== "undefined" &&
+    document.documentElement.lang.toLowerCase().startsWith("ru")
+  )
+    return "ru";
+  const primary =
+    (typeof navigator !== "undefined" ? navigator.language : "")
+      .split("-")[0]
+      ?.toLowerCase() ?? "";
+  return Object.hasOwn(languages, primary) ? primary : "en";
 }
 export function resolveLanguage(value: string): Language {
   return Object.hasOwn(languages, value) ? (value as Language) : "en";

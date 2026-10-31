@@ -1248,6 +1248,15 @@
 .pf-compact .pf-project > .pf-children {
   padding-bottom: 4px;
 }
+/* On phones the link and section label stretch over the whole row; the
+   height comes from the row itself, so both densities keep their sizes. */
+@media (max-width: 767px) {
+  .pf-tree .pf-thread a,
+  .pf-tree .pf-heading .pf-label {
+    align-self: stretch;
+    min-height: inherit;
+  }
+}
 
 .pf-appearance-grid {
   display: grid;
@@ -2050,6 +2059,7 @@
   flex: none;
   width: 18px;
   height: 18px;
+  position: relative;
   color: var(--pk-muted, var(--muted-foreground));
 }
 .pf-provider-icon { width: 16px; height: 16px; }
@@ -2071,6 +2081,19 @@
 .pf-state-waiting { color: var(--pk-warning, var(--warning-text)); }
 .pf-state-failed { color: var(--pk-danger, var(--destructive)); }
 .pf-state-unread { color: var(--pk-success, var(--success)); }
+/* Compact rows carry the status as a dot on the provider icon instead of a
+   text pill; the colour classes above stay shared. */
+.pf-thread-state-dot {
+  position: absolute;
+  inset-inline-end: -2px;
+  bottom: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border-width: 0;
+  background: currentColor;
+  box-shadow: 0 0 0 2px var(--pk-surface, var(--sidebar, var(--background)));
+}
 
 /* Keep tree geometry independent of theme child-margin overrides. The chat
    container reserves the parent's chevron column, including Show all. */
