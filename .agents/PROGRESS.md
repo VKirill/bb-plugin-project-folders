@@ -9,15 +9,14 @@
 - None.
 
 ## Next
-- [ ] Integrate origin/main and prepare release 0.7.11 (`.agents/plans/items/release-0.7.11/PLAN.md`).
 - [ ] Optional physical-iOS pass on the long-press menu and dot rendering (QA case T1-UI-3) when a device is available.
 
 ## Last verify
-- command: Lane Pilot acceptance for mobile-compact-tree (contract UI cases, locale fallback probe, typecheck, docs check)
-- result: green (accepted, attempt 1)
+- command: Lane Pilot acceptance for release-0.7.11 (merge origin 0.7.9/0.7.10 into main, bump to 0.7.11 with CHANGELOG section, test/typecheck checks; bookkeeping pass re-checked HEAD `ed7b736`, package.json 0.7.11, origin/main in sync)
+- result: green (accepted)
 - when: 2026-10-31
 
 ## Pointers
 - Open todos: none (`.agents/todos/INDEX.md` not present).
-- Active plans: release-0.7.11, Integrate origin/main and prepare release 0.7.11 (`.agents/plans/items/release-0.7.11/PLAN.md`).
+- Active plans: none — all items under `.agents/plans/items/` accepted; latest is release-0.7.11 (`.agents/plans/items/release-0.7.11/PLAN.md`).
 - Changelog: `.agents/CHANGELOG.md`.
