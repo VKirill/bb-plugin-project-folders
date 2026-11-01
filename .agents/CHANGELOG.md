@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-10-31 lprun_1e0e128cb51c4790beadda9f27b6ac1a: Integrated origin's 0.7.9 and 0.7.10 into main together with the compact phone tree and cut release 0.7.11 with its CHANGELOG section. (release-0.7.11; commit: see git log)
 - 2026-10-31 lprun_1e0e128cb51c4790beadda9f27b6ac1a: Compacted the phone sidebar tree by dropping the Inactive pill at every width, showing chat status as a dot on the provider icon, opening row menus by long press, narrowing the nesting step to 8px, making «Новый проект» icon-only, and falling back to the device language for labels. (mobile-compact-tree; commit: see git log)
 - 2026-10-12 lprun_392be29584b64e85bb8ab8031b9ff909: Added inherited environment and machine preselection, BB-named device choices, cleaner execution captions and section menus with subtree mark-as-read, and prepared release metadata through 0.6.30. (env-caption-trim, env-preselect, machine-list-fix, machine-preselect, release-0.6.29, release-0.6.30, section-menu-read-all; commit: see git log)
 - 2026-10-02 lprun_a7119be12ff24fdbbe63daea10df90dc: Shared-folder placement now keeps chats in the ancestor section while preserving explicit placements and leaving sibling matches unbound. (shared-folder-placement-5; commit: see git log)
