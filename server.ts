@@ -697,11 +697,28 @@ export const rpcContract = defineRpcContract({
     output: z.object({ archived: z.number().int() }),
   },
 });
-const pluginVersion = (
-  JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
-    version: string;
+/**
+ * The bundle runs from dist/server.js. Newer BB (checked: 0.48.1) copies
+ * package.json into dist/, BB 0.43 does not, and a throw here fails the whole
+ * plugin load. So the plugin root is read too, and a missing file never stops
+ * the plugin.
+ */
+export function readPluginVersion(
+  from: string | URL = import.meta.url,
+): string {
+  for (const candidate of ["./package.json", "../package.json"]) {
+    try {
+      const pkg = JSON.parse(
+        readFileSync(new URL(candidate, from), "utf8"),
+      ) as { version?: unknown };
+      if (typeof pkg.version === "string") return pkg.version;
+    } catch {
+      // Not at this place; try the next one.
+    }
   }
-).version;
+  return "unknown";
+}
+const pluginVersion = readPluginVersion();
 const safeJson = (text: string): unknown => {
   try {
     return JSON.parse(text);

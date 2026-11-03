@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.13 — Starts on BB 0.43
+
+- On BB 0.43 the plugin installed but every start failed with "ENOENT … dist/package.json". The server read its version from a file that only newer BB places next to the built bundle. It now also reads the plugin's own package.json and never fails the start over it.
+
 ## 0.7.12 — Installs on every BB from 0.43.0
 
 - The plugin installs again on BB 0.43.0–0.43.2. Until now it asked for BB 0.43.3 or later, and an older BB refused the install with "no release … runs on this bb within the newest 10 releases".
