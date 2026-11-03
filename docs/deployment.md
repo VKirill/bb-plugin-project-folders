@@ -20,7 +20,7 @@ TL;DR: Install the plugin through the BB CLI; for repository development install
 
 ## Prerequisites
 
-- BB `>=0.43.3` and BB Plugin SDK `>=0.4.104` (`package.json:4-7`).
+- BB `>=0.43.0` and BB Plugin SDK `>=0.4.84` (`package.json:4-7`).
 - Node.js/npm compatible with the lockfile, plus the `bb` CLI for building and installing (`package.json:80-84`).
 - Connected devices with local-path project sources for folder operations. The plugin’s host contract carries file operations to a selected host (`host.ts:7-16`).
 

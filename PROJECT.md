@@ -20,7 +20,7 @@ sources:
 # Identity
 
 - BB plugin package: `bb-plugin-project-folders`; product name: Projects & Sections (`package.json:2-17`).
-- TypeScript ES module; BB `>=0.43.3`; SDK `>=0.4.104` (`package.json:4-7`).
+- TypeScript ES module; BB `>=0.43.0`; SDK `>=0.4.84`; newer BB APIs are feature-tested (`composer-compat.ts`) (`package.json:4-7`).
 - Plugin entries: `server.ts`, `app.tsx`, `host.ts` (`package.json:9-18`).
 - License: MIT (`package.json:70`).
 

@@ -27,6 +27,10 @@ import {
 } from "./section-tree";
 import { direction, t, useLanguage } from "./i18n";
 import { managedWorktreeEnvironment, placeOnHost } from "./execution";
+import {
+  composerCanSetSelection,
+  onComposerSubmitted,
+} from "./composer-compat";
 
 export { SECTION_ENVIRONMENT_ID };
 
@@ -212,7 +216,7 @@ export function SectionComposerAction() {
   // A sent message starts a fresh draft: the section goes with it.
   useEffect(
     () =>
-      composer.experimental_onSubmitted(() => {
+      onComposerSubmitted(composer, () => {
         setChosen(null);
         rememberPick(null);
       }),
@@ -301,7 +305,9 @@ export function SectionComposerAction() {
       setBusy(false);
     }
   };
-  if (chipTaken) return null;
+  // BB before 0.43.3 cannot set the composer's pickers, so the action has
+  // nothing to apply; the environment picker's tree still picks a section.
+  if (chipTaken || !composerCanSetSelection(composer)) return null;
   if (unavailable)
     return (
       <button

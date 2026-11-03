@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.12 — Installs on every BB from 0.43.0
+
+- The plugin installs again on BB 0.43.0–0.43.2. Until now it asked for BB 0.43.3 or later, and an older BB refused the install with "no release … runs on this bb within the newest 10 releases".
+- On BB before 0.43.3 the Section control in BB's New thread screen is not shown, because that BB cannot let a plugin set the composer's pickers. A section is still picked from the tree in the environment picker; everything else works the same.
+- BB older than 0.43.0 lacks the environment API the plugin is built on, so it still cannot install there: update BB.
+
 ## 0.7.11 — Compact chat tree on phones
 
 - The «Inactive» status pill is gone at every width: an idle chat needs no label.

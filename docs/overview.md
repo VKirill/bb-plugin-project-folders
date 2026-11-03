@@ -36,7 +36,7 @@ The product has three main parts: the app renders the section tree and managemen
 ## Stack
 
 - TypeScript with ES modules (`package.json:2-4`).
-- BB Plugin SDK `0.4.104` for development and BB `>=0.43.3` / SDK `>=0.4.104` engine requirements (`package.json:4-7`, `package.json:26-28`).
+- BB Plugin SDK `0.4.104` for development and BB `>=0.43.0` / SDK `>=0.4.84` engine requirements (`package.json:4-7`, `package.json:26-28`).
 - React `^19.3.0` and Zod `^4.3.6` (`package.json:19-25`, `package.json:50-52`).
 - Vitest `^5.0.0` for tests and the BB CLI for builds (`package.json:80-84`).
 - BB-managed SQLite storage and host file APIs (`server.ts:703-737`, `host.ts:7-16`).

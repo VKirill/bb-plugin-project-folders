@@ -34,6 +34,10 @@ import {
 } from "./section-tree";
 import { t, useLanguage } from "./i18n";
 import { managedWorktreeEnvironment, placeOnHost } from "./execution";
+import {
+  composerCanSetSelection,
+  onComposerSubmitted,
+} from "./composer-compat";
 
 /** The class marking the span a replacement chip is portalled into. */
 export const NATIVE_SLOT_CLASS = "pf-native-project-slot";
@@ -154,6 +158,9 @@ export function ComposerProjectChip() {
   useLanguage();
   const rpc = useRpc<typeof rpcContract>();
   const composer = useComposer();
+  // BB before 0.43.3 cannot set the composer's pickers: the native project
+  // control stays BB's own and the environment picker's tree is the way in.
+  const selectable = composerCanSetSelection(composer);
   const view = useComposerView();
   const marker = useRef<HTMLSpanElement>(null);
   const [slot, setSlot] = useState<{
@@ -182,7 +189,7 @@ export function ComposerProjectChip() {
   // Take over the chip, and hand it back exactly as it was on the way out.
   useEffect(() => {
     const anchor = marker.current;
-    if (!anchor) return;
+    if (!anchor || !selectable) return;
     let frame = 0;
     const takeover = chipTakeover(
       () => {
@@ -210,11 +217,11 @@ export function ComposerProjectChip() {
       if (frame) cancelAnimationFrame(frame);
       takeover.release();
     };
-  }, []);
+  }, [selectable]);
   // A sent message starts a fresh draft.
   useEffect(
     () =>
-      composer.experimental_onSubmitted(() => {
+      onComposerSubmitted(composer, () => {
         setChosen(null);
         setError("");
         rememberPick(null);

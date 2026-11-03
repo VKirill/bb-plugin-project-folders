@@ -2,11 +2,13 @@
 title: Gotchas
 type: gotchas
 created: 2026-09-27
-updated: 2026-10-26
+updated: 2026-11-03
 status: active
 confidence: high
 tags: [gotchas, constraints, operations]
 sources:
+  - package.json
+  - composer-compat.ts
   - server.ts
   - thread-move.ts
   - session-policy-server.ts
@@ -40,6 +42,14 @@ TL;DR: The sharp edges are tied to the physical device behind each section, asyn
 **Workaround:** Inspect both folders and resolve the collision before retrying the pending move (`section-move.ts:254-277`). The section-move catch records the error in its journal and rethrows it (`section-move.ts:358-364`).
 
 ## High
+
+### Raising `engines` locks older BB out of the install
+
+**Problem:** BB installs a marketplace plugin by probing only the newest 10 release tags in the marketplace range. When every one of them asks for a newer BB in `engines`, the install fails with "no release … runs on this bb within the newest 10 releases" and never says which version is needed (`package.json:5-8`).
+
+**Risk:** A floor raised for one new BB API makes the whole plugin uninstallable on every older BB, even if older tags would run there.
+
+**Mitigation:** Keep `engines` at BB `>=0.43.0` / SDK `>=0.4.84`, the first BB with the environment-provider API the plugin is built on. Feature-test a newer API instead, as `composer-compat.ts` does for the composer's `experimental_setSelection` and `experimental_onSubmitted` (BB 0.43.3). `composer-compat.test.ts` fails if the floor changes. To check the floor, typecheck against `@get-bb/plugin-sdk@0.4.84`: only calls behind those checks and the third `bb.rpc.register` argument (ignored by older BB) may fail.
 
 ### Session context depends on an experimental BB extension
 
