@@ -10,6 +10,8 @@ bb plugin install https://github.com/VKirill/bb-plugin-project-folders.git --yes
 
 In BB, choose Projects & Sections as the sidebar thread list if it is not selected automatically. Open the management page to create a project.
 
+Chats started from a project or section preserve the session options and service tier selected in BB’s native composer. Session-option controls depend on the BB version and provider; older BB versions can continue creating chats without them.
+
 ## Documentation
 
 - [Overview](docs/overview.md) — purpose, stack and starting points.

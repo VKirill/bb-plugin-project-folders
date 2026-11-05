@@ -53,6 +53,7 @@ Mode checks are implemented in composer rendering and environment validation (`c
 
 ## Business rules
 
+- Project and section chat requests preserve the native composer’s string/boolean `sessionOptions` and `serviceTier` through the plugin RPC to `threads.spawn`. Option IDs must be non-empty; omitted and empty option dictionaries remain supported. Provider-specific support belongs to BB and the provider, and no session-option controls are required on older BB versions.
 - The selected section must exist, belong to the active project and have a path on the composer’s host (`server.ts:3709-3723`).
 - Groups cannot serve as working directories (`server.ts:3713-3717`).
 - A section inside a pending project/section move or active archive cannot start a new environment (`server.ts:3724-3733`).

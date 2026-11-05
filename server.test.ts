@@ -4,7 +4,7 @@ import {
   makePluginAgentConfigurationContext,
   makeThreadResponse,
 } from "@get-bb/plugin-sdk/testing";
-import plugin, { resolveFolderPath } from "./server";
+import plugin, { resolveFolderPath, rpcContract } from "./server";
 const root = {
   id: "p1",
   name: "Test",
@@ -202,6 +202,14 @@ describe("project folder boundaries", () => {
         model: "selected-model",
         reasoningLevel: "medium",
         permissionMode: "full",
+        serviceTier: "fast",
+        // Test-only keys exercise generic forwarding, not provider behavior.
+        sessionOptions: {
+          testOnlyBoolean: true,
+          testOnlyFalse: false,
+          testOnlyString: "value",
+          testOnlyEmptyString: "",
+        },
         environment: { type: "project-default" },
         executionInputSources: { model: "explicit" },
         input: [
@@ -248,9 +256,12 @@ describe("project folder boundaries", () => {
       expect(JSON.stringify(calls)).toContain("/work/nested");
       expect(JSON.stringify(calls)).toContain("selected-model");
       expect(JSON.stringify(calls)).toContain("attachment.pdf");
-      expect(calls[0]?.[0]).toMatchObject({
-        pluginSubmission: { pluginId: "lane-pilot", data: { token: "t1" } },
-      });
+      for (const call of calls) {
+        const spawned = call[0] as Record<string, unknown>;
+        expect(spawned.serviceTier).toBe("fast");
+        expect(spawned.sessionOptions).toEqual(request.sessionOptions);
+        expect(spawned.pluginSubmission).toEqual(request.pluginSubmission);
+      }
       await expect(
         h.harness.behavior.callRpc("spawn", {
           projectId: "p1",
@@ -261,6 +272,90 @@ describe("project folder boundaries", () => {
       await new Promise((r) => setTimeout(r, 0));
     } finally {
       await h.harness.lifecycle.dispose();
+    }
+  });
+  it.each([
+    ["omitted", undefined],
+    ["empty", {}],
+  ])(
+    "creates a project-root chat with %s session options",
+    async (_, sessionOptions) => {
+      const h = await setup();
+      try {
+        h.harness.inspection.sdk.stub("threads.spawn", async () =>
+          makeThreadResponse({ id: "new-chat", projectId: "p1" }),
+        );
+        h.harness.inspection.sdk.stub("threads.get", async () =>
+          makeThreadResponse({
+            id: "new-chat",
+            projectId: "p1",
+            environmentId: null,
+          }),
+        );
+        await h.harness.behavior.callRpc("spawn", {
+          projectId: "p1",
+          folderId: null,
+          request: {
+            projectId: "p1",
+            providerId: "codex",
+            model: "selected-model",
+            reasoningLevel: "medium",
+            permissionMode: "full",
+            environment: { type: "project-default" },
+            executionInputSources: { model: "explicit" },
+            input: [{ type: "text", text: "hello" }],
+            ...(sessionOptions === undefined ? {} : { sessionOptions }),
+          },
+        });
+        const calls = h.harness.inspection.sdk.callsTo("threads.spawn");
+        expect(calls).toHaveLength(1);
+        const spawned = calls[0]?.[0] as Record<string, unknown>;
+        expect(spawned.sessionOptions).toEqual(sessionOptions);
+        expect(Object.hasOwn(spawned, "sessionOptions")).toBe(
+          sessionOptions !== undefined,
+        );
+        expect(spawned.environment).toMatchObject({
+          hostId: "h1",
+          workspace: { type: "unmanaged", path: "/work" },
+        });
+      } finally {
+        await h.harness.lifecycle.dispose();
+      }
+    },
+  );
+  it.each([
+    ["number", { option: 1 }],
+    ["nested object", { option: { enabled: true } }],
+    ["array value", { option: [true] }],
+    ["null value", { option: null }],
+    ["null field", null],
+    ["array field", []],
+    ["string field", "value"],
+    ["empty option id", { "": true }],
+  ])("rejects %s in composer session options", (_, sessionOptions) => {
+    const result = rpcContract.spawn.input.safeParse({
+      projectId: "p1",
+      folderId: null,
+      request: {
+        projectId: "p1",
+        providerId: "codex",
+        model: "selected-model",
+        reasoningLevel: "medium",
+        permissionMode: "full",
+        environment: { type: "project-default" },
+        executionInputSources: {},
+        input: [],
+        sessionOptions,
+      },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.every(
+          (issue) =>
+            issue.path[0] === "request" && issue.path[1] === "sessionOptions",
+        ),
+      ).toBe(true);
     }
   });
   it("routes section creation and browsing to the selected project source", async () => {

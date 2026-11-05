@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-project-folders",
-  "version": "0.7.13",
+  "version": "0.7.14",
   "type": "module",
   "engines": {
     "bb": ">=0.43.0",

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.14 — Preserve composer session options
+
+- Keep string and boolean session options selected in BB’s native composer when starting a project or section chat. Previously the plugin’s RPC schema silently removed those selections before spawning the thread.
+- Match BB’s non-empty option IDs and cover false values, empty strings, omitted/empty options, invalid values, both environment paths, and service-tier forwarding. No new dependencies or higher minimum BB version.
+
+Thank you @TygerKu for PR #7!
+
 ## 0.7.13 — Starts on BB 0.43
 
 - On BB 0.43 the plugin installed but every start failed with "ENOENT … dist/package.json". The server read its version from a file that only newer BB places next to the built bundle. It now also reads the plugin's own package.json and never fails the start over it.
