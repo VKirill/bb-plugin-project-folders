@@ -3462,11 +3462,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
     root ? "projects" : (f.parentId ?? `project:${f.projectId}`);
   const siblingKeys = (scope: string): string[] =>
     scope === "projects"
-      ? [
-          ...new Map(
-            data.roots.map((r) => [r.projectId, `${r.projectId}|${r.hostId}`]),
-          ).values(),
-        ]
+      ? visibleRoots.map((r) => `${r.projectId}|${r.hostId}`)
       : scope.startsWith("project:")
         ? data.folders
             .filter(
