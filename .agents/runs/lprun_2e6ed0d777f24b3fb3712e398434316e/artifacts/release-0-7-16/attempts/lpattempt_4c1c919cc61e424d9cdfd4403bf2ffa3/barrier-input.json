@@ -1,0 +1,95 @@
+{
+  "stage": "code-critique",
+  "state": "passed",
+  "inputSha256": "fab057105cd34279d8cfe18af2d89667f4a81946b8135ebb631792a9342e5580",
+  "diff": {
+    "CHANGELOG.md": "diff --git a/CHANGELOG.md b/CHANGELOG.md\nindex 96f35ca..527147e 100644\n--- a/CHANGELOG.md\n+++ b/CHANGELOG.md\n@@ -1,5 +1,13 @@\n # Changelog\n \n+## 0.7.16 — Drag projects to reorder them\n+\n+- Dragging a project row in the Projects & Sections panel did nothing when the target or dragged project had copies on several devices; the drop now reorders, and \"Move up/down\" works on those rows too.\n+\n+## 0.7.15 — Background helpers of other plugins stay out of chat rules\n+\n+- Background helpers another plugin spawns under a chat (a Lane Pilot writer, critic or analyst) get no chat-files line, no section session rules and no project-folders skill: their own brief already names their folder and rules. Owner chats, side chats and a plugin's own top-level chats keep everything.\n+\n ## 0.7.14 — Preserve composer session options\n \n - Keep string and boolean session options selected in BB’s native composer when starting a project or section chat. Previously the plugin’s RPC schema silently removed those selections before spawning the thread.\n",
+    "package-lock.json": "diff --git a/package-lock.json b/package-lock.json\nindex 7add916..e5c0953 100644\n--- a/package-lock.json\n+++ b/package-lock.json\n@@ -1,12 +1,12 @@\n {\n   \"name\": \"bb-plugin-project-folders\",\n-  \"version\": \"0.7.14\",\n+  \"version\": \"0.7.16\",\n   \"lockfileVersion\": 3,\n   \"requires\": true,\n   \"packages\": {\n     \"\": {\n       \"name\": \"bb-plugin-project-folders\",\n-      \"version\": \"0.7.14\",\n+      \"version\": \"0.7.16\",\n       \"license\": \"MIT\",\n       \"dependencies\": {\n         \"@hugeicons/core-free-icons\": \"^4.1.3\",\n",
+    "package.json": "diff --git a/package.json b/package.json\nindex 40aa4f2..ed25fd9 100644\n--- a/package.json\n+++ b/package.json\n@@ -1,6 +1,6 @@\n {\n   \"name\": \"bb-plugin-project-folders\",\n-  \"version\": \"0.7.14\",\n+  \"version\": \"0.7.16\",\n   \"type\": \"module\",\n   \"engines\": {\n     \"bb\": \">=0.43.0\",\n",
+    "server.ts": "diff --git a/server.ts b/server.ts\nindex e585d46..dc4b3d0 100644\n--- a/server.ts\n+++ b/server.ts\n@@ -1,4 +1,5 @@\n import { parseRepoRemote, repoProviderForUrl } from \"./repo-remote\";\n+import { agentConfiguration } from \"./agent-context\";\n import { createRepoVisibilityCache } from \"./repo-visibility\";\n import { moveHostContract } from \"./move-contract\";\n import { makeThreadMoves, RELOCATE_MARKER } from \"./thread-move\";\n@@ -3815,31 +3816,18 @@ export default async function plugin(bb: BbPluginApi) {\n         \"Project sections with their folders, for plugins that work per section.\",\n     },\n   );\n-  bb.agents.configure((ctx) => {\n-    const blocks: string[] = [];\n-    if (ctx.project.kind === \"standard\" && ctx.environment.path)\n-      blocks.push(\n-        `Store this chat's supporting files in ${path.join(ctx.environment.path, \".bb/chats\", ctx.thread.id)}: documents and reports in artifacts/, notes in notes/, temporary files in tmp/. Create directories as needed. Keep conversation artifacts out of the working folder root. Place source code and project files according to the task. Do not edit automatically exported thread.json or history/. Read applicable AGENTS.md files, including parent folder rules.`,\n-      );\n-    // Custom rules addressed to BB sessions: the files on disk never see them.\n-    try {\n-      const folder = folderAt(ctx.host.id, ctx.environment.path);\n-      const rules = effectiveCustom(\n-        folder,\n-        folder?.projectId ?? ctx.project.id,\n-        shared.agents_custom,\n-        \"session\",\n-      ).trim();\n-      if (rules) blocks.push(rules);\n-    } catch (e) {\n-      bb.log.warn(`Session rules for ${ctx.thread.id}: ${String(e)}`);\n-    }\n-    return {\n-      tools: [],\n-      skills: [\"project-folders\"],\n-      instructions: blocks.length ? blocks.join(\"\\n\\n\") : undefined,\n-    };\n-  });\n+  bb.agents.configure((ctx) =>\n+    agentConfiguration(ctx, () => {\n+      // Custom rules addressed to BB sessions: the files on disk never see them.\n+      try {\n+        const folder = folderAt(ctx.host.id, ctx.environment.path);\n+        return effectiveCustom(folder, folder?.projectId ?? ctx.project.id, shared.agents_custom, \"session\");\n+      } catch (e) {\n+        bb.log.warn(`Session rules for ${ctx.thread.id}: ${String(e)}`);\n+        return \"\";\n+      }\n+    }),\n+  );\n   const exportQueue = makeExportQueue({\n     async run(threadId) {\n       try {\n",
+    "agent-context.test.ts": "diff --git a/agent-context.test.ts b/agent-context.test.ts\nnew file mode 100644\nindex 0000000..d908a18\n--- /dev/null\n+++ b/agent-context.test.ts\n@@ -0,0 +1,24 @@\n+import { describe, expect, it } from \"vitest\";\n+import { agentConfiguration } from \"./agent-context\";\n+\n+const base = { thread: { id: \"thr_a\", parentThreadId: null }, project: { kind: \"standard\" as const }, environment: { path: \"/w\" } };\n+const rules = () => \"Section rule: deploy after edits.\";\n+\n+describe(\"agentConfiguration\", () => {\n+  it(\"gives an owner's chat the chat-files line, the section rules and the skill\", () => {\n+    const out = agentConfiguration({ ...base, origin: { kind: null, pluginId: null } }, rules);\n+    expect(out.instructions).toContain(\"/w/.bb/chats/thr_a\");\n+    expect(out.instructions).toContain(\"Section rule\");\n+    expect(out.skills).toEqual([\"project-folders\"]);\n+  });\n+  it(\"gives a plugin's helper under a chat nothing\", () => {\n+    let read = false;\n+    const out = agentConfiguration({ ...base, thread: { id: \"thr_w\", parentThreadId: \"thr_pm\" }, origin: { kind: null, pluginId: \"lane-pilot\" } }, () => { read = true; return \"x\"; });\n+    expect(out).toEqual({ tools: [], skills: [], instructions: undefined });\n+    expect(read).toBe(false);\n+  });\n+  it(\"keeps everything for a side chat and for a plugin's own top-level chat\", () => {\n+    expect(agentConfiguration({ ...base, thread: { id: \"thr_s\", parentThreadId: \"thr_a\" }, origin: { kind: \"fork\", pluginId: \"side-chat\" } }, rules).instructions).toContain(\"Section rule\");\n+    expect(agentConfiguration({ ...base, origin: { kind: null, pluginId: \"lane-pilot\" } }, rules).skills).toEqual([\"project-folders\"]);\n+  });\n+});\n",
+    "agent-context.ts": "diff --git a/agent-context.ts b/agent-context.ts\nnew file mode 100644\nindex 0000000..bf78587\n--- /dev/null\n+++ b/agent-context.ts\n@@ -0,0 +1,31 @@\n+import path from \"node:path\";\n+\n+/** The slice of BB's agent-configuration context this plugin reads. */\n+export type AgentContextInput = {\n+  thread: { id: string; parentThreadId: string | null };\n+  project: { kind: \"standard\" | \"personal\" };\n+  environment: { path: string | null };\n+  origin?: { kind: \"fork\" | null; pluginId: string | null } | null;\n+};\n+\n+/**\n+ * A background helper another plugin spawned under a chat (a Lane Pilot writer, critic, analyst…): its brief already names\n+ * its folder and rules. The chat-files line would send it to write .bb/chats into a worktree, and section rules written for\n+ * the owner's chats (deploy steps, who to message) are not its job. A side chat is a fork of the owner's chat and keeps them.\n+ */\n+export const pluginHelperThread = (ctx: AgentContextInput): boolean =>\n+  !!ctx.origin?.pluginId && ctx.origin.pluginId !== \"side-chat\" && ctx.thread.parentThreadId !== null;\n+\n+export function agentConfiguration(ctx: AgentContextInput, sessionRules: () => string): {\n+  tools: never[]; skills: string[]; instructions: string | undefined;\n+} {\n+  if (pluginHelperThread(ctx)) return { tools: [], skills: [], instructions: undefined };\n+  const blocks: string[] = [];\n+  if (ctx.project.kind === \"standard\" && ctx.environment.path)\n+    blocks.push(\n+      `Store this chat's supporting files in ${path.join(ctx.environment.path, \".bb/chats\", ctx.thread.id)}: documents and reports in artifacts/, notes in notes/, temporary files in tmp/. Create directories as needed. Keep conversation artifacts out of the working folder root. Place source code and project files according to the task. Do not edit automatically exported thread.json or history/. Read applicable AGENTS.md files, including parent folder rules.`,\n+    );\n+  const rules = sessionRules().trim();\n+  if (rules) blocks.push(rules);\n+  return { tools: [], skills: [\"project-folders\"], instructions: blocks.length ? blocks.join(\"\\n\\n\") : undefined };\n+}\n"
+  },
+  "promise": null,
+  "contract": {
+    "schema_version": 2,
+    "id": "release-0-7-16",
+    "title": "Merge origin/main 0.7.15 and release 0.7.16 with the drag-reorder fix",
+    "risk": "medium",
+    "lane": "release",
+    "project_cwd": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_4c1c919cc61e424d9cdfd4403bf2ffa3/bb-plugin-project-folders",
+    "read_first": [
+      "CHANGELOG.md",
+      "package.json"
+    ],
+    "interfaces": [],
+    "invariants": [
+      "No force-push, no rebase of main history",
+      "app.tsx drag fix from fix-project-drag-reorder-2 is kept"
+    ],
+    "out_of_scope": [
+      "Any code change beyond the merge",
+      "Creating git tags"
+    ],
+    "expected_outputs": [
+      "package.json",
+      "package-lock.json",
+      "CHANGELOG.md",
+      "agent-context.ts"
+    ],
+    "owns_paths": [
+      "package.json",
+      "package-lock.json",
+      "CHANGELOG.md",
+      "agent-context.ts",
+      "server.ts",
+      "*.test.ts",
+      "*.test.tsx"
+    ],
+    "never_touch": [
+      "app.tsx",
+      ".git/hooks/**",
+      ".husky/**",
+      ".claude/**",
+      "lane-stack/hooks/**",
+      ".github/workflows/**"
+    ],
+    "depends_on": [],
+    "objective": "origin/main's 0.7.15 work is merged into main and the plugin is versioned 0.7.16 with a CHANGELOG entry for the project drag-reorder fix.",
+    "acceptance": [
+      "`node /tmp/pf-release/check.mjs` prints OK and exits 0.",
+      "package.json and package-lock.json read version 0.7.16.",
+      "CHANGELOG.md starts with a `## 0.7.16` entry that says dragging a project row now reorders projects with copies on several devices.",
+      "agent-context.ts from origin commit a4c95f8 is present and `npx tsc --noEmit` exits 0."
+    ],
+    "verify": "tests",
+    "verification": [
+      {
+        "command": "node /tmp/pf-release/check.mjs",
+        "cwd": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_4c1c919cc61e424d9cdfd4403bf2ffa3/bb-plugin-project-folders",
+        "timeout_sec": 60
+      },
+      {
+        "command": "npx vitest run project-reorder.test.tsx",
+        "cwd": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_4c1c919cc61e424d9cdfd4403bf2ffa3/bb-plugin-project-folders",
+        "timeout_sec": 300
+      },
+      {
+        "command": "npx tsc --noEmit",
+        "cwd": "/Users/vechkasov/.lane-pilot/worktrees/lpattempt_4c1c919cc61e424d9cdfd4403bf2ffa3/bb-plugin-project-folders",
+        "timeout_sec": 300
+      }
+    ],
+    "display_title": "Выпуск 0.7.16 с исправленным перетаскиванием",
+    "kind": "chore",
+    "area": "release",
+    "quality_mode": "quick",
+    "forecast": {
+      "files": 6,
+      "checks_pass_first_try": true,
+      "minutes": 15,
+      "model": "devin/swe-2-flash-medium"
+    }
+  },
+  "priorVerdict": null
+}

@@ -1,4 +1,5 @@
 import { parseRepoRemote, repoProviderForUrl } from "./repo-remote";
+import { agentConfiguration } from "./agent-context";
 import { createRepoVisibilityCache } from "./repo-visibility";
 import { moveHostContract } from "./move-contract";
 import { makeThreadMoves, RELOCATE_MARKER } from "./thread-move";
@@ -3815,31 +3816,18 @@ export default async function plugin(bb: BbPluginApi) {
         "Project sections with their folders, for plugins that work per section.",
     },
   );
-  bb.agents.configure((ctx) => {
-    const blocks: string[] = [];
-    if (ctx.project.kind === "standard" && ctx.environment.path)
-      blocks.push(
-        `Store this chat's supporting files in ${path.join(ctx.environment.path, ".bb/chats", ctx.thread.id)}: documents and reports in artifacts/, notes in notes/, temporary files in tmp/. Create directories as needed. Keep conversation artifacts out of the working folder root. Place source code and project files according to the task. Do not edit automatically exported thread.json or history/. Read applicable AGENTS.md files, including parent folder rules.`,
-      );
-    // Custom rules addressed to BB sessions: the files on disk never see them.
-    try {
-      const folder = folderAt(ctx.host.id, ctx.environment.path);
-      const rules = effectiveCustom(
-        folder,
-        folder?.projectId ?? ctx.project.id,
-        shared.agents_custom,
-        "session",
-      ).trim();
-      if (rules) blocks.push(rules);
-    } catch (e) {
-      bb.log.warn(`Session rules for ${ctx.thread.id}: ${String(e)}`);
-    }
-    return {
-      tools: [],
-      skills: ["project-folders"],
-      instructions: blocks.length ? blocks.join("\n\n") : undefined,
-    };
-  });
+  bb.agents.configure((ctx) =>
+    agentConfiguration(ctx, () => {
+      // Custom rules addressed to BB sessions: the files on disk never see them.
+      try {
+        const folder = folderAt(ctx.host.id, ctx.environment.path);
+        return effectiveCustom(folder, folder?.projectId ?? ctx.project.id, shared.agents_custom, "session");
+      } catch (e) {
+        bb.log.warn(`Session rules for ${ctx.thread.id}: ${String(e)}`);
+        return "";
+      }
+    }),
+  );
   const exportQueue = makeExportQueue({
     async run(threadId) {
       try {

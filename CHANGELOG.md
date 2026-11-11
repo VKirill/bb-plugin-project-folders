@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.16 — Drag projects to reorder them
+
+- Dragging a project row in the Projects & Sections panel did nothing when the target or dragged project had copies on several devices; the drop now reorders, and "Move up/down" works on those rows too.
+
+## 0.7.15 — Background helpers of other plugins stay out of chat rules
+
+- Background helpers another plugin spawns under a chat (a Lane Pilot writer, critic or analyst) get no chat-files line, no section session rules and no project-folders skill: their own brief already names their folder and rules. Owner chats, side chats and a plugin's own top-level chats keep everything.
+
 ## 0.7.14 — Preserve composer session options
 
 - Keep string and boolean session options selected in BB’s native composer when starting a project or section chat. Previously the plugin’s RPC schema silently removed those selections before spawning the thread.
