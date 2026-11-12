@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Nested chats in the sidebar
+
+- A chat that BB created from another chat (a fork or a child) now hangs under its parent, inside the same project root, section or group. An arrow before the parent folds or unfolds the branch; the title still opens exactly that chat. A folded branch shows how many chats it hides and whether any is unread or working.
+- A chat whose parent sits in another section, is archived or is missing stays a row of its own. Each chat is listed once, also when parents point at each other.
+- The short list and idle hiding work on top-level chats. A branch with a pinned, unread, working or open chat is not cut off because of its parent.
+- Folded branches are remembered in this browser (`project-folders:collapsed-chats`). Opening a chat from outside unfolds the parents drawn above it, once; folds in other sections are left alone and folding again by hand sticks.
+- Moving a chat, its menu and drag and drop still act on the chosen chat only and never change its parent.
+
 ## 0.7.16 — Drag projects to reorder them
 
 - Dragging a project row in the Projects & Sections panel did nothing when the target or dragged project had copies on several devices; the drop now reorders, and "Move up/down" works on those rows too.
