@@ -4,6 +4,8 @@ export const TREE_CONTENT_PADDING = 2;
 export const TREE_CHEVRON_WIDTH = 12;
 export const TREE_LABEL_GAP = 7;
 export const TREE_MARKER_WIDTH = 18;
+/** Branch toggle column: its centre sits on the section guide line. */
+export const TREE_BRANCH_TOGGLE_WIDTH = 16;
 
 export function sidebarTreeLayout(indent: number) {
   const padding = Number.isFinite(indent)

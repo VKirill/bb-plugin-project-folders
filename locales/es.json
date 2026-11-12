@@ -465,5 +465,10 @@
   "Сбросить везде": "Restablecer en todas partes",
   "Все проекты и разделы берут общие настройки.": "Todos los proyectos y secciones usan los ajustes comunes.",
   "Вернуть всем общие настройки?": "¿Devolver a todos los ajustes comunes?",
-  "Проекты и разделы потеряют свои модели и агентов и возьмут общие. Машина, окружение и доступ останутся.": "Los proyectos y secciones pierden sus modelos y agentes propios y usan los comunes. Máquina, entorno y acceso se mantienen."
+  "Проекты и разделы потеряют свои модели и агентов и возьмут общие. Машина, окружение и доступ останутся.": "Los proyectos y secciones pierden sus modelos y agentes propios y usan los comunes. Máquina, entorno y acceso se mantienen.",
+  "Свернуть ветку": "Contraer rama",
+  "Развернуть ветку": "Expandir rama",
+  "Всего вложенных чатов": "Chats anidados en total",
+  "Есть непрочитанное": "Hay chats sin leer",
+  "Идёт работа": "Trabajo en curso"
 }

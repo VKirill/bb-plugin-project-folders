@@ -2123,7 +2123,8 @@
   width: var(--pf-tree-chevron-width, 12px);
   height: var(--pf-tree-chevron-width, 12px);
 }
-.pf-tree .pf-children {
+.pf-tree .pf-children,
+.pf-tree .pf-branch {
   border-inline-start-style: solid;
   border-inline-start-color: var(--pk-border, var(--border));
 }
@@ -2144,4 +2145,91 @@
 .pf-tree .pf-show-more svg {
   width: var(--pf-tree-marker-width, 18px);
   flex-basis: var(--pf-tree-marker-width, 18px);
+}
+
+/* Nested chats: a toggle column on every row of a group that has a branch, and
+   an indented, guided container for the children, like a nested section. */
+.pf-tree .pf-branch-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: var(--pf-tree-branch-width, 16px);
+  padding: 0;
+  border-radius: 5px;
+  color: var(--pk-muted, var(--muted-foreground));
+}
+.pf-tree button.pf-branch-toggle:hover {
+  background: var(--accent);
+  color: inherit;
+}
+.pf-tree button.pf-branch-toggle:focus-visible {
+  outline: 2px solid var(--ring, currentColor);
+  outline-offset: -2px;
+}
+.pf-tree .pf-branch-toggle svg {
+  width: var(--pf-tree-chevron-width, 12px);
+  height: var(--pf-tree-chevron-width, 12px);
+}
+.pf-branch {
+  min-width: 0;
+}
+.pf-branch-count {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--pk-border, var(--border));
+  border-radius: var(--pk-radius-pill, 999px);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--pk-muted, var(--muted-foreground));
+}
+/* A folded branch tells what it hides in words when its row is wide enough for
+   the title as well, otherwise in markers with the same names. The row's own
+   width decides, not the window's: a narrow sidebar can sit in a wide window.
+   data-extras counts the row's own status pill and "works in" badge, which sit
+   in the same link and need room too (90 px and up to 96 px). */
+.pf-tree .pf-branch-link {
+  container: pf-branch-link / inline-size;
+}
+.pf-branch-link .pf-branch-sign {
+  display: none;
+}
+.pf-branch-link .pf-branch-flag {
+  display: block;
+}
+@container pf-branch-link (min-width: 320px) {
+  .pf-branch-link[data-extras="0"] .pf-branch-sign {
+    display: block;
+  }
+  .pf-branch-link[data-extras="0"] .pf-branch-flag {
+    display: none;
+  }
+}
+@container pf-branch-link (min-width: 440px) {
+  .pf-branch-link[data-extras="1"] .pf-branch-sign {
+    display: block;
+  }
+  .pf-branch-link[data-extras="1"] .pf-branch-flag {
+    display: none;
+  }
+}
+@container pf-branch-link (min-width: 540px) {
+  .pf-branch-link[data-extras="2"] .pf-branch-sign {
+    display: block;
+  }
+  .pf-branch-link[data-extras="2"] .pf-branch-flag {
+    display: none;
+  }
+}
+.pf-branch-flag {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pf-branch-flag.pf-branch-busy {
+  background: transparent;
+  border: 1.5px solid currentColor;
 }

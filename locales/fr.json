@@ -465,5 +465,10 @@
   "Сбросить везде": "Réinitialiser partout",
   "Все проекты и разделы берут общие настройки.": "Tous les projets et sections utilisent les réglages communs.",
   "Вернуть всем общие настройки?": "Rendre à tous les réglages communs ?",
-  "Проекты и разделы потеряют свои модели и агентов и возьмут общие. Машина, окружение и доступ останутся.": "Les projets et sections perdent leurs modèles et agents propres et prennent les communs. Machine, environnement et accès restent."
+  "Проекты и разделы потеряют свои модели и агентов и возьмут общие. Машина, окружение и доступ останутся.": "Les projets et sections perdent leurs modèles et agents propres et prennent les communs. Machine, environnement et accès restent.",
+  "Свернуть ветку": "Replier la branche",
+  "Развернуть ветку": "Déplier la branche",
+  "Всего вложенных чатов": "Total des chats imbriqués",
+  "Есть непрочитанное": "Contient des chats non lus",
+  "Идёт работа": "Travail en cours"
 }

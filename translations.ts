@@ -624,4 +624,9 @@ export const english = {
     "Give everyone the shared settings back?",
   "Проекты и разделы потеряют свои модели и агентов и возьмут общие. Машина, окружение и доступ останутся.":
     "The projects and sections lose their own models and agents and take the shared ones. Machine, environment and access stay.",
+  "Свернуть ветку": "Collapse branch",
+  "Развернуть ветку": "Expand branch",
+  "Всего вложенных чатов": "Nested chats in total",
+  "Есть непрочитанное": "Has unread chats",
+  "Идёт работа": "Work in progress",
 } as const;
