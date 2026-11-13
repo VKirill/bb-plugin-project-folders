@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.17 — New folders when changing a section's path
+
+- "Change section path" can now create a new folder on the chosen device: its folder picker has the same "New folder" and "Delete empty folder" buttons as the section and project creation dialogs. Before, adding a path for a section on another machine only let you pick a folder that already existed there.
+
 ## 0.7.16 — Drag projects to reorder them
 
 - Dragging a project row in the Projects & Sections panel did nothing when the target or dragged project had copies on several devices; the drop now reorders, and "Move up/down" works on those rows too.

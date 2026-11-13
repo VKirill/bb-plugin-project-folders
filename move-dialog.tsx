@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
 } from "./components/ui/dropdown-menu";
 import { t, direction } from "./i18n";
+import { FolderBrowser } from "./folder-browser";
 export function MoveDialog({
   folder,
   onClose,
@@ -297,8 +298,7 @@ export function SectionMoveDialog({
           hostId,
           path: destination,
         });
-      else
-        await rpc.call("section_move", { folderId: folder.id, destination });
+      else await rpc.call("section_move", { folderId: folder.id, destination });
       onMoved();
       onClose();
     } catch (e) {
@@ -372,28 +372,16 @@ export function SectionMoveDialog({
         </p>
         {listing ? (
           <>
-            <p className="pf-folder-path">{listing.path}</p>
-            <div className="pf-folder-picker">
-              {listing.parent && (
-                <button
-                  disabled={busy}
-                  onClick={() => void browse(listing.parent!)}
-                >
-                  <Icon name="ChevronLeft" />
-                  {t("На уровень выше")}
-                </button>
-              )}
-              {listing.directories.map((d) => (
-                <button
-                  disabled={busy}
-                  key={d.path}
-                  onClick={() => void browse(d.path)}
-                >
-                  <Icon name="Folder" />
-                  {d.name}
-                </button>
-              ))}
-            </div>
+            <FolderBrowser
+              hostId={hostId}
+              path={listing.path}
+              parent={listing.parent}
+              directories={listing.directories}
+              loading={busy}
+              navigate={(p) => void browse(p)}
+              refresh={() => void browse(listing.path)}
+              onBusyChange={setBusy}
+            />
             <DialogFooter>
               <Button
                 variant="outline"
