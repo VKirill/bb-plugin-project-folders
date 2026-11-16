@@ -172,6 +172,8 @@ it("draws children under their parents, each chat once, with a labelled toggle o
   expect(a.getAttribute("aria-expanded")).toBe("true");
   expect(a.getAttribute("aria-label")).toBe("Collapse branch: a");
   expect(a.tabIndex).toBe(0);
+  // The real toggle owns the chevron column; the group must not reserve it twice.
+  expect(a.closest(".pf-chats")!.getAttribute("style")).toContain("margin-inline-start: 0");
   const branch = a.closest(".pf-thread")!.nextElementSibling!;
   expect(branch.classList.contains("pf-branch")).toBe(true);
   expect(

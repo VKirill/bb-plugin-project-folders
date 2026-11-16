@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2 — Keep touch controls inside chat rows
+
+- Keep branch buttons inside their chat row instead of shifting them across the tree guides. Nested groups reuse their toggle column without a second group indent. Preserve the 36×36 px touch target and show hover backgrounds only on devices that support hover.
+
 ## 0.8.1 — Compact chat branch spacing
 
 - Reuse the sidebar’s existing chevron column for chat branch buttons, removing the extra horizontal indent from parents and descendants. Keep normal child guide spacing and the 36 px touch target.

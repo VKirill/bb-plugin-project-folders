@@ -2833,7 +2833,7 @@ function Tree(props: PluginThreadListProps) {
     return (
       <div
         className="pf-chats"
-        style={{ marginInlineStart: compact ? 0 : treeLayout.chatOffset }}
+        style={{ marginInlineStart: compact || nested ? 0 : treeLayout.chatOffset }}
       >
         {shown.rows.map(renderNode)}
         {hasHidden && (

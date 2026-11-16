@@ -2147,8 +2147,8 @@
   flex-basis: var(--pf-tree-marker-width, 18px);
 }
 
-/* Reuse the chevron space already reserved by .pf-chats instead of adding
-   another column. Child guides still advance by the normal section indent. */
+/* Nested groups reserve the chevron column in the row, so the full touch
+   target stays inside it. The group does not add a second column. */
 .pf-tree .pf-branch-toggle {
   flex: none;
   display: inline-flex;
@@ -2156,7 +2156,6 @@
   justify-content: center;
   align-self: stretch;
   width: var(--pf-tree-branch-width, 24px);
-  margin-inline-start: calc(-2px - var(--pf-tree-branch-width, 24px));
   height: auto;
   min-height: 28px;
   padding: 0;
@@ -2164,8 +2163,13 @@
   color: var(--pk-muted, var(--muted-foreground));
 }
 .pf-tree button.pf-branch-toggle:hover {
-  background: var(--accent);
+  background: transparent;
   color: inherit;
+}
+@media (hover: hover) {
+  .pf-tree button.pf-branch-toggle:hover {
+    background: var(--accent);
+  }
 }
 .pf-tree button.pf-branch-toggle:focus-visible {
   outline: 2px solid var(--ring, currentColor);
