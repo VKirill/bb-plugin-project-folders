@@ -2147,8 +2147,8 @@
   flex-basis: var(--pf-tree-marker-width, 18px);
 }
 
-/* Nested chats: a toggle column on every row of a group that has a branch, and
-   an indented, guided container for the children, like a nested section. */
+/* Reuse the chevron space already reserved by .pf-chats instead of adding
+   another column. Child guides still advance by the normal section indent. */
 .pf-tree .pf-branch-toggle {
   flex: none;
   display: inline-flex;
@@ -2156,6 +2156,7 @@
   justify-content: center;
   align-self: stretch;
   width: var(--pf-tree-branch-width, 24px);
+  margin-inline-start: calc(-2px - var(--pf-tree-branch-width, 24px));
   height: auto;
   min-height: 28px;
   padding: 0;
@@ -2244,6 +2245,7 @@
 }
 @media (pointer: coarse) {
   .pf-tree .pf-branch-toggle {
+    --pf-tree-branch-width: 36px;
     min-width: 36px;
     min-height: 36px;
   }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 — Compact chat branch spacing
+
+- Reuse the sidebar’s existing chevron column for chat branch buttons, removing the extra horizontal indent from parents and descendants. Keep normal child guide spacing and the 36 px touch target.
+
 ## 0.8.0 — Foldable chat branches
 
 - Forks and child chats appear under their parent inside the same project, section or group. Missing, archived and cross-section parents leave their children reachable as separate rows; cycles never duplicate a chat.
