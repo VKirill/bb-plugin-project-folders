@@ -140,7 +140,7 @@ it("keeps root, section and nested chat lists and Show all inside their own inde
     },
     indicator: "none",
     indicatorLabel: null,
-    isUnread: true,
+    isUnread: false,
     isPinned: false,
     isArchived: false,
     environment: {

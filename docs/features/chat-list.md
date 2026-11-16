@@ -2,80 +2,61 @@
 title: Chat list and activity
 type: component
 created: 2026-09-27
-updated: 2026-10-19
+updated: 2026-11-16
 status: active
-confidence: medium
-tags: [chat-list, activity, sidebar]
+confidence: high
+tags: [chat-list, activity, sidebar, nested-chats]
 sources:
   - chat-list.ts
-  - preferences.ts
+  - chat-tree.ts
+  - thread-status.ts
   - app.tsx
-  - chat-settings.tsx
-  - server.ts
+  - preferences.ts
 ---
 # Chat list and activity
 
-TL;DR: The plugin sidebar groups BB threads by their project and section, sorts each list, limits collapsed lists, preserves important chats, and derives unread and busy state from BB thread fields (`chat-list.ts:44-70`, `chat-list.ts:146-220`).
+The sidebar groups BB chats by project and section, then draws forks and child chats below their parent. Relationships are read from BB; the plugin never reparents chats. The implementation is in [chat-tree.ts](../../chat-tree.ts) and [app.tsx](../../app.tsx).
 
-## Purpose
+## Branches and ordering
 
-The plugin replaces a flat thread listing with project/section rows and per-place chat lists. The renderer uses helper functions for sorting, collapsed visibility, activity and busy state (`app.tsx:42-50`, `chat-list.ts:44-70`, `chat-list.ts:146-220`).
+- A parent and child nest only inside the same displayed list. A missing, archived or cross-section parent leaves the child as a root in its own list.
+- Every chat appears once, including duplicate input IDs, self-parent links and parent cycles. The first cycle member in incoming sort order becomes its displayed root.
+- A pinned chat promotes its whole ancestor branch; pinned siblings stay first. Activity ordering uses the newest update, attention or creation timestamp anywhere in a branch. Title and creation ordering otherwise keep the existing sibling order.
+- The title opens exactly that chat. The separate arrow folds its branch. Context menus, rename and drag and drop continue targeting the selected chat alone.
 
-## How it works
+## Short lists and idle hiding
 
-1. The app reads BB sidebar threads and the plugin’s `list` RPC response, then associates each thread with its environment section or an explicit manual placement (`app.tsx:60-70`, `server.ts:2484-2544`, `chat-list.ts:257-266`).
-2. Chats are ordered by pinned status first; then by title, creation time or activity time (`chat-list.ts:44-70`).
-3. When a list is collapsed, the filter keeps pinned, unread, active, busy or recent chats and applies the configured per-list limit (`chat-list.ts:146-177`).
-4. Activity sorting uses the latest of update, attention and creation timestamps, while treating an update within two seconds of `lastReadAt` as a read-only event (`chat-list.ts:180-199`).
-5. Sections can auto-collapse based on activity age; manually stored collapse choices override automatic behavior (`chat-list.ts:335-413`).
-6. When activity ordering is enabled, sibling sections rank by unread reply, then busy work, then latest conversation activity; manual order breaks ties. The setting off keeps saved order (`chat-list.ts:415-504`, `app.tsx:2411-2425`).
+The configured limit of 1–100 counts actual displayed rows. A quiet branch with 1,000 children does not mount all of them by default. Idle hiding applies to individual chats; their ancestors remain when needed to reach a retained child.
 
-## Modes
+Pinned, unread, busy and currently open chats bypass the short-list limit together with their ancestor path. This exception applies equally to roots and descendants. The existing `isThreadBusy` visibility predicate includes attention indicators, so failures and input requests cannot disappear behind the age filter or row budget.
 
-| Setting | Values | Effect |
-|---|---|---|
-| Chat sort | `activity`, `title`, `created` | Sort criterion after pinned chats |
-| Collapsed list | limit 1–100 | Maximum visible chats after filtering |
-| Idle hiding | 0–720 hours | Age cutoff; pinned, unread, active and busy chats remain visible |
-| Section auto-collapse | on/off, threshold 0.25–720 hours | Collapse inactive sections; default is two hours |
-| Section ordering | activity / manual | Activity mode ranks unread, busy, then recent sections; manual mode uses saved order; projects always keep their manually configured order (`chat-settings.tsx:98-110`, `chat-list.ts:415-504`) |
+**Show all** reveals the rest of that list and disables idle hiding for it. Expanding an individual branch explicitly reveals that branch beyond the budget and age filter. Neither action opens a descendant the user manually folded. These explicit expansions and important-chat exceptions can exceed the configured limit.
 
-Values and defaults come from `preferences.ts:68-119`; collapsed-list sorting and exclusions come from `chat-list.ts:14-29`, `chat-list.ts:146-177`. Density, indentation and hidden-item display are covered by [Appearance and preferences](appearance-settings.md).
+## Hidden counts and statuses
 
-## Failures
+A branch with hidden descendants shows their count, excluding descendants already drawn elsewhere in that branch. Unread state remains visible. Actual execution and attention are resolved through the existing `threadStatus` helper: failures take priority over input requests, which take priority over running work. A completed unread result is not labelled as running.
 
-| Failure | Result |
-|---|---|
-| Malformed saved chat-list JSON | Defaults are returned (`chat-list.ts:14-32`). |
-| Invalid setting fields | The affected fields fall back to defaults (`chat-list.ts:14-32`, `preferences.ts:170-197`). |
-| Activity indicators absent | Busy state falls back to status, indicator and pending-interaction values (`chat-list.ts:202-220`). |
+The row switches between status words and accessible markers using its own width, not the viewport width. CSS container queries account for the row's own status and device badge; the same theme tokens work in Pokecut and Default, light and dark. Labels use the existing locale dictionaries.
 
-## Business rules
+## Browser state and navigation
 
-- Pinned chats sort before unpinned chats under all sort modes (`chat-list.ts:59-75`).
-- Unread, pinned, active, busy and active-thread chats bypass idle hiding (`chat-list.ts:146-161`).
-- `isThreadBusy` recognizes active status, non-none indicator, pending interaction and active workflow/background activity (`chat-list.ts:202-220`).
-- A manual placement overrides the section inferred from the chat environment; clearing the saved placement lets `placeOf` fall back to the environment binding (`chat-list.ts:257-269`, `server.ts:2322-2326`).
-- Chat-list settings are parsed field-by-field with defaults when stored data is invalid (`chat-list.ts:14-32`, `preferences.ts:170-197`).
-- Activity ordering ranks a folder with unread or pending-reply chats first, then one with busy work, then one with the latest conversation activity; manual order resolves equal ranks (`chat-list.ts:415-504`).
-- Activity age for collapsing sections excludes a read-only `updatedAt` when it is within two seconds of `lastReadAt`; idle hiding instead counts `lastReadAt` as access (`chat-list.ts:131-160`, `chat-list.ts:180-199`).
-- The “Show hidden” switch controls visibility of hidden project/section rows; the sidebar reads `prefs.view.showHidden` and each row’s `hidden` item style, while the management page uses the same item flag (`app.tsx:2221-2233`, `app.tsx:2455-2459`, `app.tsx:2553-2562`, `app.tsx:3089-3100`). Its preference is described in [Appearance and preferences](appearance-settings.md) and [Project and section tree](project-tree.md#modes).
+Manual folds are stored as chat IDs in `project-folders:collapsed-chats`. Missing or malformed state starts with no manual folds; blocked storage keeps changes for the current page only. Explicit budget overrides last for the mounted sidebar.
 
-## Public API
+Opening another chat unfolds only its displayed ancestor chain, once. A later manual fold remains until the user reopens the chat or expands the branch. Missing list entries during an update do not undo manual choices. Folds in other sections and behind archived parents are left alone.
 
-| RPC | Purpose | Evidence |
-|---|---|---|
-| `list` | Return folders, roots, environment bindings, manual placements, hosts and export errors | `server.ts:2484-2544` |
-| `thread_place`, `thread_place_clear` | File a chat in the tree without changing its workspace, or clear its manual placement | `server.ts:228-240`, `server.ts:2297-2326` |
-| `prefs_get`, `prefs_save` | Read/save shared list and view preferences | `server.ts:585-600` |
-| `reorder` | Persist the complete project order or sibling section order | `server.ts:411-425`, `server.ts:3244-3290` |
+Both tree construction and row projection are iterative. Rows are rendered as sibling wrappers with depth-based logical indentation, so chat depth does not consume the JavaScript call stack.
 
-## Gotchas
+## Existing section behavior
 
-- Opening a chat alone does not promote it by activity because matching `updatedAt` and `lastReadAt` values are treated as reads (`chat-list.ts:180-199`).
-- A collapsed list filters by recency before applying the limit; expanded lists return the complete sorted list (`chat-list.ts:163-177`).
+Section auto-collapse remains independent of chat folding. Active or open chats keep automatically managed sections open, while a manual section fold wins. Activity ordering ranks sections by unread reply, then work, then conversation activity; projects keep their manually configured order.
 
-<!-- lane-pilot:backlinks -->
-## Referenced by
+Manual chat placement overrides the environment's section. Returning a chat to its working folder clears that placement. Hidden projects and sections follow the existing appearance settings.
 
-- [Project and section tree](project-tree.md)
+## Validation
+
+- [chat-tree.test.ts](../../chat-tree.test.ts): grouping, cycles, visibility, idle hiding and deep chains.
+- [chat-tree-regression.test.ts](../../chat-tree-regression.test.ts): completed/error/waiting summaries, recent children and pinned branches.
+- [nested-chats.test.tsx](../../nested-chats.test.tsx): real click handlers, fold persistence, navigation, row budgets, explicit expansion, attention labels, a 20,000-chat chain, menus and dragging.
+- Existing thread-row, mobile, display, placement and localization tests cover shared behavior.
+
+Live browser checks are required for CSS, hit targets, responsive layout and compatibility with the running BB shell; jsdom does not establish those results.

@@ -12,6 +12,8 @@ In BB, choose Projects & Sections as the sidebar thread list if it is not select
 
 Chats started from a project or section preserve the session options and service tier selected in BB’s native composer. Session-option controls depend on the BB version and provider; older BB versions can continue creating chats without them.
 
+Forks and child chats appear beneath their parent in the same project or section. Use the arrow to fold a branch; its hidden count and status markers keep unread replies, running work, input requests and failures visible. Recent activity and pinned chats promote the whole branch. Short lists count visible rows, with important chats and their parents kept reachable; **Show all** or an explicit branch expansion reveals more. Folding is remembered in this browser and never changes chat relationships.
+
 ## Documentation
 
 - [Overview](docs/overview.md) — purpose, stack and starting points.

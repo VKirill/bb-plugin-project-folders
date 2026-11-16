@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 — Foldable chat branches
+
+- Forks and child chats appear under their parent inside the same project, section or group. Missing, archived and cross-section parents leave their children reachable as separate rows; cycles never duplicate a chat.
+- Fold branches with a separate BB button. Hidden counts and unread, working, waiting or failed indicators describe only the hidden chats. Fold choices stay in this browser; opening another chat reveals its ancestor path once.
+- A branch follows its newest activity and any pinned descendant. The short-list limit counts actual rows; pinned, unread, busy and open chats keep their ancestor path. Show all, or explicitly expand a branch, to reveal more. Manual folds still win.
+- Tree construction and row rendering are iterative, including very deep chat chains. Menus and drag and drop still target the selected chat and never change its parent.
+- Keep the existing SDK pin in production dependencies so Git installs include the backend SDK.
+- Updated locked dependencies within existing ranges to resolve the seven reported npm security advisories. No new direct dependencies or higher minimum BB version.
+
+Thank you @a-slvn for PR #8 and its tree implementation, translations and tests!
+
 ## 0.7.17 — New folders when changing a section's path
 
 - "Change section path" can now create a new folder on the chosen device: its folder picker has the same "New folder" and "Delete empty folder" buttons as the section and project creation dialogs. Before, adding a path for a section on another machine only let you pick a folder that already existed there.

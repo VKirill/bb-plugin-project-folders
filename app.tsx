@@ -48,7 +48,6 @@ import {
 } from "./execution";
 import {
   sortChats,
-  visibleChats,
   isSectionCollapsed,
   parseCollapseState,
   placeOf,
@@ -58,8 +57,17 @@ import {
   sortFoldersByActivity,
   threadsToMarkRead,
 } from "./chat-list";
+import {
+  ancestorsInTree,
+  branchSummary,
+  buildChatTree,
+  parseCollapsedChats,
+  visibleChatRows,
+  type ChatRow,
+} from "./chat-tree";
 import { t, useLanguage, LanguagePicker, direction } from "./i18n";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useState,
@@ -114,8 +122,10 @@ import { statusLabels, threadStatus } from "./thread-status";
 import {
   sidebarTreeLayout, TREE_ROW_PADDING, TREE_CONTENT_PADDING,
   TREE_CHEVRON_WIDTH, TREE_LABEL_GAP, TREE_MARKER_WIDTH,
+  TREE_BRANCH_TOGGLE_WIDTH,
 } from "./tree-layout";
 import "./style.css";
+const COLLAPSED_CHATS_KEY = "project-folders:collapsed-chats";
 type Target = { projectId: string; folderId: string | null };
 type Modal = {
   action: "create" | "group" | "rules" | "rename" | "forget" | "remove";
@@ -1745,7 +1755,17 @@ function ThreadRow({
   onDrag,
   threadDisplay,
   provider,
+  branch,
+  branchSlot,
 }: {
+  /** Set on a chat that has chats below it. `summary` is present while collapsed. */
+  branch?: {
+    expanded: boolean;
+    onToggle: () => void;
+    summary: ReturnType<typeof branchSummary> | null;
+  };
+  /** Reserve the toggle column so chats beside a branch line up with it. */
+  branchSlot?: boolean;
   threadDisplay: "classic" | "provider-status";
   provider?: ExperimentalProviderIconProps["provider"] & { displayName: string };
   onMove: (thread: PluginSidebarThread) => void;
@@ -1906,6 +1926,25 @@ function ThreadRow({
         setMenuOpen(true);
       }}
     >
+      {branch ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="pf-branch-toggle"
+          aria-expanded={branch.expanded}
+          aria-label={`${
+            branch.expanded ? t("Свернуть ветку") : t("Развернуть ветку")
+          }: ${thread.title || thread.titleFallback || ""}`}
+          onClick={branch.onToggle}
+        >
+          <Icon name={branch.expanded ? "ChevronDown" : "ChevronRight"} />
+        </Button>
+      ) : (
+        branchSlot && (
+          <span className="pf-branch-toggle" aria-hidden="true" />
+        )
+      )}
       {editing ? (
         <Input
           ref={inputRef}
@@ -1939,6 +1978,16 @@ function ThreadRow({
             a.open(thread.id, { split: e.metaKey || e.ctrlKey });
             onNavigate();
           }}
+          className={[branchSlot && "pf-nested-link", branch?.summary && "pf-branch-link"].filter(Boolean).join(" ") || undefined}
+          data-extras={
+            branch?.summary
+              ? Number(
+                  threadDisplay === "provider-status" &&
+                    !compact &&
+                    status !== "inactive",
+                ) + Number(!!worksIn)
+              : undefined
+          }
           title={thread.indicatorLabel ?? undefined}
           {...touchHandlers}
         >
@@ -1966,9 +2015,9 @@ function ThreadRow({
                 provider={provider ?? { id: thread.providerId }}
                 className="pf-provider-icon"
               />
-              {compact && status !== "inactive" && (
+              {(compact || branchSlot) && status !== "inactive" && (
                 <span
-                  className={`pf-thread-state-dot pf-state-${status}`}
+                  className={`pf-thread-state-dot pf-state-${status}${compact ? "" : " pf-desktop-state-dot"}`}
                   role="img"
                   aria-label={t(statusLabels[status])}
                 />
@@ -1986,11 +2035,58 @@ function ThreadRow({
           >
             {thread.title || thread.titleFallback}
           </span>
+          {branch?.summary && (
+            <>
+              {/* Both forms are in the row; the row's own width picks one (see
+                  .pf-branch-link in style.css), so a narrow sidebar on a wide
+                  window gets markers and a wide one gets words. */}
+              {branch.summary.unread && (
+                <>
+                  <span
+                    className="pf-thread-state pf-branch-sign pf-state-unread"
+                    title={t("Есть непрочитанное")}
+                  >
+                    {t("Есть непрочитанное")}
+                  </span>
+                  <span
+                    className="pf-branch-flag pf-state-unread"
+                    role="img"
+                    aria-label={t("Есть непрочитанное")}
+                    title={t("Есть непрочитанное")}
+                  />
+                </>
+              )}
+              {(branch.summary.busy || branch.summary.attention) && (
+                <>
+                  <span
+                    className={`pf-thread-state pf-branch-sign pf-state-${branch.summary.attention ?? "working"}`}
+                    title={t(statusLabels[branch.summary.attention ?? "working"])}
+                  >
+                    {t(statusLabels[branch.summary.attention ?? "working"])}
+                  </span>
+                  <span
+                    className={`pf-branch-flag pf-branch-busy pf-state-${branch.summary.attention ?? "working"}`}
+                    role="img"
+                    aria-label={t(statusLabels[branch.summary.attention ?? "working"])}
+                    title={t(statusLabels[branch.summary.attention ?? "working"])}
+                  />
+                </>
+              )}
+              <span
+                className="pf-branch-count"
+                role="img"
+                aria-label={`${t("Скрытых вложенных чатов")}: ${branch.summary.count}`}
+                title={`${t("Скрытых вложенных чатов")}: ${branch.summary.count}`}
+              >
+                {branch.summary.count}
+              </span>
+            </>
+          )}
           {threadDisplay === "provider-status" &&
             !compact &&
             status !== "inactive" && (
               <span
-                className={`pf-thread-state pf-state-${status}`}
+                className={`pf-thread-state pf-thread-own-state pf-state-${status}`}
                 title={thread.indicatorLabel ?? t(statusLabels[status])}
               >
                 {t(statusLabels[status])}
@@ -2522,6 +2618,70 @@ function Tree(props: PluginThreadListProps) {
     }
   });
 
+  // Chats whose branch the user folded. Everything else is open, so a new
+  // branch shows its children until someone closes it.
+  const [collapsedChats, setCollapsedChats] = useState<Set<string>>(() => {
+    try {
+      return parseCollapsedChats(localStorage.getItem(COLLAPSED_CHATS_KEY));
+    } catch {
+      return new Set();
+    }
+  });
+  const saveCollapsedChats = (next: Set<string>) => {
+    try {
+      localStorage.setItem(COLLAPSED_CHATS_KEY, JSON.stringify([...next]));
+    } catch {
+      // The fold only lasts for this page when storage is blocked.
+    }
+  };
+  const [expandedBranches, setExpandedBranches] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const toggleChatBranch = (id: string, open: boolean) => {
+    setExpandedBranches((old) => {
+      const next = new Set(old);
+      if (open) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setCollapsedChats((old) => {
+      const next = new Set(old);
+      if (open) next.add(id);
+      else next.delete(id);
+      saveCollapsedChats(next);
+      return next;
+    });
+  };
+  // A chat opened from outside the sidebar unfolds the branches that hide it.
+  // `rows` leaves here the parents of the open chat as the tree draws them in
+  // its own group (null when no rendered tree holds it), so a branch in another
+  // section or behind an archived parent is never touched. The unfolding runs
+  // once per newly opened chat: while the open chat stays the same, folding by
+  // hand, a list update, or a parent (or the chat) missing for a moment does
+  // not bring the unfolding back.
+  const openChain = useRef<string[] | null>(null);
+  openChain.current = null;
+  const revealed = useRef("");
+  const lastOpen = useRef(props.activeThreadId);
+  useEffect(() => {
+    // Another open chat, even none or one no tree draws, allows unfolding again.
+    if (lastOpen.current !== props.activeThreadId) {
+      lastOpen.current = props.activeThreadId;
+      revealed.current = "";
+    }
+    const above = openChain.current;
+    if (!props.activeThreadId || !above) return;
+    if (revealed.current === props.activeThreadId) return;
+    revealed.current = props.activeThreadId;
+    setCollapsedChats((old) => {
+      if (!above.some((a) => old.has(a))) return old;
+      const next = new Set(old);
+      for (const a of above) next.delete(a);
+      saveCollapsedChats(next);
+      return next;
+    });
+  });
+
   const isClosed = (f: Folder, root: boolean) =>
     isSectionCollapsed({
       folderId: f.id,
@@ -2592,50 +2752,90 @@ function Tree(props: PluginThreadListProps) {
     limit = listSettings.limit,
   ) => {
     const sorted = sortChats(ts, sort, language);
+    const roots = buildChatTree(sorted, sort);
+    if (props.activeThreadId)
+      openChain.current =
+        ancestorsInTree(roots, props.activeThreadId) ?? openChain.current;
     const listOpts = {
       limit,
       hideIdleMs: listSettings.hideIdleHours * 60 * 60 * 1000,
       activeThreadId: props.activeThreadId,
+      collapsed: collapsedChats,
+      expandedBranches,
     };
-    const shown = visibleChats(sorted, {
+    const shown = visibleChatRows(roots, {
       ...listOpts,
       expanded: !!expanded[group],
     });
-    const hasHidden =
-      visibleChats(sorted, { ...listOpts, expanded: false }).length <
-      sorted.length;
+    const hasHidden = !!expanded[group] || shown.hasHidden;
+    const nested = roots.some((root) => root.children.length > 0);
+    const renderNode = ({
+      node,
+      depth,
+      expanded: open,
+      summary,
+    }: ChatRow<PluginSidebarThread>): React.ReactNode => {
+      const thread = node.thread;
+      const branch = node.children.length > 0;
+      const row = (
+        <ThreadRow
+          thread={thread}
+          threadDisplay={listSettings.threadDisplay}
+          provider={providersById.get(thread.providerId)}
+          active={props.activeThreadId}
+          onNavigate={props.onNavigate}
+          branchSlot={nested}
+          branch={
+            branch
+              ? {
+                  expanded: open,
+                  onToggle: () => toggleChatBranch(thread.id, open),
+                  summary,
+                }
+              : undefined
+          }
+          onMove={(chat) => {
+            setMoveError("");
+            setMovingChat(chat);
+          }}
+          worksIn={worksIn(thread)}
+          onUnplace={
+            data.places[thread.id] === undefined
+              ? undefined
+              : () => void unplaceChat(thread)
+          }
+          onDrag={(chat) => {
+            setDraggedChat(chat);
+            if (!chat) {
+              setDropTarget(null);
+              setDropReason(null);
+            }
+          }}
+        />
+      );
+      return depth ? (
+        <div
+          key={thread.id}
+          className="pf-branch"
+          style={{
+            ...childrenStyle,
+            marginInlineStart:
+              (compact ? 8 : treeLayout.childStep) * (depth - 1) +
+              (compact ? 0 : treeLayout.guideOffset),
+          }}
+        >
+          {row}
+        </div>
+      ) : (
+        <Fragment key={thread.id}>{row}</Fragment>
+      );
+    };
     return (
       <div
         className="pf-chats"
         style={{ marginInlineStart: compact ? 0 : treeLayout.chatOffset }}
       >
-        {shown.map((thread) => (
-          <ThreadRow
-            key={thread.id}
-            thread={thread}
-            threadDisplay={listSettings.threadDisplay}
-            provider={providersById.get(thread.providerId)}
-            active={props.activeThreadId}
-            onNavigate={props.onNavigate}
-            onMove={(chat) => {
-              setMoveError("");
-              setMovingChat(chat);
-            }}
-            worksIn={worksIn(thread)}
-            onUnplace={
-              data.places[thread.id] === undefined
-                ? undefined
-                : () => void unplaceChat(thread)
-            }
-            onDrag={(chat) => {
-              setDraggedChat(chat);
-              if (!chat) {
-                setDropTarget(null);
-                setDropReason(null);
-              }
-            }}
-          />
-        ))}
+        {shown.rows.map(renderNode)}
         {hasHidden && (
           <button
             className="pf-show-more"
@@ -2836,6 +3036,7 @@ function Tree(props: PluginThreadListProps) {
           "--pf-tree-chevron-width": `${TREE_CHEVRON_WIDTH}px`,
           "--pf-tree-label-gap": `${TREE_LABEL_GAP}px`,
           "--pf-tree-marker-width": `${TREE_MARKER_WIDTH}px`,
+          "--pf-tree-branch-width": `${TREE_BRANCH_TOGGLE_WIDTH}px`,
         } as React.CSSProperties
       }
       data-bb-ru-skip=""
