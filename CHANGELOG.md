@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.4 — BB's own plugins stay in every session
+
+- **Session context can no longer drop BB's own plugins.** Every built-in BB plugin (BB marks it `builtin`) and every skill it ships stay loaded whatever a project or section rule says: an "only selected" list always includes them, an "all except" list cannot exclude them. The list is read from BB itself, so a built-in plugin a future BB adds is covered too. In the editor they are locked as **required by BB**.
+- **Markdown PRO and Env Catalog are pinned.** `md-editor` with its `markdown-pro` skill and `env-catalog` with its skill stay in every session too, locked with the label **pinned, always loaded**: one shapes every .md file an agent writes, the other hands out keys.
+- Optional plugins BB installs from its catalog (`browser-automation`, `github`, `memory`, `tasks`, notes) are not built-in and can still be left out.
+
 ## 0.8.3 — Make a device copy the section home
 
 - A section's device tab gets **Make home**: the section's home copy moves to that device and the old home stays an ordinary device copy. The repository badge, new nested sections and the card follow the new home. CLI: `bb project-folders home-set <folder-id> <host-id>`. Refused while a section move in the project is unfinished.

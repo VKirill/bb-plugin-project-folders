@@ -37,9 +37,30 @@ export type SessionPolicySwitch = (typeof SESSION_POLICY_SWITCHES)[number];
  * every plugin's tools. They stay loaded whatever a group says.
  */
 export const REQUIRED_SESSION_ITEMS = {
-  bbPlugins: ["environment-project-checkout", "project-folders"],
+  bbPlugins: [
+    "environment-project-checkout",
+    "project-folders",
+    "md-editor",
+    "bb-guide",
+    "env-catalog",
+  ],
+  skills: ["project-folders", "markdown-pro", "bb-cli", "env-catalog"],
   mcpServers: ["bb-bridge"],
 } as const satisfies Partial<Record<SessionPolicyGroup, readonly string[]>>;
+
+/**
+ * Required by the owner's choice rather than by BB, each plugin with the
+ * skill its instructions point to: Markdown PRO (`md-editor`, `markdown-pro`)
+ * shapes every .md file an agent writes and Env Catalog (`env-catalog`) hands
+ * out keys. Listed in REQUIRED_SESSION_ITEMS; this set only picks the
+ * editor's label. `bb-guide`/`bb-cli` are listed there too as BB's own, so
+ * they hold before the built-in list is read.
+ */
+export const PINNED_SESSION_ITEMS: ReadonlySet<string> = new Set([
+  "md-editor",
+  "markdown-pro",
+  "env-catalog",
+]);
 
 /** Required items BB always has, so the editor lists them even when no inventory does. */
 export const BUILT_IN_SESSION_ITEMS: Partial<
@@ -169,27 +190,28 @@ export function resolveSessionPolicy(
   };
 }
 
+/** Items a group may never lose beyond REQUIRED_SESSION_ITEMS, e.g. BB's built-in plugins and their skills. */
+export type SessionItems = Partial<Record<SessionPolicyGroup, readonly string[]>>;
+
 /**
  * The policy core receives, or null when nothing narrows the session. `all`
- * groups are dropped: they only exist to override a parent here.
+ * groups are dropped: they only exist to override a parent here. `system`
+ * names are kept like the required ones.
  */
 export function toCorePolicy(
   resolved: ResolvedSessionPolicy,
+  system: SessionItems = {},
 ): Record<string, unknown> | null {
   const out: Record<string, unknown> = {};
   for (const group of SESSION_POLICY_GROUPS) {
     const filter = resolved[group]?.value;
     if (filter && filter.mode !== "all") {
       // An allow list keeps the required items; a deny list can't drop them.
-      const kept = filter.names.filter(
-        (name) => !isRequiredSessionItem(group, name),
-      );
-      const required: readonly string[] =
-        (
-          REQUIRED_SESSION_ITEMS as Partial<
-            Record<SessionPolicyGroup, readonly string[]>
-          >
-        )[group] ?? [];
+      const required = new Set([
+        ...((REQUIRED_SESSION_ITEMS as SessionItems)[group] ?? []),
+        ...(system[group] ?? []),
+      ]);
+      const kept = filter.names.filter((name) => !required.has(name));
       out[group] = {
         mode: filter.mode,
         names: filter.mode === "allow" ? [...required, ...kept] : kept,

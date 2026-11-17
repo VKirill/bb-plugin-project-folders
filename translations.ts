@@ -549,6 +549,7 @@ export const english = {
   "выбирает по треду": "picks per thread",
   "в сессию ничего не добавляет": "adds nothing to sessions",
   "нужен BB, всегда подключён": "required by BB, always loaded",
+  "закреплён, всегда подключён": "pinned, always loaded",
   "Экспорт всего": "Export everything",
   "Импорт всего": "Import everything",
   "Экспортировать всё": "Export everything",

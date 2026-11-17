@@ -5,6 +5,7 @@ import {
   BUILT_IN_SESSION_ITEMS,
   isRequiredSessionItem,
   normalizeSessionPolicy,
+  PINNED_SESSION_ITEMS,
   SESSION_POLICY_GROUPS,
   type PolicyOrigin,
   type ResolvedSessionPolicy,
@@ -32,7 +33,13 @@ type Adds = {
   tools: number;
   skills: number;
 };
-type InventoryItem = { name: string; label: string; adds?: Adds };
+type InventoryItem = {
+  name: string;
+  label: string;
+  /** A BB built-in plugin or its skill: no rule can leave it out. */
+  required?: boolean;
+  adds?: Adds;
+};
 type Inventory = Partial<Record<SessionPolicyGroup, InventoryItem[]>>;
 
 /** "instructions · tools: 3 · skills: 2", or that the plugin adds nothing. */
@@ -338,7 +345,9 @@ function GroupRow({
     const q = query.trim().toLowerCase();
     // Required items first, then plugins that actually shape the session.
     const weight = (item: InventoryItem) =>
-      isRequiredSessionItem(group, item.name) || item.adds?.required
+      isRequiredSessionItem(group, item.name) ||
+      item.required ||
+      item.adds?.required
         ? 0
         : item.adds &&
             addsLabel(item.adds) !== t("в сессию ничего не добавляет")
@@ -409,6 +418,7 @@ function GroupRow({
               // list, unticked in a deny list, and locked either way.
               const required =
                 isRequiredSessionItem(group, item.name) ||
+                item.required === true ||
                 item.adds?.required === true;
               return (
                 <li key={item.name}>
@@ -426,7 +436,9 @@ function GroupRow({
                       <span>{item.label}</span>
                       {required ? (
                         <span className="pf-session-adds">
-                          {t("нужен BB, всегда подключён")}
+                          {PINNED_SESSION_ITEMS.has(item.name)
+                            ? t("закреплён, всегда подключён")
+                            : t("нужен BB, всегда подключён")}
                         </span>
                       ) : (
                         item.adds && (

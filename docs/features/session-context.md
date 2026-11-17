@@ -77,7 +77,7 @@ Schema limits names to 200 characters and 500 entries per group; the four filter
 ## Business rules
 
 - Inheritance order is section, ancestors, project, global (`session-policy-server.ts:102-128`).
-- Required items cannot be removed: `environment-project-checkout`, `project-folders` and `bb-bridge` (`session-policy.ts:32-47`, `session-policy.ts:118-141`).
+- Required items cannot be removed: `environment-project-checkout`, `project-folders` and `bb-bridge`; pinned by the owner: `md-editor` with `markdown-pro` and `env-catalog` with its skill (label «закреплён»); and every BB built-in plugin (`provenance: "builtin"`) with its skills, read live from BB, `bb-guide`/`bb-cli` also listed statically for the first moments after a restart (`session-policy.ts`, `session-policy-server.ts` `systemItems`).
 - The policy is enforced only when BB exposes `experimental_vkSessionPolicy` (`session-policy-server.ts:52-68`, `session-policy-server.ts:144-150`).
 - CLI support varies: Claude Code and Codex support all four groups; OpenCode lacks native CLI plugins; Cursor supports BB plugins and MCP servers (`session-policy.ts:204-210`).
 - Invalid stored JSON falls back to an empty policy (`session-policy-server.ts:76-86`).

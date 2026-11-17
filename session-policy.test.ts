@@ -119,6 +119,8 @@ describe("session context rules", () => {
         names: [
           "environment-project-checkout",
           "project-folders",
+          "md-editor",
+          "bb-guide",
           "env-catalog",
         ],
       },
@@ -128,5 +130,52 @@ describe("session context rules", () => {
         mcpServers: { mode: "deny", names: ["bb-bridge", "discord-web"] },
       }),
     ).toEqual({ mcpServers: { mode: "deny", names: ["discord-web"] } });
+  });
+
+  it("keeps the pinned plugins and their skills in every session", () => {
+    expect(
+      toCorePolicy(
+        resolveSessionPolicy([
+          {
+            origin: project,
+            value: {
+              bbPlugins: { mode: "deny", names: ["md-editor", "bb-guide", "env-catalog", "aif-chat"] },
+              skills: { mode: "allow", names: ["roblox-build"] },
+            },
+          },
+        ]),
+      ),
+    ).toEqual({
+      bbPlugins: { mode: "deny", names: ["aif-chat"] },
+      skills: {
+        mode: "allow",
+        names: [
+          "project-folders",
+          "markdown-pro",
+          "bb-cli",
+          "env-catalog",
+          "roblox-build",
+        ],
+      },
+    });
+  });
+  it("never lets a rule take out BB's built-in plugins and their skills", () => {
+    const resolved = resolveSessionPolicy([
+      {
+        origin: project,
+        value: {
+          bbPlugins: { mode: "deny", names: ["workflows", "aif-chat"] },
+          skills: { mode: "allow", names: ["roblox-build"] },
+        },
+      },
+    ]);
+    const policy = toCorePolicy(resolved, {
+      bbPlugins: ["workflows"],
+      skills: ["workflows", "thread-list"],
+    }) as Record<string, { mode: string; names: string[] }>;
+    expect(policy.bbPlugins).toEqual({ mode: "deny", names: ["aif-chat"] });
+    expect(policy.skills.names).toEqual(
+      expect.arrayContaining(["workflows", "thread-list", "roblox-build"]),
+    );
   });
 });

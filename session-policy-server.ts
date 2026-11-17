@@ -11,6 +11,7 @@ import {
   sessionPolicySchema,
   toCorePolicy,
   type PolicyOrigin,
+  type SessionItems,
   type SessionPolicy,
   type SessionPolicyLayer,
 } from "./session-policy";
@@ -141,10 +142,38 @@ export function makeSessionPolicies(args: {
     return best;
   };
 
+  /**
+   * BB's own plugins (`provenance: "builtin"`) and their skills: no rule takes
+   * them out. Core's resolver call is synchronous, so the plugin list is read
+   * ahead and refreshed when the editor loads; the skills come from core's
+   * live contribution list each time.
+   */
+  let builtinPlugins: readonly string[] = [];
+  const refreshBuiltins = () =>
+    bb.sdk.plugins
+      .list()
+      .then((r) => {
+        builtinPlugins = r.plugins
+          .filter((p) => p.provenance === "builtin")
+          .map((p) => p.id);
+      })
+      .catch(() => {});
+  const systemItems = (): SessionItems => {
+    const ids = new Set(builtinPlugins);
+    return {
+      bbPlugins: builtinPlugins,
+      skills: (agents.experimental_vkContextContributions?.() ?? [])
+        .filter((c) => ids.has(c.pluginId))
+        .flatMap((c) => c.skills),
+    };
+  };
+
   if (available) {
+    void refreshBuiltins();
     agents.experimental_vkSessionPolicy!((ctx) =>
       toCorePolicy(
         resolveSessionPolicy(layers(folderFor(ctx), ctx.project.id)),
+        systemItems(),
       ),
     );
   }
@@ -178,6 +207,10 @@ export function makeSessionPolicies(args: {
     /** Names to offer in the editor; every source is best effort. */
     inventory: async (scope: Scope) => {
       const place = await args.place(scope);
+      await refreshBuiltins();
+      const system = systemItems();
+      const isSystem = (group: "bbPlugins" | "skills", name: string) =>
+        system[group]?.includes(name) ? { required: true } : {};
       // What each plugin adds to agent sessions, when BB can tell.
       const contributions = new Map(
         (agents.experimental_vkContextContributions?.() ?? []).map((c) => [
@@ -199,12 +232,13 @@ export function makeSessionPolicies(args: {
             return {
               name: p.id,
               label: p.name ?? p.id,
+              ...isSystem("bbPlugins", p.id),
               ...(adds ? { adds } : {}),
             };
           }),
         )
         .catch(() => []);
-      let skills: { name: string; label: string }[] = [];
+      let skills: { name: string; label: string; required?: boolean }[] = [];
       let machine: SessionInventory = { mcpServers: [], nativePlugins: [] };
       if (scope.kind !== "global") {
         skills = await bb.sdk.skills
@@ -213,6 +247,7 @@ export function makeSessionPolicies(args: {
             r.skills.map((s) => ({
               name: s.name,
               label: s.pluginId ? `${s.name} · ${s.pluginId}` : s.name,
+              ...isSystem("skills", s.name),
             })),
           )
           .catch(() => []);

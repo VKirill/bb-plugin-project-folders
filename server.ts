@@ -585,6 +585,8 @@ export const rpcContract = defineRpcContract({
         z.object({
           name: z.string(),
           label: z.string(),
+          /** A BB built-in plugin or its skill: no rule can leave it out. */
+          required: z.boolean().optional(),
           /** For BB plugins: what the plugin adds to agent sessions. */
           adds: z
             .object({
