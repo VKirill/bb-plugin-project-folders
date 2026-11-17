@@ -70,6 +70,7 @@ export const english = {
   "Пути раздела на этой машине нет": "The section has no folder on this device",
   "Добавить путь": "Add path",
   "Убрать путь": "Remove path",
+  "Сделать основной": "Make home",
   "Разделы внутри группы можно создавать на любом устройстве, где у проекта есть папка.":
     "Sections inside a group can be created on any device where the project has a folder.",
   "Папку можно выбрать и вне проекта, например папку сайта на сервере.":

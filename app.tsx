@@ -4768,6 +4768,22 @@ function Panel({ subPath }: PluginNavPanelProps) {
                       {t("Убрать путь")}
                     </Button>
                   )}
+                  {cardHost !== sel.hostId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() =>
+                        void rpc
+                          .call("section_home_set", {
+                            folderId: sel.id,
+                            hostId: cardHost,
+                          })
+                          .then(refresh, (e) => setCardRuleError(String(e)))
+                      }
+                    >
+                      {t("Сделать основной")}
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="pf-path-control">

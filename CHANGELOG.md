@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.3 — Make a device copy the section home
+
+- A section's device tab gets **Make home**: the section's home copy moves to that device and the old home stays an ordinary device copy. The repository badge, new nested sections and the card follow the new home. CLI: `bb project-folders home-set <folder-id> <host-id>`. Refused while a section move in the project is unfinished.
+
 ## 0.8.2 — Keep touch controls inside chat rows
 
 - Keep branch buttons inside their chat row instead of shifting them across the tree guides. Nested groups reuse their toggle column without a second group indent. Preserve the 36×36 px touch target and show hover backgrounds only on devices that support hover.

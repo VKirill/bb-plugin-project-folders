@@ -379,6 +379,13 @@ export const rpcContract = defineRpcContract({
     }),
     output: z.object({ ok: z.literal(true) }),
   },
+  section_home_set: {
+    input: z.object({
+      folderId: z.string().min(1),
+      hostId: z.string().min(1),
+    }),
+    output: z.object({ ok: z.literal(true), hostId: z.string(), path: z.string() }),
+  },
   archive_list: {
     input: z.null(),
     output: z.object({ archives: z.array(archiveSchema) }),
@@ -3061,6 +3068,29 @@ export default async function plugin(bb: BbPluginApi) {
       changed();
       return { ok: true as const };
     },
+    /** Make a device copy the section's home; the old home stays a device copy. */
+    section_home_set: async (input) => {
+      const folder = folders().find((f) => f.id === input.folderId);
+      if (!folder || isGroup(folder)) throw new Error("Section not found.");
+      if (sectionMoves.busyProject(folder.projectId))
+        throw new Error("Finish pending section moves first.");
+      const next = pathsOf(folder.id).find((r) => r.hostId === input.hostId);
+      if (!next) throw new Error("The section has no folder on this device.");
+      if (folder.hostId !== next.hostId) {
+        writePath(folder.id, folder.hostId, folder.path);
+        db.prepare("UPDATE folders SET hostId=?, path=? WHERE id=?").run(
+          next.hostId,
+          next.path,
+          folder.id,
+        );
+        forgetGithub(next.hostId, next.path);
+        bb.log.info(
+          `Section ${folder.id} home: ${folder.hostId} -> ${next.hostId}`,
+        );
+        changed();
+      }
+      return { ok: true as const, hostId: next.hostId, path: next.path };
+    },
     create,
     locations: async (input) => {
       const hosts = await bb.sdk.hosts.list();
@@ -4060,6 +4090,11 @@ export default async function plugin(bb: BbPluginApi) {
         usage: "bb project-folders path-remove <folder-id> <host-id>",
       },
       {
+        name: "home-set",
+        summary: "Make a section's device folder its home copy",
+        usage: "bb project-folders home-set <folder-id> <host-id>",
+      },
+      {
         name: "forget",
         summary: "Compatibility alias for archiving a section",
         usage: "bb project-folders forget <folder-id>",
@@ -4170,6 +4205,15 @@ export default async function plugin(bb: BbPluginApi) {
           );
         else if (args[0] === "path-remove")
           value = await handlers.section_path_remove(
+            z
+              .object({
+                folderId: z.string().min(1),
+                hostId: z.string().min(1),
+              })
+              .parse({ folderId: args[1], hostId: args[2] }),
+          );
+        else if (args[0] === "home-set")
+          value = await handlers.section_home_set(
             z
               .object({
                 folderId: z.string().min(1),

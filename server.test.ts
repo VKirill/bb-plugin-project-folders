@@ -1598,6 +1598,68 @@ describe("multi-device working copies", () => {
     }
   });
 
+  it("makes a device copy the section home and keeps the old home as a copy", async () => {
+    const { h } = await twoDeviceSetup();
+    try {
+      await h.harness.behavior.callRpc("copy_add", {
+        projectId: "p1",
+        hostId: "h2",
+        path: "/srv/selfy",
+      });
+      const section = (await h.harness.behavior.callRpc("create", {
+        projectId: "p1",
+        folderId: null,
+        name: "SEO",
+        relativePath: "seo",
+      })) as { id: string };
+      await expect(
+        h.harness.behavior.callRpc("section_home_set", {
+          folderId: section.id,
+          hostId: "h2",
+        }),
+      ).rejects.toThrow(/no folder on this device/);
+      await h.harness.behavior.callRpc("section_path_set", {
+        folderId: section.id,
+        hostId: "h2",
+        path: "/srv/selfy/seo",
+      });
+      const home = await h.harness.behavior.callRpc("section_home_set", {
+        folderId: section.id,
+        hostId: "h2",
+      });
+      expect(home).toEqual({ ok: true, hostId: "h2", path: "/srv/selfy/seo" });
+      const list = (await h.harness.behavior.callRpc("list", null)) as {
+        folders: {
+          id: string;
+          hostId: string;
+          path: string;
+          paths?: { hostId: string; path: string }[];
+        }[];
+      };
+      const seo = list.folders.find((f) => f.id === section.id)!;
+      expect(seo).toMatchObject({ hostId: "h2", path: "/srv/selfy/seo" });
+      expect(seo.paths).toEqual(
+        expect.arrayContaining([
+          { hostId: "h1", path: "/work/seo" },
+          { hostId: "h2", path: "/srv/selfy/seo" },
+        ]),
+      );
+      // The old home is now an ordinary copy: it can be removed, the new home cannot.
+      await expect(
+        h.harness.behavior.callRpc("section_path_remove", {
+          folderId: section.id,
+          hostId: "h2",
+        }),
+      ).rejects.toThrow();
+      await h.harness.behavior.callRpc("section_path_remove", {
+        folderId: section.id,
+        hostId: "h1",
+      });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
+
   it("adds a working copy on another device: source, folder and AGENTS.md", async () => {
     const { h, sources } = await twoDeviceSetup();
     try {
