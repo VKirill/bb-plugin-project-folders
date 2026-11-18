@@ -596,6 +596,8 @@ export const rpcContract = defineRpcContract({
           label: z.string(),
           /** A BB built-in plugin or its skill: no rule can leave it out. */
           required: z.boolean().optional(),
+          /** A skill of a plugin the owner pinned: required, labelled as pinned. */
+          pinned: z.boolean().optional(),
           /** For skills: where the Agent tools plugin files it, when installed. */
           category: z
             .object({

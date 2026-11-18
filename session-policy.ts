@@ -43,23 +43,35 @@ export const REQUIRED_SESSION_ITEMS = {
     "md-editor",
     "bb-guide",
     "env-catalog",
+    "aif-chat",
+    "lane-pilot",
   ],
   skills: ["project-folders", "markdown-pro", "bb-cli", "env-catalog"],
   mcpServers: ["bb-bridge"],
 } as const satisfies Partial<Record<SessionPolicyGroup, readonly string[]>>;
 
 /**
- * Required by the owner's choice rather than by BB, each plugin with the
- * skill its instructions point to: Markdown PRO (`md-editor`, `markdown-pro`)
- * shapes every .md file an agent writes and Env Catalog (`env-catalog`) hands
- * out keys. Listed in REQUIRED_SESSION_ITEMS; this set only picks the
- * editor's label. `bb-guide`/`bb-cli` are listed there too as BB's own, so
- * they hold before the built-in list is read.
+ * Plugins required by the owner's choice rather than by BB: Markdown PRO
+ * (`md-editor`) shapes every .md file an agent writes, Env Catalog hands out
+ * keys, AIF Helper (`aif-chat`) and Lane Pilot run the owner's workflows.
+ * Each stays in every session with every skill it ships (the server adds
+ * those like BB's built-ins). Listed in REQUIRED_SESSION_ITEMS.
+ */
+export const PINNED_PLUGIN_IDS = [
+  "md-editor",
+  "env-catalog",
+  "aif-chat",
+  "lane-pilot",
+] as const;
+
+/**
+ * Only picks the editor's label. `bb-guide`/`bb-cli` are in
+ * REQUIRED_SESSION_ITEMS too as BB's own, so they hold before the built-in
+ * list is read.
  */
 export const PINNED_SESSION_ITEMS: ReadonlySet<string> = new Set([
-  "md-editor",
+  ...PINNED_PLUGIN_IDS,
   "markdown-pro",
-  "env-catalog",
 ]);
 
 /** Required items BB always has, so the editor lists them even when no inventory does. */

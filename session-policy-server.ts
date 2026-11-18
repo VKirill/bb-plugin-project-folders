@@ -10,6 +10,7 @@ import {
   bindSkills,
   isSubthread,
   normalizeSessionPolicy,
+  PINNED_PLUGIN_IDS,
   resolveSessionPolicy,
   SUBTHREAD_ORIGIN,
   sessionPolicySchema,
@@ -307,15 +308,16 @@ export function makeSessionPolicies(args: {
           .map((p) => p.id);
       })
       .catch(() => {});
-  const systemItems = (): SessionItems => {
-    const ids = new Set(builtinPlugins);
-    return {
-      bbPlugins: builtinPlugins,
-      skills: (agents.experimental_vkContextContributions?.() ?? [])
-        .filter((c) => ids.has(c.pluginId))
-        .flatMap((c) => c.skills),
-    };
-  };
+  const skillsOf = (ids: ReadonlySet<string>) =>
+    (agents.experimental_vkContextContributions?.() ?? [])
+      .filter((c) => ids.has(c.pluginId))
+      .flatMap((c) => c.skills);
+  // Pinned plugins keep their skills like BB's built-ins do.
+  const pinnedPlugins: ReadonlySet<string> = new Set(PINNED_PLUGIN_IDS);
+  const systemItems = (): SessionItems => ({
+    bbPlugins: builtinPlugins,
+    skills: skillsOf(new Set([...builtinPlugins, ...pinnedPlugins])),
+  });
 
   if (available) {
     void refreshBuiltins();
@@ -399,8 +401,13 @@ export function makeSessionPolicies(args: {
           : await args.place(scope);
       await refreshBuiltins();
       const system = systemItems();
+      const pinnedSkills = new Set(skillsOf(pinnedPlugins));
       const isSystem = (group: "bbPlugins" | "skills", name: string) =>
-        system[group]?.includes(name) ? { required: true } : {};
+        group === "skills" && pinnedSkills.has(name)
+          ? { required: true, pinned: true }
+          : system[group]?.includes(name)
+            ? { required: true }
+            : {};
       // What each plugin adds to agent sessions, when BB can tell.
       const contributions = new Map(
         (agents.experimental_vkContextContributions?.() ?? []).map((c) => [
@@ -432,6 +439,7 @@ export function makeSessionPolicies(args: {
         name: string;
         label: string;
         required?: boolean;
+        pinned?: boolean;
         category?: SkillCategory;
       }[] = [];
       let machine: SessionInventory = { mcpServers: [], nativePlugins: [] };

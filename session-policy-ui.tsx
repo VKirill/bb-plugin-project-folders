@@ -43,6 +43,8 @@ type InventoryItem = {
   category?: { path: string[]; pathEn: string[]; order: number };
   /** A BB built-in plugin or its skill: no rule can leave it out. */
   required?: boolean;
+  /** A skill of a plugin the owner pinned. */
+  pinned?: boolean;
   adds?: Adds;
 };
 type Inventory = Partial<Record<SessionPolicyGroup, InventoryItem[]>>;
@@ -530,7 +532,7 @@ function GroupRow({
               <span className="pf-session-adds">{note}</span>
             ) : required ? (
               <span className="pf-session-adds">
-                {PINNED_SESSION_ITEMS.has(item.name)
+                {PINNED_SESSION_ITEMS.has(item.name) || item.pinned
                   ? t("закреплён, всегда подключён")
                   : t("нужен BB, всегда подключён")}
               </span>

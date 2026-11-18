@@ -125,6 +125,8 @@ describe("session context rules", () => {
           "md-editor",
           "bb-guide",
           "env-catalog",
+          "aif-chat",
+          "lane-pilot",
         ],
       },
     });
@@ -144,7 +146,14 @@ describe("session context rules", () => {
             value: {
               bbPlugins: {
                 mode: "deny",
-                names: ["md-editor", "bb-guide", "env-catalog", "aif-chat"],
+                names: [
+                  "md-editor",
+                  "bb-guide",
+                  "env-catalog",
+                  "aif-chat",
+                  "lane-pilot",
+                  "my-posts",
+                ],
               },
               skills: { mode: "allow", names: ["roblox-build"] },
             },
@@ -152,7 +161,7 @@ describe("session context rules", () => {
         ]),
       ),
     ).toEqual({
-      bbPlugins: { mode: "deny", names: ["aif-chat"] },
+      bbPlugins: { mode: "deny", names: ["my-posts"] },
       skills: {
         mode: "allow",
         names: [
@@ -170,7 +179,7 @@ describe("session context rules", () => {
       {
         origin: project,
         value: {
-          bbPlugins: { mode: "deny", names: ["workflows", "aif-chat"] },
+          bbPlugins: { mode: "deny", names: ["workflows", "my-posts"] },
           skills: { mode: "allow", names: ["roblox-build"] },
         },
       },
@@ -179,7 +188,7 @@ describe("session context rules", () => {
       bbPlugins: ["workflows"],
       skills: ["workflows", "thread-list"],
     }) as Record<string, { mode: string; names: string[] }>;
-    expect(policy.bbPlugins).toEqual({ mode: "deny", names: ["aif-chat"] });
+    expect(policy.bbPlugins).toEqual({ mode: "deny", names: ["my-posts"] });
     expect(policy.skills.names).toEqual(
       expect.arrayContaining(["workflows", "thread-list", "roblox-build"]),
     );
@@ -302,7 +311,7 @@ describe("session context rules", () => {
         origin: project,
         value: {
           skills: { mode: "allow", names: ["roblox-build"] },
-          bbPlugins: { mode: "deny", names: ["aif-chat"] },
+          bbPlugins: { mode: "deny", names: ["my-posts"] },
           mcpServers: { mode: "deny", names: ["discord-web"] },
         },
       },
@@ -314,7 +323,7 @@ describe("session context rules", () => {
         mode: "allow",
         names: ["project-folders", "markdown-pro", "bb-cli", "env-catalog"],
       },
-      bbPlugins: { mode: "deny", names: ["aif-chat", "image-studio"] },
+      bbPlugins: { mode: "deny", names: ["my-posts", "image-studio"] },
       mcpServers: { mode: "deny", names: ["discord-web"] },
     });
     expect(resolved.skills?.origin).toEqual(SUBTHREAD_ORIGIN);

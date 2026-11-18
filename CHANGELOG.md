@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.8 — AIF Helper and Lane Pilot are pinned
+
+- **AIF Helper (`aif-chat`) and Lane Pilot are pinned** like Markdown PRO and Env Catalog: no project, section, plugin-wide or subthread rule can leave them out, and every skill they ship stays loaded too. In Session context they are locked with **pinned, always loaded**. Rules that listed them before simply no longer apply to them.
+
 ## 0.8.7 — Skills bound to one place, chats inside groups
 
 - **Skills only here.** Session context of a project or section gets a **Skills only here** block: pick a skill and it is bound to that place. It loads in every chat there whatever the skills group says, and in no chat anywhere else — other projects, other sections, chats without a project, subthreads. Elsewhere the skill is locked and labelled **only in: <place>**, so it cannot be ticked back on by mistake.
