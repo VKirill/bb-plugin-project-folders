@@ -31,9 +31,25 @@ const { rpc, saved } = vi.hoisted(() => {
     session_policy_inventory: () => ({
       bbPlugins: [],
       skills: [
-        { name: "rigging", label: "rigging" },
+        {
+          name: "rigging",
+          label: "rigging",
+          category: {
+            path: ["3D и Blender", "Персонажи и анимация"],
+            pathEn: ["3D and Blender", "Characters and animation"],
+            order: 1005,
+          },
+        },
         { name: "seo-agent", label: "seo-agent" },
-        { name: "voxel-style", label: "voxel-style" },
+        {
+          name: "voxel-style",
+          label: "voxel-style",
+          category: {
+            path: ["3D и Blender", "Стили и арт-дирекция"],
+            pathEn: ["3D and Blender", "Styles and art direction"],
+            order: 1006,
+          },
+        },
       ],
       mcpServers: [],
       nativePlugins: [],
@@ -53,7 +69,10 @@ vi.mock("@get-bb/plugin-sdk/app", async (original) => ({
 
 import { SessionPolicyEditor } from "./session-policy-ui";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  saved.length = 0;
+});
 
 it("switches single inherited skills in the 'as above, with changes' mode", async () => {
   const view = render(
@@ -79,5 +98,31 @@ it("switches single inherited skills in the 'as above, with changes' mode", asyn
     mode: "adjust",
     names: ["seo-agent"],
     enable: ["rigging"],
+  });
+});
+
+it("groups skills by the Agent tools tree and switches a whole section", async () => {
+  const view = render(
+    <SessionPolicyEditor scope={{ kind: "project", projectId: "p1" }} />,
+  );
+  const section = (title: string) =>
+    view.container.querySelector(
+      `summary [role="checkbox"][aria-label="${title}"]`,
+    ) as HTMLElement | null;
+  await waitFor(() =>
+    expect(section("3D и Blender") ?? section("3D and Blender")).toBeTruthy(),
+  );
+  const threeD = (section("3D и Blender") ?? section("3D and Blender"))!;
+  // Both 3D skills are off above, so the section box is clear; seo-agent sits in "No section".
+  expect(threeD.getAttribute("aria-checked")).toBe("false");
+  expect(view.container.querySelectorAll(".pf-session-branch").length).toBe(4); // 3D, its two subsections, and "No section"
+
+  fireEvent.click(threeD);
+  fireEvent.click(view.getByRole("button", { name: /Сохранить|Save/ }));
+  await waitFor(() => expect(saved).toHaveLength(1));
+  expect((saved[0] as { skills: unknown }).skills).toEqual({
+    mode: "adjust",
+    names: [],
+    enable: ["rigging", "voxel-style"],
   });
 });

@@ -149,6 +149,12 @@ const executionScopeSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type ExecutionScope = z.infer<typeof executionScopeSchema>;
+/** Session context also has a plugin-wide rule for subthreads. */
+const sessionScopeSchema = z.discriminatedUnion("kind", [
+  ...executionScopeSchema.options,
+  z.object({ kind: z.literal("subthreads") }),
+]);
+export type SessionScope = z.infer<typeof sessionScopeSchema>;
 const requestSchema = z.object({
   projectId: z.string(),
   providerId: z.string(),
@@ -562,7 +568,7 @@ export const rpcContract = defineRpcContract({
     output: z.object({ available: z.boolean() }),
   },
   session_policy_read: {
-    input: z.object({ scope: executionScopeSchema }),
+    input: z.object({ scope: sessionScopeSchema }),
     output: z.object({
       own: sessionPolicySchema,
       userInstructionsFile: z.object({ path: z.string(), exists: z.boolean() }),
@@ -572,13 +578,13 @@ export const rpcContract = defineRpcContract({
   },
   session_policy_save: {
     input: z.object({
-      scope: executionScopeSchema,
+      scope: sessionScopeSchema,
       value: sessionPolicySchema,
     }),
     output: z.object({ ok: z.literal(true) }),
   },
   session_policy_inventory: {
-    input: z.object({ scope: executionScopeSchema }),
+    input: z.object({ scope: sessionScopeSchema }),
     output: z.record(
       z.enum(["bbPlugins", "skills", "mcpServers", "nativePlugins"]),
       z.array(
@@ -587,6 +593,14 @@ export const rpcContract = defineRpcContract({
           label: z.string(),
           /** A BB built-in plugin or its skill: no rule can leave it out. */
           required: z.boolean().optional(),
+          /** For skills: where the Agent tools plugin files it, when installed. */
+          category: z
+            .object({
+              path: z.array(z.string()),
+              pathEn: z.array(z.string()),
+              order: z.number(),
+            })
+            .optional(),
           /** For BB plugins: what the plugin adds to agent sessions. */
           adds: z
             .object({

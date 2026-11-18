@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  isSubthread,
   normalizeSessionPolicy,
+  SUBTHREAD_ORIGIN,
   resolveSessionPolicy,
   toCorePolicy,
 } from "./session-policy";
@@ -265,5 +267,55 @@ describe("session context rules", () => {
     ).toEqual({
       skills: { mode: "adjust", names: ["seo-agent"], enable: ["rigging"] },
     });
+  });
+
+  it("treats only chats an agent started under another chat as subthreads", () => {
+    const thread = (parentThreadId: string | null) => ({ parentThreadId });
+    const none = { kind: null, pluginId: null };
+    expect(isSubthread({ thread: thread("thr_parent"), origin: none })).toBe(true);
+    expect(isSubthread({ thread: thread(null), origin: none })).toBe(false);
+    expect(
+      isSubthread({
+        thread: thread("thr_parent"),
+        origin: { kind: "fork", pluginId: "side-chat" },
+      }),
+    ).toBe(false);
+    expect(
+      isSubthread({
+        thread: thread("thr_parent"),
+        origin: { kind: null, pluginId: "lane-pilot" },
+      }),
+    ).toBe(false);
+  });
+
+  it("lays the subthread rule over the place's rules", () => {
+    const resolved = resolveSessionPolicy([
+      {
+        origin: SUBTHREAD_ORIGIN,
+        value: {
+          skills: { mode: "allow", names: [] },
+          bbPlugins: { mode: "adjust", names: ["image-studio"], enable: [] },
+        },
+      },
+      {
+        origin: project,
+        value: {
+          skills: { mode: "allow", names: ["roblox-build"] },
+          bbPlugins: { mode: "deny", names: ["aif-chat"] },
+          mcpServers: { mode: "deny", names: ["discord-web"] },
+        },
+      },
+    ]);
+    expect(
+      toCorePolicy(resolved, { skills: ["bb-cli"], bbPlugins: ["workflows"] }),
+    ).toEqual({
+      skills: {
+        mode: "allow",
+        names: ["project-folders", "markdown-pro", "bb-cli", "env-catalog"],
+      },
+      bbPlugins: { mode: "deny", names: ["aif-chat", "image-studio"] },
+      mcpServers: { mode: "deny", names: ["discord-web"] },
+    });
+    expect(resolved.skills?.origin).toEqual(SUBTHREAD_ORIGIN);
   });
 });

@@ -2,12 +2,15 @@ import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
+import { z } from "zod";
 import { moveHostContract } from "./move-contract";
 import { within } from "./move-files";
 import type { SessionInventory } from "./session-inventory";
 import {
+  isSubthread,
   normalizeSessionPolicy,
   resolveSessionPolicy,
+  SUBTHREAD_ORIGIN,
   sessionPolicySchema,
   toCorePolicy,
   type PolicyOrigin,
@@ -26,11 +29,14 @@ type Folder = {
 };
 type Scope =
   | { kind: "global" }
+  | { kind: "subthreads" }
   | { kind: "project"; projectId: string }
   | { kind: "folder"; projectId: string; folderId: string };
 
 /** The thread facts core hands a session policy resolver. */
 type PolicyContext = {
+  thread?: { parentThreadId: string | null };
+  origin?: { kind: "fork" | null; pluginId: string | null } | null;
   project: { id: string };
   host: { id: string };
   environment: { path: string | null };
@@ -50,6 +56,69 @@ type VkAgents = {
   ) => void;
 };
 
+/** Where Agent tools filed a skill, in both languages, and its place in the tree. */
+export type SkillCategory = {
+  path: string[];
+  pathEn: string[];
+  order: number;
+};
+
+const title = z.object({
+  id: z.string(),
+  title: z.string(),
+  titleEn: z.string(),
+});
+const skillsHubSchema = z.object({
+  tree: z.object({
+    sections: z.array(
+      title.extend({ subsections: z.array(title).default([]) }),
+    ),
+  }),
+  skills: z.array(
+    z.object({
+      name: z.string(),
+      category: z
+        .object({ sectionId: z.string(), subsectionId: z.string().nullish() })
+        .nullish(),
+    }),
+  ),
+});
+
+/**
+ * The category tree of the Agent tools plugin's skill hub, by skill name.
+ * Empty when that plugin is missing or does not answer: the editor then shows
+ * a flat list.
+ */
+async function skillCategories(
+  bb: BbPluginApi,
+): Promise<Map<string, SkillCategory>> {
+  const out = new Map<string, SkillCategory>();
+  const hub = await bb.sdk.plugins
+    .callRpc({
+      pluginId: "agent-tools",
+      method: "skills_hub",
+      input: null,
+      outputSchema: skillsHubSchema,
+    })
+    .catch(() => null);
+  if (!hub) return out;
+  const sections = new Map(hub.tree.sections.map((s, i) => [s.id, { s, i }]));
+  for (const skill of hub.skills) {
+    const at = skill.category && sections.get(skill.category.sectionId);
+    if (!at) continue;
+    const j = at.s.subsections.findIndex(
+      (x) => x.id === skill.category!.subsectionId,
+    );
+    const sub = j >= 0 ? at.s.subsections[j] : undefined;
+    out.set(skill.name, {
+      path: sub ? [at.s.title, sub.title] : [at.s.title],
+      pathEn: sub ? [at.s.titleEn, sub.titleEn] : [at.s.titleEn],
+      order: at.i * 1000 + (j >= 0 ? j : 999),
+    });
+  }
+  return out;
+}
+
 /**
  * Session context rules: storage per place, inheritance down the tree, and
  * the answer to core's per-thread question. Registers with core only when the
@@ -61,7 +130,7 @@ export function makeSessionPolicies(args: {
   folders: () => Folder[];
   canonicalPath: (hostId: string, p: string) => string;
   place: (
-    scope: Scope,
+    scope: Exclude<Scope, { kind: "subthreads" }>,
   ) => Promise<{ folder: Folder | null; hostId: string | null }>;
 }) {
   const { bb, db } = args;
@@ -71,6 +140,8 @@ export function makeSessionPolicies(args: {
   const key = (scope: Scope) =>
     scope.kind === "global"
       ? "g"
+      : scope.kind === "subthreads"
+        ? "s"
       : scope.kind === "project"
         ? `p:${scope.projectId}`
         : `f:${scope.folderId}`;
@@ -170,23 +241,33 @@ export function makeSessionPolicies(args: {
 
   if (available) {
     void refreshBuiltins();
-    agents.experimental_vkSessionPolicy!((ctx) =>
-      toCorePolicy(
-        resolveSessionPolicy(layers(folderFor(ctx), ctx.project.id)),
+    agents.experimental_vkSessionPolicy!((ctx) => {
+      const place = layers(folderFor(ctx), ctx.project.id);
+      // A subthread takes the place's rules with the subthread rule on top.
+      const sub = isSubthread(ctx)
+        ? [{ origin: SUBTHREAD_ORIGIN, value: read("s") }]
+        : [];
+      return toCorePolicy(
+        resolveSessionPolicy([...sub, ...place]),
         systemItems(),
-      ),
-    );
+      );
+    });
   }
 
   return {
     available,
     read: async (scope: Scope) => {
-      const place = await args.place(scope);
       const own = read(key(scope));
+      // The subthread rule sits over whatever place a subthread runs in, so
+      // it has nothing of its own to inherit here.
       const parents =
-        scope.kind === "global"
+        scope.kind === "global" || scope.kind === "subthreads"
           ? []
-          : layers(place.folder, scope.projectId, true);
+          : layers(
+              (await args.place(scope)).folder,
+              scope.projectId,
+              true,
+            );
       // The BB-wide instructions file the "user instructions" switch governs:
       // shown by path, and flagged when there is nothing to switch off.
       const file = path.join(bb.server.experimental_dataDir, "AGENTS.md");
@@ -201,12 +282,15 @@ export function makeSessionPolicies(args: {
       };
     },
     save: async (scope: Scope, value: SessionPolicy) => {
-      await args.place(scope);
+      if (scope.kind !== "subthreads") await args.place(scope);
       write(key(scope), value);
     },
     /** Names to offer in the editor; every source is best effort. */
     inventory: async (scope: Scope) => {
-      const place = await args.place(scope);
+      const place =
+        scope.kind === "subthreads"
+          ? { folder: null, hostId: null }
+          : await args.place(scope);
       await refreshBuiltins();
       const system = systemItems();
       const isSystem = (group: "bbPlugins" | "skills", name: string) =>
@@ -238,19 +322,35 @@ export function makeSessionPolicies(args: {
           }),
         )
         .catch(() => []);
-      let skills: { name: string; label: string; required?: boolean }[] = [];
+      let skills: {
+        name: string;
+        label: string;
+        required?: boolean;
+        category?: SkillCategory;
+      }[] = [];
       let machine: SessionInventory = { mcpServers: [], nativePlugins: [] };
-      if (scope.kind !== "global") {
-        skills = await bb.sdk.skills
-          .list({ projectId: scope.projectId, environmentId: null })
-          .then((r) =>
-            r.skills.map((s) => ({
-              name: s.name,
-              label: s.pluginId ? `${s.name} · ${s.pluginId}` : s.name,
-              ...isSystem("skills", s.name),
-            })),
-          )
-          .catch(() => []);
+      // Plugin-wide rules list the skills of any project: BB's, the user's
+      // and plugins' skills are the same everywhere, project skills aside.
+      const projectId =
+        "projectId" in scope ? scope.projectId : args.folders()[0]?.projectId;
+      if (projectId) {
+        const [list, categories] = await Promise.all([
+          bb.sdk.skills
+            .list({ projectId, environmentId: null })
+            .catch(() => ({ skills: [] })),
+          skillCategories(bb),
+        ]);
+        skills = list.skills.map((s) => {
+          const category = categories.get(s.name);
+          return {
+            name: s.name,
+            label: s.pluginId ? `${s.name} · ${s.pluginId}` : s.name,
+            ...isSystem("skills", s.name),
+            ...(category ? { category } : {}),
+          };
+        });
+      }
+      if ("projectId" in scope) {
         const cwd = place.folder?.path ?? null;
         if (place.hostId)
           machine = await bb.hosts

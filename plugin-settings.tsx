@@ -466,6 +466,16 @@ export function SettingsPane({
           <SessionPolicyEditor scope={{ kind: "global" }} />
         </SettingsGroup>
       )}
+      {section === "session" && (
+        <SettingsGroup
+          title={t("Сабтреды")}
+          hint={t(
+            "Чаты, которые агент запускает из другого чата. Правило ложится поверх правил проекта и раздела, где идёт сабтред. Системные плагины и навыки BB и bb-bridge остаются всегда. Побочные чаты, форки и помощники плагинов (Lane Pilot) не затрагиваются.",
+          )}
+        >
+          <SessionPolicyEditor scope={{ kind: "subthreads" }} />
+        </SettingsGroup>
+      )}
       {section === "autoArchive" && <AutoArchiveSettings />}
       {section === "cache" && <CacheKeepaliveSettings />}
       {section === "archive" && archive}

@@ -110,7 +110,7 @@ export const sessionPolicySchema = z.object({
 export type SessionPolicy = z.infer<typeof sessionPolicySchema>;
 
 export const policyOriginSchema = z.object({
-  scope: z.enum(["folder", "project", "global"]),
+  scope: z.enum(["folder", "project", "global", "subthreads"]),
   folderId: z.string().nullable(),
 });
 export type PolicyOrigin = z.infer<typeof policyOriginSchema>;
@@ -176,6 +176,28 @@ export function normalizeSessionPolicy(value: SessionPolicy): SessionPolicy {
   for (const key of SESSION_POLICY_SWITCHES)
     if (value[key] !== undefined) out[key] = value[key];
   return out;
+}
+
+/** The plugin-wide rule for subthreads, laid over the place's own rules. */
+export const SUBTHREAD_ORIGIN: PolicyOrigin = {
+  scope: "subthreads",
+  folderId: null,
+};
+
+/**
+ * A subthread: a chat an agent started under another chat (`bb thread spawn`
+ * with a parent). Not a side chat or a fork the owner opened, and not a helper
+ * another plugin spawned (Lane Pilot gives those their own profile).
+ */
+export function isSubthread(ctx: {
+  thread?: { parentThreadId: string | null };
+  origin?: { kind: "fork" | null; pluginId: string | null } | null;
+}): boolean {
+  return (
+    !!ctx.thread?.parentThreadId &&
+    !ctx.origin?.pluginId &&
+    ctx.origin?.kind !== "fork"
+  );
 }
 
 type ResolvedFilter = { value: SessionFilter; origin: PolicyOrigin } | null;

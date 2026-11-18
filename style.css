@@ -2054,6 +2054,36 @@
   font-size: 11px;
   color: var(--muted-foreground);
 }
+/* Skills by the Agent tools category tree: section, subsection, skills. */
+.pf-session-branch > details > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 2px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pf-session-branch > details > ul {
+  margin: 0;
+  padding: 0 0 0 22px;
+  list-style: none;
+}
+.pf-session-branch-box {
+  display: inline-flex;
+}
+.pf-session-branch-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pf-session-branch [data-state="indeterminate"] {
+  border-color: var(--muted-foreground);
+  background: var(--muted-foreground);
+  color: var(--background);
+}
 .pf-session-add {
   display: flex;
   gap: 6px;

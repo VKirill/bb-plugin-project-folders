@@ -65,6 +65,14 @@ Inventory entries are presentation choices, not validation gates: selected names
 | `projectInstructions` | Project instruction file inclusion |
 | `claudeAiSync` | Claude account plugin/skill synchronization |
 
+## Subthreads
+
+A plugin-wide rule stored under key `s` (`{ kind: "subthreads" }` in the session RPCs) applies to chats an agent started under another chat: `thread.parentThreadId` set, no `origin.pluginId`, not a fork (`isSubthread`, `session-policy.ts`). The resolver lays it over the place's layers as the nearest layer (`SUBTHREAD_ORIGIN`), so `adjust` there changes what the project or section resolves to. Plugin helpers (Lane Pilot) keep their own required profiles; side chats and forks keep the owner's context. Required, pinned and built-in items stay as everywhere.
+
+## Skill tree
+
+When the Agent tools plugin answers `skills_hub`, `session_policy_inventory` adds `category { path, pathEn, order }` to each skill it files, and the editor groups skills by section and subsection with a box per branch (`skillCategories`, `session-policy-server.ts`; `GroupRow`, `session-policy-ui.tsx`). Plugin-wide scopes list the skills of any project.
+
 Schema limits names to 200 characters and 500 entries per group; the four filter groups and three switches are declared in `session-policy.ts:16-30`, `session-policy.ts:62-79`.
 
 ## Failures

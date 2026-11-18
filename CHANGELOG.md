@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.6 — Skill tree and a rule for subthreads
+
+- **Skills grouped by section.** With the Agent tools plugin installed, Session context lists skills under its category tree: section → subsection → skills, the rest under **No section**. A section or subsection has its own box with an on/total count: one click switches all its skills, a partial pick shows as mixed. Sections stay folded until you search. Without Agent tools the list stays flat.
+- **A rule for subthreads.** Plugin settings → Session context gets a **Subthreads** group: a rule for chats an agent starts from another chat (`bb thread spawn` with a parent). It is laid over the rules of the project and section the subthread runs in, so subthreads can run with nothing but BB's own plugins and skills and `bb-bridge`. Side chats, forks and plugin helpers (Lane Pilot keeps its role profiles) are not affected.
+- The plugin-wide rules now list skills too, so the default list and the subthread rule are edited by ticking, not by typing names.
+
 ## 0.8.5 — Change single inherited skills and plugins
 
 - **New mode "As above, with changes"** for every group in Session context of a project or section. The place keeps what it inherits — the plugin-wide default, the project, the section above — and switches single skills, plugins, MCP servers or CLI plugins on or off. The list shows what loads with the inherited rule; a click records only that item, marked **changed here**, and clicking it back removes the change.

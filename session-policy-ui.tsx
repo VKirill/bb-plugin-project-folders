@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRpc } from "@get-bb/plugin-sdk/app";
-import type { ExecutionScope, rpcContract } from "./server";
+import type { SessionScope as ExecutionScope, rpcContract } from "./server";
 import {
   BUILT_IN_SESSION_ITEMS,
   isRequiredSessionItem,
@@ -13,7 +13,7 @@ import {
   type SessionPolicy,
   type SessionPolicyGroup,
 } from "./session-policy";
-import { t } from "./i18n";
+import { t, useLanguage } from "./i18n";
 import { Button } from "./components/ui/button";
 import { Checkbox } from "./components/ui/checkbox";
 import { Icon } from "./components/ui/icon";
@@ -36,6 +36,8 @@ type Adds = {
 type InventoryItem = {
   name: string;
   label: string;
+  /** For skills: where the Agent tools plugin files it, when installed. */
+  category?: { path: string[]; pathEn: string[]; order: number };
   /** A BB built-in plugin or its skill: no rule can leave it out. */
   required?: boolean;
   adds?: Adds;
@@ -112,6 +114,7 @@ const groupMeta = (group: SessionPolicyGroup) =>
 function originLabel(origin: PolicyOrigin | undefined, scope: ExecutionScope) {
   if (!origin) return t("по умолчанию BB");
   if (origin.scope === "global") return t("из настроек плагина");
+  if (origin.scope === "subthreads") return t("из правила для сабтредов");
   if (origin.scope === "project") return t("из проекта");
   return scope.kind === "folder" && origin.folderId === scope.folderId
     ? t("отсюда")
@@ -147,7 +150,9 @@ export function SessionPolicyEditor({ scope }: { scope: ExecutionScope }) {
       ? `f:${scope.folderId}`
       : scope.kind === "project"
         ? `p:${scope.projectId}`
-        : "g";
+        : scope.kind === "subthreads"
+          ? "s"
+          : "g";
   const load = useCallback(async () => {
     const value = (await rpc.call("session_policy_read", { scope })) as Loaded;
     setState(value);
@@ -383,21 +388,151 @@ function GroupRow({
       )
       .sort((a, b) => weight(a) - weight(b) || a.label.localeCompare(b.label));
   }, [group, items, names, enable, query]);
-  const toggle = (name: string, on: boolean) => {
+  const lang = useLanguage();
+  const isRequired = (item: InventoryItem) =>
+    isRequiredSessionItem(group, item.name) ||
+    item.required === true ||
+    item.adds?.required === true;
+  // Required items stay in every session: ticked in an allow list (and as
+  // loaded in `adjust`), unticked in a deny list, and locked either way.
+  const isChecked = (item: InventoryItem) =>
+    adjust
+      ? isRequired(item) || loadedHere(item.name)
+      : isRequired(item)
+        ? own?.mode === "allow"
+        : names.includes(item.name);
+  /** Ticks or unticks several items at once: one item, or a whole section. */
+  const setMany = (list: readonly string[], on: boolean) => {
+    const touched = new Set(list);
     if (!adjust)
       return onChange({
         mode: own!.mode,
-        names: on ? [...names, name] : names.filter((n) => n !== name),
+        names: on
+          ? [...new Set([...names, ...list])]
+          : names.filter((n) => !touched.has(n)),
       });
     // Same as above: no change here. Otherwise record the switch.
-    const off = names.filter((n) => n !== name);
-    const back = enable.filter((n) => n !== name);
-    const same = on === loadedAbove(name);
+    const changed = list.filter((n) => on !== loadedAbove(n));
     onChange({
       mode: "adjust",
-      names: same || on ? off : [...off, name],
-      enable: same || !on ? back : [...back, name],
+      names: [...names.filter((n) => !touched.has(n)), ...(on ? [] : changed)],
+      enable: [
+        ...enable.filter((n) => !touched.has(n)),
+        ...(on ? changed : []),
+      ],
     });
+  };
+  const toggle = (name: string, on: boolean) => setMany([name], on);
+  /**
+   * Skills grouped by the Agent tools category tree when it is installed:
+   * section → subsection → skills, in the tree's order; the rest last.
+   */
+  const tree = useMemo(() => {
+    if (!listed.some((i) => i.category)) return null;
+    type Branch = { title: string; order: number; items: InventoryItem[] };
+    const sections = new Map<string, Branch & { subs: Map<string, Branch> }>();
+    for (const item of listed) {
+      const path = item.category
+        ? lang === "ru"
+          ? item.category.path
+          : item.category.pathEn
+        : [t("Без раздела")];
+      const order = item.category?.order ?? Number.MAX_SAFE_INTEGER;
+      const [top, sub] = path as [string, string | undefined];
+      let section = sections.get(top);
+      if (!section) {
+        section = { title: top, order, items: [], subs: new Map() };
+        sections.set(top, section);
+      }
+      section.order = Math.min(section.order, order);
+      if (!sub) {
+        section.items.push(item);
+        continue;
+      }
+      let branch = section.subs.get(sub);
+      if (!branch)
+        section.subs.set(sub, (branch = { title: sub, order, items: [] }));
+      branch.items.push(item);
+    }
+    const byOrder = (a: Branch, b: Branch) =>
+      a.order - b.order || a.title.localeCompare(b.title);
+    return [...sections.values()].sort(byOrder).map((section) => ({
+      ...section,
+      subs: [...section.subs.values()].sort(byOrder),
+    }));
+  }, [listed, lang]);
+  const open = query.trim() ? true : undefined;
+  const itemRow = (item: InventoryItem) => {
+    const required = isRequired(item);
+    return (
+      <li key={item.name}>
+        <label>
+          <Checkbox
+            checked={isChecked(item)}
+            disabled={disabled || required}
+            onCheckedChange={(on) => toggle(item.name, on === true)}
+          />
+          <span className="pf-session-item">
+            <span>{item.label}</span>
+            {required ? (
+              <span className="pf-session-adds">
+                {PINNED_SESSION_ITEMS.has(item.name)
+                  ? t("закреплён, всегда подключён")
+                  : t("нужен BB, всегда подключён")}
+              </span>
+            ) : adjust &&
+              (names.includes(item.name) || enable.includes(item.name)) ? (
+              <span className="pf-session-adds">{t("изменено здесь")}</span>
+            ) : (
+              item.adds && (
+                <span className="pf-session-adds">{addsLabel(item.adds)}</span>
+              )
+            )}
+          </span>
+        </label>
+      </li>
+    );
+  };
+  /** A section or subsection: a box for all its items, a count, the items. */
+  const branchRow = (
+    key: string,
+    title: string,
+    items: InventoryItem[],
+    children: React.ReactNode,
+  ) => {
+    const free = items.filter((i) => !isRequired(i));
+    const on = items.filter(isChecked).length;
+    const all = free.length > 0 && free.every(isChecked);
+    const some = free.some(isChecked);
+    return (
+      <li key={key} className="pf-session-branch">
+        <details open={open}>
+          <summary>
+            <span
+              className="pf-session-branch-box"
+              onClick={(e) => e.preventDefault()}
+            >
+              <Checkbox
+                aria-label={title}
+                checked={all ? true : some ? "indeterminate" : false}
+                disabled={disabled || free.length === 0}
+                onCheckedChange={() =>
+                  setMany(
+                    free.map((i) => i.name),
+                    !all,
+                  )
+                }
+              />
+            </span>
+            <span className="pf-session-branch-title">{title}</span>
+            <span className="pf-session-adds">
+              {on}/{items.length}
+            </span>
+          </summary>
+          <ul role="list">{children}</ul>
+        </details>
+      </li>
+    );
   };
   const addCustom = () => {
     const name = custom.trim();
@@ -454,53 +589,26 @@ function GroupRow({
             onChange={(e) => setQuery(e.target.value)}
           />
           <ul className="pf-session-list" role="list">
-            {listed.map((item) => {
-              // Required items stay in every session: ticked in an allow
-              // list, unticked in a deny list, and locked either way.
-              const required =
-                isRequiredSessionItem(group, item.name) ||
-                item.required === true ||
-                item.adds?.required === true;
-              return (
-                <li key={item.name}>
-                  <label>
-                    <Checkbox
-                      checked={
-                        adjust
-                          ? required || loadedHere(item.name)
-                          : required
-                            ? own.mode === "allow"
-                            : names.includes(item.name)
-                      }
-                      disabled={disabled || required}
-                      onCheckedChange={(on) => toggle(item.name, on === true)}
-                    />
-                    <span className="pf-session-item">
-                      <span>{item.label}</span>
-                      {required ? (
-                        <span className="pf-session-adds">
-                          {PINNED_SESSION_ITEMS.has(item.name)
-                            ? t("закреплён, всегда подключён")
-                            : t("нужен BB, всегда подключён")}
-                        </span>
-                      ) : adjust &&
-                        (names.includes(item.name) ||
-                          enable.includes(item.name)) ? (
-                        <span className="pf-session-adds">
-                          {t("изменено здесь")}
-                        </span>
-                      ) : (
-                        item.adds && (
-                          <span className="pf-session-adds">
-                            {addsLabel(item.adds)}
-                          </span>
-                        )
+            {tree
+              ? tree.map((section) =>
+                  branchRow(
+                    section.title,
+                    section.title,
+                    [...section.items, ...section.subs.flatMap((b) => b.items)],
+                    <>
+                      {section.subs.map((sub) =>
+                        branchRow(
+                          `${section.title}/${sub.title}`,
+                          sub.title,
+                          sub.items,
+                          sub.items.map(itemRow),
+                        ),
                       )}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
+                      {section.items.map(itemRow)}
+                    </>,
+                  ),
+                )
+              : listed.map(itemRow)}
             {listed.length === 0 && (
               <li className="pf-agents-hint">{t("Ничего не найдено")}</li>
             )}
