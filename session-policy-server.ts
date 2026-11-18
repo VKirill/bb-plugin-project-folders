@@ -7,6 +7,7 @@ import { moveHostContract } from "./move-contract";
 import { within } from "./move-files";
 import type { SessionInventory } from "./session-inventory";
 import {
+  bindSkills,
   isSubthread,
   normalizeSessionPolicy,
   resolveSessionPolicy,
@@ -26,6 +27,7 @@ type Folder = {
   parentId: string | null;
   path: string;
   kind?: string;
+  name?: string;
 };
 type Scope =
   | { kind: "global" }
@@ -199,6 +201,82 @@ export function makeSessionPolicies(args: {
     return out;
   };
 
+  /** Each project's main folder and name, read ahead like the built-ins. */
+  let projects = new Map<
+    string,
+    { name: string; hostId?: string; path?: string }
+  >();
+  const refreshProjects = () =>
+    bb.sdk.projects
+      .list()
+      .then((list) => {
+        projects = new Map(
+          list.map((p) => {
+            const s = p.sources.find((x) => x.isDefault) ?? p.sources[0];
+            return [p.id, { name: p.name, hostId: s?.hostId, path: s?.path }];
+          }),
+        );
+      })
+      .catch(() => {});
+
+  /** Every place's bound skills: `p:<id>`/`f:<id>` → names. */
+  const bindings = () => {
+    const out = new Map<string, string[]>();
+    const rows = db
+      .prepare(
+        "SELECT key FROM session_policies WHERE key LIKE 'p:%' OR key LIKE 'f:%'",
+      )
+      .all() as { key: string }[];
+    for (const { key: k } of rows) {
+      const only = read(k).onlyHere;
+      if (only?.length) out.set(k, only);
+    }
+    return out;
+  };
+  /**
+   * Places whose bound skills a chat here gets: the section and its parents,
+   * and the project when the section lies inside the project's own folder (a
+   * section kept elsewhere is a separate thing that only shares the project).
+   */
+  const bindingKeys = (f: Folder | null, projectId: string) => {
+    const keys = layers(f, projectId)
+      .filter((l) => l.origin.scope === "folder")
+      .map((l) => `f:${l.origin.folderId}`);
+    const root = projects.get(projectId);
+    const anchor = keys.length
+      ? args.folders().find((x) => `f:${x.id}` === keys[keys.length - 1])
+      : null;
+    if (
+      !anchor?.path ||
+      !root?.path ||
+      (anchor.hostId === root.hostId &&
+        within(
+          args.canonicalPath(anchor.hostId, anchor.path),
+          args.canonicalPath(anchor.hostId, root.path),
+        ))
+    )
+      keys.push(`p:${projectId}`);
+    return keys;
+  };
+  const placeName = (k: string) =>
+    k.startsWith("p:")
+      ? (projects.get(k.slice(2))?.name ?? k.slice(2))
+      : (args.folders().find((x) => x.id === k.slice(2))?.name ?? k.slice(2));
+  /** Bound skills on for this place, off for the rest. */
+  const withBindings = (
+    resolved: ReturnType<typeof resolveSessionPolicy>,
+    f: Folder | null,
+    projectId: string | null,
+  ) => {
+    const all = bindings();
+    const mine = new Set(projectId ? bindingKeys(f, projectId) : []);
+    const here = new Set<string>();
+    const elsewhere = new Set<string>();
+    for (const [k, names] of all)
+      for (const n of names) (mine.has(k) ? here : elsewhere).add(n);
+    return bindSkills(resolved, here, elsewhere);
+  };
+
   /** The deepest registered section whose folder holds the workspace. */
   const folderFor = (ctx: PolicyContext): Folder | null => {
     if (!ctx.environment.path) return null;
@@ -241,14 +319,20 @@ export function makeSessionPolicies(args: {
 
   if (available) {
     void refreshBuiltins();
+    void refreshProjects();
     agents.experimental_vkSessionPolicy!((ctx) => {
-      const place = layers(folderFor(ctx), ctx.project.id);
+      const folder = folderFor(ctx);
+      const place = layers(folder, ctx.project.id);
       // A subthread takes the place's rules with the subthread rule on top.
       const sub = isSubthread(ctx)
         ? [{ origin: SUBTHREAD_ORIGIN, value: read("s") }]
         : [];
       return toCorePolicy(
-        resolveSessionPolicy([...sub, ...place]),
+        withBindings(
+          resolveSessionPolicy([...sub, ...place]),
+          folder,
+          ctx.project.id,
+        ),
         systemItems(),
       );
     });
@@ -258,21 +342,39 @@ export function makeSessionPolicies(args: {
     available,
     read: async (scope: Scope) => {
       const own = read(key(scope));
+      await refreshProjects();
+      const folder =
+        scope.kind === "global" || scope.kind === "subthreads"
+          ? null
+          : (await args.place(scope)).folder;
       // The subthread rule sits over whatever place a subthread runs in, so
       // it has nothing of its own to inherit here.
       const parents =
         scope.kind === "global" || scope.kind === "subthreads"
           ? []
-          : layers(
-              (await args.place(scope)).folder,
-              scope.projectId,
-              true,
-            );
+          : layers(folder, scope.projectId, true);
+      // Bound skills: from a place above (on here, locked) and from places
+      // elsewhere (off here, locked), each with where it is bound.
+      const mine = new Set(
+        "projectId" in scope ? bindingKeys(folder, scope.projectId) : [],
+      );
+      const boundAbove: Record<string, string[]> = {};
+      const boundElsewhere: Record<string, string[]> = {};
+      for (const [k, names] of bindings()) {
+        if (k === key(scope)) continue;
+        const into = mine.has(k) ? boundAbove : boundElsewhere;
+        for (const n of names) (into[n] ??= []).push(placeName(k));
+      }
+      for (const n of Object.keys(boundElsewhere))
+        if (boundAbove[n] || own.onlyHere?.includes(n))
+          delete boundElsewhere[n];
       // The BB-wide instructions file the "user instructions" switch governs:
       // shown by path, and flagged when there is nothing to switch off.
       const file = path.join(bb.server.experimental_dataDir, "AGENTS.md");
       return {
         own,
+        boundAbove,
+        boundElsewhere,
         userInstructionsFile: { path: file, exists: existsSync(file) },
         inherited: resolveSessionPolicy(parents),
         effective: resolveSessionPolicy([
@@ -283,7 +385,11 @@ export function makeSessionPolicies(args: {
     },
     save: async (scope: Scope, value: SessionPolicy) => {
       if (scope.kind !== "subthreads") await args.place(scope);
-      write(key(scope), value);
+      // Only a project or a section can hold skills of its own.
+      write(
+        key(scope),
+        "projectId" in scope ? value : { ...value, onlyHere: undefined },
+      );
     },
     /** Names to offer in the editor; every source is best effort. */
     inventory: async (scope: Scope) => {

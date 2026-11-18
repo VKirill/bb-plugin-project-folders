@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bindSkills,
   isSubthread,
   normalizeSessionPolicy,
   SUBTHREAD_ORIGIN,
@@ -317,5 +318,45 @@ describe("session context rules", () => {
       mcpServers: { mode: "deny", names: ["discord-web"] },
     });
     expect(resolved.skills?.origin).toEqual(SUBTHREAD_ORIGIN);
+  });
+
+  it("loads bound skills only where they are bound", () => {
+    const allow = resolveSessionPolicy([
+      { origin: project, value: { skills: { mode: "allow", names: ["git"] } } },
+    ]);
+    const here = new Set(["meaculpa-story"]);
+    const away = new Set(["meaculpa-story", "meaculpa-cases", "git"]);
+    // Bound here: on even under an allow list; bound only elsewhere: off.
+    expect(bindSkills(allow, here, away).skills?.value).toEqual({
+      mode: "allow",
+      names: ["meaculpa-story"],
+    });
+    // Elsewhere with no rule: everything but the bound skills.
+    const none = resolveSessionPolicy([]);
+    expect(bindSkills(none, new Set(), away).skills?.value).toEqual({
+      mode: "deny",
+      names: ["meaculpa-story", "meaculpa-cases", "git"],
+    });
+    // A deny list can't take out a skill bound here.
+    const deny = resolveSessionPolicy([
+      {
+        origin: project,
+        value: { skills: { mode: "deny", names: ["meaculpa-story"] } },
+      },
+    ]);
+    expect(bindSkills(deny, here, new Set()).skills?.value).toEqual({
+      mode: "all",
+      names: [],
+    });
+    expect(bindSkills(none, new Set(), new Set())).toBe(none);
+  });
+
+  it("keeps a place's bound skills when it is saved", () => {
+    expect(
+      normalizeSessionPolicy({
+        onlyHere: [" meaculpa-story ", "meaculpa-story", "markdown-pro"],
+      }),
+    ).toEqual({ onlyHere: ["meaculpa-story"] });
+    expect(normalizeSessionPolicy({ onlyHere: [] })).toEqual({});
   });
 });

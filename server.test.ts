@@ -323,6 +323,54 @@ describe("project folder boundaries", () => {
       }
     },
   );
+  it("spawns a chat under a group in the nearest section folder and files it there", async () => {
+    const h = await setup();
+    try {
+      const f = (await h.harness.behavior.callRpc("create", {
+        projectId: "p1",
+        folderId: null,
+        name: "Nested",
+        relativePath: "nested",
+      })) as { id: string };
+      const g = (await h.harness.behavior.callRpc("group_create", {
+        projectId: "p1",
+        folderId: f.id,
+        name: "Group",
+      })) as { id: string };
+      h.harness.inspection.sdk.stub("threads.spawn", async () =>
+        makeThreadResponse({ id: "new-chat", projectId: "p1" }),
+      );
+      h.harness.inspection.sdk.stub("threads.get", async () =>
+        makeThreadResponse({
+          id: "new-chat",
+          projectId: "p1",
+          environmentId: null,
+        }),
+      );
+      await h.harness.behavior.callRpc("spawn", {
+        projectId: "p1",
+        folderId: g.id,
+        request: {
+          projectId: "p1",
+          providerId: "codex",
+          model: "selected-model",
+          reasoningLevel: "medium",
+          permissionMode: "full",
+          environment: { type: "project-default" },
+          executionInputSources: { model: "explicit" },
+          input: [{ type: "text", text: "hello" }],
+        },
+      });
+      const spawned = h.harness.inspection.sdk.callsTo("threads.spawn")[0]?.[0];
+      expect(JSON.stringify(spawned)).toContain("/work/nested");
+      const list = (await h.harness.behavior.callRpc("list", null)) as {
+        places: Record<string, string>;
+      };
+      expect(list.places).toEqual({ "new-chat": g.id });
+    } finally {
+      await h.harness.lifecycle.dispose();
+    }
+  });
   it.each([
     ["number", { option: 1 }],
     ["nested object", { option: { enabled: true } }],
@@ -2284,13 +2332,13 @@ describe("filing a chat into a section", () => {
         folderId: site.id,
       });
       expect(await places()).toEqual({});
-      await expect(
-        call("thread_place", {
-          threadId: "t1",
-          projectId: "p1",
-          folderId: group.id,
-        }),
-      ).rejects.toThrow(/group/i);
+      // A group takes a chat's place in the tree like a section does.
+      await call("thread_place", {
+        threadId: "t1",
+        projectId: "p1",
+        folderId: group.id,
+      });
+      expect(await places()).toEqual({ t1: group.id });
       await expect(
         call("thread_place", {
           threadId: "t1",

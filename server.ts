@@ -571,6 +571,9 @@ export const rpcContract = defineRpcContract({
     input: z.object({ scope: sessionScopeSchema }),
     output: z.object({
       own: sessionPolicySchema,
+      /** Skills bound to a place above (on here) or elsewhere (off here), with where. */
+      boundAbove: z.record(z.string(), z.array(z.string())),
+      boundElsewhere: z.record(z.string(), z.array(z.string())),
       userInstructionsFile: z.object({ path: z.string(), exists: z.boolean() }),
       inherited: resolvedSessionPolicySchema,
       effective: resolvedSessionPolicySchema,
@@ -2059,9 +2062,11 @@ export default async function plugin(bb: BbPluginApi) {
         .prepare("SELECT folderId FROM thread_places WHERE threadId=?")
         .get(threadId) as { folderId: string | null } | undefined
     )?.folderId;
-    const placed = placedId
+    const placedNode = placedId
       ? folders().find((x) => x.id === placedId)
       : undefined;
+    // A group has no folder: a chat filed there still works where it runs.
+    const placed = isGroup(placedNode) ? undefined : placedNode;
     const workspace = canonicalPath(env.hostId, env.path ?? "");
     const atProject = root?.path === workspace;
     const f =
@@ -2489,10 +2494,6 @@ export default async function plugin(bb: BbPluginApi) {
       if (folderId && !f) throw new Error("Section not found.");
       if (f && f.projectId !== projectId)
         throw new Error("Choose a section in this chat's project.");
-      if (f && isGroup(f))
-        throw new Error(
-          "A group holds sections, not chats. Choose a section inside it.",
-        );
       // Filing a chat where it already works leaves nothing to remember.
       if ((await naturalPlace(threadId)) === (folderId ?? null))
         db.prepare("DELETE FROM thread_places WHERE threadId=?").run(threadId);
@@ -3599,7 +3600,15 @@ export default async function plugin(bb: BbPluginApi) {
       return { updated, unchanged, failed, error };
     },
     spawn: async (input) => {
-      let f = await target(input);
+      // A chat filed under a group runs where it would without the group:
+      // the nearest section above it, else the project root.
+      const node = await target(input, { allowGroup: true });
+      const grouped = isGroup(node);
+      const anchor = grouped ? folderAnchor(node) : null;
+      const sectionId = grouped ? (anchor?.id ?? null) : input.folderId;
+      let f = grouped
+        ? (anchor ?? (await target({ ...input, folderId: null })))
+        : node;
       if (input.request.projectId !== f.projectId)
         throw new Error(
           "The composer project must match the selected section.",
@@ -3615,17 +3624,17 @@ export default async function plugin(bb: BbPluginApi) {
             ? req.environment.hostId
             : undefined;
       const pinnedHost = effectiveExecution(
-        input.folderId ? f : null,
+        sectionId ? f : null,
         f.projectId,
       ).machine?.hostId;
-      if (input.folderId && picked && picked !== f.hostId) {
+      if (sectionId && picked && picked !== f.hostId) {
         const bound = bindFolder(f, picked);
         if (bound) f = bound;
         else if (picked !== pinnedHost)
           throw new Error(
             "This section has no folder on the selected device. Set a path for that device in the section card.",
           );
-      } else if (!input.folderId && picked && picked !== f.hostId) {
+      } else if (!sectionId && picked && picked !== f.hostId) {
         const copy = (await roots()).find(
           (r) => r.projectId === f.projectId && r.hostId === picked,
         );
@@ -3679,9 +3688,9 @@ export default async function plugin(bb: BbPluginApi) {
           : undefined;
       // A one-shot startup instruction rides along with the first message and
       // is never repeated: later turns carry nothing of it.
-      const startup = effectiveStartup(input.folderId ? f : null, f.projectId);
+      const startup = effectiveStartup(sectionId ? f : null, f.projectId);
       const agentMark = await bindPinnedAgent(
-        input.folderId ? f : null,
+        sectionId ? f : null,
         f.projectId,
         f.hostId,
         req,
@@ -3738,7 +3747,7 @@ export default async function plugin(bb: BbPluginApi) {
         await handlers.thread_place({
           threadId: t.id,
           projectId: f.projectId,
-          folderId: f.id,
+          folderId: grouped ? input.folderId : f.id,
         });
       changed();
       return { id: t.id };

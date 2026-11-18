@@ -106,6 +106,15 @@ export const sessionPolicySchema = z.object({
   userInstructions: z.boolean().optional(),
   projectInstructions: z.boolean().optional(),
   claudeAiSync: z.boolean().optional(),
+  /**
+   * Skills bound to this place: loaded in its chats whatever the groups say,
+   * and in no chat anywhere else. A project binds them to its own folder and
+   * the sections inside it; a section, to itself and its subsections.
+   */
+  onlyHere: z
+    .array(z.string().trim().min(1).max(NAME_MAX))
+    .max(NAMES_MAX)
+    .optional(),
 });
 export type SessionPolicy = z.infer<typeof sessionPolicySchema>;
 
@@ -175,7 +184,45 @@ export function normalizeSessionPolicy(value: SessionPolicy): SessionPolicy {
   }
   for (const key of SESSION_POLICY_SWITCHES)
     if (value[key] !== undefined) out[key] = value[key];
+  const only = [
+    ...new Set(
+      (value.onlyHere ?? [])
+        .map((n) => n.trim())
+        .filter((n) => n && !isRequiredSessionItem("skills", n)),
+    ),
+  ];
+  if (only.length > 0) out.onlyHere = only;
   return out;
+}
+
+/**
+ * Bound skills over the resolved skills: those bound to this place or above
+ * are switched on, those bound only elsewhere switched off.
+ */
+export function bindSkills(
+  resolved: ResolvedSessionPolicy,
+  here: ReadonlySet<string>,
+  elsewhere: ReadonlySet<string>,
+): ResolvedSessionPolicy {
+  const away = [...elsewhere].filter((n) => !here.has(n));
+  if (here.size === 0 && away.length === 0) return resolved;
+  const filter = resolved.skills?.value;
+  const names = new Set(filter?.mode === "all" ? [] : filter?.names);
+  const [add, drop] =
+    filter?.mode === "allow" ? [[...here], away] : [away, [...here]];
+  for (const n of drop) names.delete(n);
+  for (const n of add) names.add(n);
+  const mode = filter?.mode === "allow" ? "allow" : "deny";
+  return {
+    ...resolved,
+    skills: {
+      value:
+        mode === "deny" && names.size === 0
+          ? { mode: "all", names: [] }
+          : { mode, names: [...names] },
+      origin: resolved.skills?.origin ?? { scope: "global", folderId: null },
+    },
+  };
 }
 
 /** The plugin-wide rule for subthreads, laid over the place's own rules. */

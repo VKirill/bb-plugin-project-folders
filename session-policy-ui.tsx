@@ -21,6 +21,9 @@ import { Input } from "./components/ui/input";
 
 type Loaded = {
   own: SessionPolicy;
+  /** Skill → the places it is bound to: above (on here) or elsewhere (off here). */
+  boundAbove?: Record<string, string[]>;
+  boundElsewhere?: Record<string, string[]>;
   userInstructionsFile: { path: string; exists: boolean };
   inherited: ResolvedSessionPolicy;
   effective: ResolvedSessionPolicy;
@@ -218,8 +221,26 @@ export function SessionPolicyEditor({ scope }: { scope: ExecutionScope }) {
           items={inventory[group] ?? []}
           disabled={busy}
           onChange={(value) => patch({ [group]: value })}
+          bound={
+            group === "skills"
+              ? {
+                  here: draft.onlyHere ?? [],
+                  above: state.boundAbove ?? {},
+                  elsewhere: state.boundElsewhere ?? {},
+                }
+              : undefined
+          }
         />
       ))}
+      {scope.kind !== "global" && scope.kind !== "subthreads" && (
+        <BoundSkills
+          here={draft.onlyHere ?? []}
+          above={state.boundAbove ?? {}}
+          items={inventory.skills ?? []}
+          disabled={busy}
+          onChange={(onlyHere) => patch({ onlyHere })}
+        />
+      )}
       <SwitchRow
         title={t("Общие инструкции BB")}
         hint={
@@ -334,6 +355,7 @@ function GroupRow({
   items,
   disabled,
   onChange,
+  bound,
 }: {
   group: SessionPolicyGroup;
   scope: ExecutionScope;
@@ -342,6 +364,12 @@ function GroupRow({
   items: InventoryItem[];
   disabled: boolean;
   onChange: (value: SessionFilter | undefined) => void;
+  /** Skills only: bound skills are locked, on or off by where they are bound. */
+  bound?: {
+    here: readonly string[];
+    above: Record<string, string[]>;
+    elsewhere: Record<string, string[]>;
+  };
 }) {
   const meta = groupMeta(group);
   const [query, setQuery] = useState("");
@@ -462,19 +490,45 @@ function GroupRow({
     }));
   }, [listed, lang]);
   const open = query.trim() ? true : undefined;
+  /** Where a bound skill belongs, or null when it is not bound. */
+  const boundNote = (name: string) =>
+    !bound
+      ? null
+      : bound.here.includes(name)
+        ? t("только здесь")
+        : bound.above[name]
+          ? t("только в: {places}").replace(
+              "{places}",
+              bound.above[name]!.join(", "),
+            )
+          : bound.elsewhere[name]
+            ? t("только в: {places}").replace(
+                "{places}",
+                bound.elsewhere[name]!.join(", "),
+              )
+            : null;
   const itemRow = (item: InventoryItem) => {
     const required = isRequired(item);
+    const note = boundNote(item.name);
     return (
       <li key={item.name}>
         <label>
           <Checkbox
-            checked={isChecked(item)}
-            disabled={disabled || required}
+            checked={
+              // Bound skills: loaded here unless bound elsewhere; a deny
+              // list ticks what it leaves out.
+              note
+                ? (own?.mode === "deny") === !!bound!.elsewhere[item.name]
+                : isChecked(item)
+            }
+            disabled={disabled || required || !!note}
             onCheckedChange={(on) => toggle(item.name, on === true)}
           />
           <span className="pf-session-item">
             <span>{item.label}</span>
-            {required ? (
+            {note ? (
+              <span className="pf-session-adds">{note}</span>
+            ) : required ? (
               <span className="pf-session-adds">
                 {PINNED_SESSION_ITEMS.has(item.name)
                   ? t("закреплён, всегда подключён")
@@ -637,6 +691,106 @@ function GroupRow({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Skills bound to this place: always loaded in its chats and in no chat
+ * elsewhere, whatever any group says. Shown whatever the skills group is set to.
+ */
+function BoundSkills({
+  here,
+  above,
+  items,
+  disabled,
+  onChange,
+}: {
+  here: readonly string[];
+  above: Record<string, string[]>;
+  items: InventoryItem[];
+  disabled: boolean;
+  onChange: (value: string[] | undefined) => void;
+}) {
+  const [name, setName] = useState("");
+  const free = items.filter(
+    (i) =>
+      !i.required &&
+      !isRequiredSessionItem("skills", i.name) &&
+      !here.includes(i.name),
+  );
+  const add = () => {
+    const n = name.trim();
+    if (!n || here.includes(n)) return;
+    onChange([...here, n]);
+    setName("");
+  };
+  const fromAbove = Object.keys(above).sort();
+  return (
+    <div className="pf-session-group">
+      <div className="pf-exec-row">
+        <div className="pf-exec-text pf-exec-text-switchless">
+          <span>{t("Навыки только здесь")}</span>
+          <span className="pf-exec-from">
+            {t(
+              "Подключаются в чатах этого места и вложенных разделов, а в других проектах и разделах выключены, и выбрать их там нельзя.",
+            )}
+            {fromAbove.length > 0 &&
+              ` ${t("Привязаны выше: {names}").replace("{names}", fromAbove.join(", "))}`}
+          </span>
+        </div>
+      </div>
+      <div className="pf-session-pick">
+        {here.length > 0 && (
+          <ul className="pf-session-list" role="list">
+            {here.map((n) => (
+              <li key={n}>
+                <label>
+                  <Checkbox
+                    checked
+                    disabled={disabled}
+                    onCheckedChange={() => {
+                      const rest = here.filter((x) => x !== n);
+                      onChange(rest.length ? rest : undefined);
+                    }}
+                  />
+                  <span className="pf-session-item">
+                    <span>{n}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="pf-session-add">
+          <Input
+            value={name}
+            list="pf-bound-skills"
+            placeholder={t("Имя навыка")}
+            aria-label={t("Привязать навык")}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+          <datalist id="pf-bound-skills">
+            {free.map((i) => (
+              <option key={i.name} value={i.name} />
+            ))}
+          </datalist>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled || !name.trim()}
+            onClick={add}
+          >
+            {t("Привязать навык")}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

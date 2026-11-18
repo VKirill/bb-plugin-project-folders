@@ -479,5 +479,12 @@
   "Развернуть ветку": "Expandir rama",
   "Скрытых вложенных чатов": "Chats anidados ocultos",
   "Есть непрочитанное": "Hay chats sin leer",
-  "Идёт работа": "Trabajo en curso"
+  "Идёт работа": "Trabajo en curso",
+  "только здесь": "solo aquí",
+  "только в: {places}": "solo en: {places}",
+  "Навыки только здесь": "Habilidades solo aquí",
+  "Подключаются в чатах этого места и вложенных разделов, а в других проектах и разделах выключены, и выбрать их там нельзя.": "Se cargan en los chats de aquí y de las secciones anidadas; desactivadas en otros proyectos y secciones, donde no se pueden elegir.",
+  "Привязаны выше: {names}": "Vinculadas arriba: {names}",
+  "Имя навыка": "Nombre de la habilidad",
+  "Привязать навык": "Vincular habilidad"
 }

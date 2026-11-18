@@ -2,8 +2,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 
-const { rpc, saved } = vi.hoisted(() => {
+const { rpc, saved, bound } = vi.hoisted(() => {
   const saved: unknown[] = [];
+  const bound: { elsewhere?: Record<string, string[]> } = {};
   const global = { scope: "global", folderId: null };
   const none = {
     bbPlugins: null,
@@ -24,6 +25,7 @@ const { rpc, saved } = vi.hoisted(() => {
   const handlers: Record<string, (input: any) => unknown> = {
     session_policy_read: () => ({
       own: { skills: { mode: "adjust", names: [], enable: [] } },
+      ...(bound.elsewhere ? { boundElsewhere: bound.elsewhere } : {}),
       userInstructionsFile: { path: "/data/AGENTS.md", exists: false },
       inherited,
       effective: inherited,
@@ -60,7 +62,7 @@ const { rpc, saved } = vi.hoisted(() => {
     },
   };
   const rpc = { call: async (m: string, input: any) => handlers[m]!(input) };
-  return { rpc, saved };
+  return { rpc, saved, bound };
 });
 vi.mock("@get-bb/plugin-sdk/app", async (original) => ({
   ...(await original<object>()),
@@ -72,6 +74,7 @@ import { SessionPolicyEditor } from "./session-policy-ui";
 afterEach(() => {
   cleanup();
   saved.length = 0;
+  delete bound.elsewhere;
 });
 
 it("switches single inherited skills in the 'as above, with changes' mode", async () => {
@@ -125,4 +128,27 @@ it("groups skills by the Agent tools tree and switches a whole section", async (
     names: [],
     enable: ["rigging", "voxel-style"],
   });
+});
+
+it("locks a skill bound elsewhere and binds one here", async () => {
+  bound.elsewhere = { "seo-agent": ["Murdoku"] };
+  const view = render(
+    <SessionPolicyEditor scope={{ kind: "project", projectId: "p1" }} />,
+  );
+  const box = (name: string) =>
+    [...view.container.querySelectorAll('[role="checkbox"]')].find((el) =>
+      el.closest("label")?.textContent?.startsWith(name),
+    ) as HTMLElement;
+  await waitFor(() => expect(box("seo-agent")).toBeTruthy());
+  // Loaded above, but bound to another place: off and locked here.
+  expect(box("seo-agent").getAttribute("aria-checked")).toBe("false");
+  expect(box("seo-agent").hasAttribute("disabled")).toBe(true);
+  expect(box("seo-agent").closest("label")?.textContent).toContain("Murdoku");
+
+  const input = view.getByRole("combobox", { name: /Привязать навык|Bind skill/ });
+  fireEvent.change(input, { target: { value: "rigging" } });
+  fireEvent.click(view.getByRole("button", { name: /Привязать навык|Bind skill/ }));
+  fireEvent.click(view.getByRole("button", { name: /Сохранить|Save/ }));
+  await waitFor(() => expect(saved).toHaveLength(1));
+  expect((saved[0] as { onlyHere: unknown }).onlyHere).toEqual(["rigging"]);
 });

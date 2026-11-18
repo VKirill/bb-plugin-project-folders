@@ -507,8 +507,8 @@ it("files a chat from a section on another device into any section of its projec
   expect(row("Remote").textContent).toContain("Currently here");
   // A section on the other device takes the chat: only the tree place changes.
   expect(row("Section").disabled).toBe(false);
-  // A group holds sections, not chats.
-  expect(row("Group").disabled).toBe(true);
+  // A group takes chats too: only the tree place changes.
+  expect(row("Group").disabled).toBe(false);
   fireEvent.click(row("Section"));
   fireEvent.click(
     await view.findByRole("button", { name: "Move", exact: true }),
@@ -589,7 +589,7 @@ it("shows where a filed chat works and offers to file it back", async () => {
   );
   view.lifecycle.unmount();
 });
-it("explains a drop on a group, which holds sections and not chats", async () => {
+it("files a dropped chat under a group without moving its folder", async () => {
   const group = {
     ...folder,
     id: "g1",
@@ -604,6 +604,7 @@ it("explains a drop on a group, which holds sections and not chats", async () =>
     {
       sidebarThreads: { threads: [thread], projects: [] },
       rpc: {
+        thread_place: () => ({ ok: true }),
         list: () => ({
           folders: [folder, group],
           roots: [root],
@@ -626,12 +627,15 @@ it("explains a drop on a group, which holds sections and not chats", async () =>
   };
   fireEvent.dragStart(chat, { dataTransfer });
   fireEvent.dragOver(target, { dataTransfer });
-  expect(target.className).toContain("pf-drop-refused");
+  expect(target.className).not.toContain("pf-drop-refused");
   fireEvent.drop(target, { dataTransfer });
-  const alert = await view.findByRole("alert");
-  expect(alert.textContent).toContain("A group has no folder of its own");
+  await waitFor(() =>
+    expect(
+      view.inspection.rpcCalls.some((c) => c.method === "thread_place"),
+    ).toBe(true),
+  );
   expect(
-    view.inspection.rpcCalls.some((c) => c.method === "thread_place"),
+    view.inspection.rpcCalls.some((c) => c.method === "thread_move"),
   ).toBe(false);
   view.lifecycle.unmount();
 });

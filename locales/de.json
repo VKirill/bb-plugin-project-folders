@@ -479,5 +479,12 @@
   "Развернуть ветку": "Zweig ausklappen",
   "Скрытых вложенных чатов": "Ausgeblendete verschachtelte Chats",
   "Есть непрочитанное": "Enthält ungelesene Chats",
-  "Идёт работа": "Arbeit läuft"
+  "Идёт работа": "Arbeit läuft",
+  "только здесь": "nur hier",
+  "только в: {places}": "nur in: {places}",
+  "Навыки только здесь": "Skills nur hier",
+  "Подключаются в чатах этого места и вложенных разделов, а в других проектах и разделах выключены, и выбрать их там нельзя.": "Werden in Chats hier und in verschachtelten Abschnitten geladen; in anderen Projekten und Abschnitten aus und dort nicht wählbar.",
+  "Привязаны выше: {names}": "Oben gebunden: {names}",
+  "Имя навыка": "Skill-Name",
+  "Привязать навык": "Skill binden"
 }

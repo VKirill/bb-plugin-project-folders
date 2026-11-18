@@ -479,5 +479,12 @@
   "Развернуть ветку": "Déplier la branche",
   "Скрытых вложенных чатов": "Chats imbriqués masqués",
   "Есть непрочитанное": "Contient des chats non lus",
-  "Идёт работа": "Travail en cours"
+  "Идёт работа": "Travail en cours",
+  "только здесь": "uniquement ici",
+  "только в: {places}": "uniquement dans : {places}",
+  "Навыки только здесь": "Compétences uniquement ici",
+  "Подключаются в чатах этого места и вложенных разделов, а в других проектах и разделах выключены, и выбрать их там нельзя.": "Chargées dans les discussions d'ici et des sections imbriquées ; désactivées ailleurs, où on ne peut pas les choisir.",
+  "Привязаны выше: {names}": "Liées plus haut : {names}",
+  "Имя навыка": "Nom de la compétence",
+  "Привязать навык": "Lier la compétence"
 }

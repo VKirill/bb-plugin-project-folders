@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.7 — Skills bound to one place, chats inside groups
+
+- **Skills only here.** Session context of a project or section gets a **Skills only here** block: pick a skill and it is bound to that place. It loads in every chat there whatever the skills group says, and in no chat anywhere else — other projects, other sections, chats without a project, subthreads. Elsewhere the skill is locked and labelled **only in: <place>**, so it cannot be ticked back on by mistake.
+- A project binds a skill to its own folder and the sections inside it; a section kept in another folder (another game in the same project) does not get it. A section binds it to itself and its subsections. One skill can be bound to several places.
+- **Chats inside groups.** A group in the sidebar gets **New chat**, like a section. A group stays a way to sort chats: the chat runs where it would without the group — the nearest section's folder, or the project's main folder, on the machine chosen as usual — and is shown under the group. Dragging a chat onto a group, or moving it there, only files it in the tree; no files move.
+- BB's own New thread screen still offers groups as labels only; start a chat in a group from the group's row.
+
 ## 0.8.6 — Skill tree and a rule for subthreads
 
 - **Skills grouped by section.** With the Agent tools plugin installed, Session context lists skills under its category tree: section → subsection → skills, the rest under **No section**. A section or subsection has its own box with an on/total count: one click switches all its skills, a partial pick shows as mixed. Sections stay folded until you search. Without Agent tools the list stays flat.

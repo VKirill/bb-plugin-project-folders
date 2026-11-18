@@ -2319,7 +2319,7 @@ function FolderHeading({
         {device && <span className="pf-host-badge">{device}</span>}
       </button>
       {!group && !compact && <RepoLink folder={folder} />}
-      {!group && !compact && (
+      {!compact && (
         <button
           className="pf-icon"
           title={t("Новый чат")}
@@ -2339,7 +2339,7 @@ function FolderHeading({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {!group && compact && (
+          {compact && (
             <DropdownMenuItem onSelect={onNewChat}>
               <Icon name="MessageCirclePlus" />
               {t("Новый чат")}
@@ -2486,7 +2486,6 @@ function Tree(props: PluginThreadListProps) {
     root: boolean,
   ) => {
     if (!chat || chat.projectId !== folder.projectId) return null;
-    if (!root && isGroupFolder(folder)) return null;
     return {
       threadId: chat.id,
       projectId: folder.projectId,
@@ -2510,9 +2509,7 @@ function Tree(props: PluginThreadListProps) {
     root: boolean,
   ): string | null => {
     if (!chat || moveTarget(chat, folder, root)) return null;
-    if (chat.projectId !== folder.projectId)
-      return t("Чат остаётся в своём проекте.");
-    return t("У группы нет своей папки: выберите раздел внутри неё.");
+    return t("Чат остаётся в своём проекте.");
   };
   /**
    * The machine a chat runs on, when it sits in a section of another one.
@@ -2530,7 +2527,8 @@ function Tree(props: PluginThreadListProps) {
     const placed = placedId
       ? data.folders.find((f) => f.id === placedId)
       : null;
-    if (!placed || placed.hostId === chat.host?.id) return undefined;
+    if (!placed || isGroupFolder(placed) || placed.hostId === chat.host?.id)
+      return undefined;
     const folder = natural
       ? data.folders.find((f) => f.id === natural)
       : data.roots.find(
@@ -2561,7 +2559,9 @@ function Tree(props: PluginThreadListProps) {
       // API for that (get-bb/bb#3904), so the server asks the chat itself —
       // it owns `update_environment_directory`. Another device can only take
       // the place in the tree, because a chat cannot change machine.
-      const sameDevice = chat.host?.id === folder.hostId;
+      // A group has no folder: filing there changes only the tree.
+      const sameDevice =
+        chat.host?.id === folder.hostId && !isGroupFolder(folder);
       if (sameDevice) {
         const moved = await rpc.call("thread_move", {
           ...target,
@@ -3507,6 +3507,16 @@ function Panel({ subPath }: PluginNavPanelProps) {
       (r) => r.projectId === projectId && folderId === `root:${r.hostId}`,
     );
   const rootSelected = folderId?.startsWith("root:") ?? false;
+  /** A group runs chats where its nearest section, else the project root, does. */
+  const runIn =
+    f && isGroupFolder(f)
+      ? (anchorOf(data.folders, f) ??
+        data.roots.find(
+          (r) => r.projectId === f.projectId && r.hostId === f.hostId,
+        ) ??
+        data.roots.find((r) => r.projectId === f.projectId))
+      : f;
+  const runAtRoot = rootSelected || (!!runIn && data.roots.includes(runIn));
   const seedKey =
     action === "chat" && f
       ? `${f.projectId}:${rootSelected ? "" : f.id}:${f.hostId}`
@@ -3524,12 +3534,13 @@ function Panel({ subPath }: PluginNavPanelProps) {
             : { kind: "folder", projectId: f.projectId, folderId: f.id },
         });
         const model = r.effective.model;
-        const copies = rootSelected
+        const at = runIn ?? f;
+        const copies = runAtRoot
           ? data.roots.filter((r) => r.projectId === f.projectId)
-          : (f.paths ?? [{ hostId: f.hostId, path: f.path }]);
+          : (at.paths ?? [{ hostId: at.hostId, path: at.path }]);
         const place = placeOnHost(
           r.effective.machine?.hostId,
-          { hostId: f.hostId, path: f.path },
+          { hostId: at.hostId, path: at.path },
           copies,
         );
         seeds = {
@@ -3600,40 +3611,30 @@ function Panel({ subPath }: PluginNavPanelProps) {
         : f?.id === r.id;
     return (
       <div key={r.id}>
-        {isGroupFolder(r) ? (
-          <div
-            className="pf-menu-group"
-            style={{ paddingLeft: 8 + depth * 16 }}
-          >
-            <Icon name="Layers" />
-            {r.name}
-          </div>
-        ) : (
-          <DropdownMenuItem
-            style={depth > 0 ? { paddingLeft: 8 + depth * 16 } : undefined}
-            onSelect={() => {
-              setSubmitError("");
-              const dest =
-                depth === 0
-                  ? `root:${
-                      rootSelected && f?.projectId === r.projectId
-                        ? f.hostId
-                        : r.hostId
-                    }`
-                  : r.id;
-              nav.toPluginPanel("folders", {
-                subPath: `chat/${r.projectId}/${dest}`,
-              });
-            }}
-          >
-            <Icon name="Folder" />
-            {r.name}
-            {otherHost && (
-              <span className="pf-menu-host">· {machineName(otherHost)}</span>
-            )}
-            {selected ? " ✓" : ""}
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem
+          style={depth > 0 ? { paddingLeft: 8 + depth * 16 } : undefined}
+          onSelect={() => {
+            setSubmitError("");
+            const dest =
+              depth === 0
+                ? `root:${
+                    rootSelected && f?.projectId === r.projectId
+                      ? f.hostId
+                      : r.hostId
+                  }`
+                : r.id;
+            nav.toPluginPanel("folders", {
+              subPath: `chat/${r.projectId}/${dest}`,
+            });
+          }}
+        >
+          <Icon name={isGroupFolder(r) ? "Layers" : "Folder"} />
+          {r.name}
+          {otherHost && (
+            <span className="pf-menu-host">· {machineName(otherHost)}</span>
+          )}
+          {selected ? " ✓" : ""}
+        </DropdownMenuItem>
         {data.folders
           .filter(
             (c) =>
@@ -3846,20 +3847,18 @@ function Panel({ subPath }: PluginNavPanelProps) {
                   {t("Прочитать всё")}
                 </DropdownMenuItem>
               )}
-              {!group && (
-                <DropdownMenuItem
-                  onSelect={() =>
-                    nav.toPluginPanel("folders", {
-                      subPath: `chat/${f.projectId}/${
-                        root ? `root:${f.hostId}` : f.id
-                      }`,
-                    })
-                  }
-                >
-                  <Icon name="MessageCirclePlus" />
-                  {t("Новый чат")}
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem
+                onSelect={() =>
+                  nav.toPluginPanel("folders", {
+                    subPath: `chat/${f.projectId}/${
+                      root ? `root:${f.hostId}` : f.id
+                    }`,
+                  })
+                }
+              >
+                <Icon name="MessageCirclePlus" />
+                {t("Новый чат")}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() =>
                   setModal({ action: "create", target, folder: f, level })
@@ -5032,8 +5031,8 @@ function Panel({ subPath }: PluginNavPanelProps) {
               chatSeeds.seeds.defaultEnvironment ?? {
                 type: "provider",
                 environmentProviderId: "project-checkout",
-                machine: { type: "existing", hostId: f.hostId },
-                inputs: { path: f.path },
+                machine: { type: "existing", hostId: (runIn ?? f).hostId },
+                inputs: { path: (runIn ?? f).path },
               }
             }
             draftKey={`project-folders:${f.id}`}
@@ -5045,7 +5044,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                 const t = await rpc.call("spawn", {
                   projectId,
                   folderId: rootSelected ? null : folderId,
-                  hostId: f.hostId,
+                  hostId: (runIn ?? f).hostId,
                   request: request as unknown as ComposerRequest,
                 });
                 nav.toThread(t.id);

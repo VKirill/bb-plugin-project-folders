@@ -523,6 +523,20 @@ export const english = {
   "Ничего не найдено": "Nothing found",
   "Имя или шаблон с * на конце": "Name, or a pattern ending in *",
   "Добавить имя": "Add name",
+  "только здесь":
+    "only here",
+  "только в: {places}":
+    "only in: {places}",
+  "Навыки только здесь":
+    "Skills only here",
+  "Подключаются в чатах этого места и вложенных разделов, а в других проектах и разделах выключены, и выбрать их там нельзя.":
+    "Loaded in chats here and in nested sections; switched off in other projects and sections, where they cannot be picked.",
+  "Привязаны выше: {names}":
+    "Bound above: {names}",
+  "Имя навыка":
+    "Skill name",
+  "Привязать навык":
+    "Bind skill",
   "Контекст сессии": "Session context",
   "Какие плагины, навыки и MCP получает сессия агента.":
     "Which plugins, skills and MCP servers an agent session gets.",

@@ -2,7 +2,7 @@
 title: Session context
 type: component
 created: 2026-09-27
-updated: 2026-09-30
+updated: 2026-11-18
 status: active
 confidence: medium
 tags: [session-context, plugins, skills, mcp]
@@ -29,6 +29,7 @@ The server stores rules and supplies a resolved per-thread policy to BB core; th
 5. The server reads and normalizes the `session_policies` JSON row for the global/project/folder key (`session-policy-server.ts:70-95`).
 6. For a thread, the server maps its host and environment path to the deepest real section folder, then gathers policy layers nearest first (`session-policy-server.ts:130-142`, `session-policy-server.ts:102-128`).
 7. Each group resolves independently. An `all` setting can lift a parent restriction; `allow` and `deny` carry selected names (`session-policy.ts:118-170`).
+7a. Bound skills (`onlyHere` in a project or section rule) are applied after resolution by `bindSkills`: switched on for chats whose place chain includes the binding place, switched off everywhere else. A project's binding covers chats with no section and sections whose folder lies inside the project's default source folder; sections elsewhere are excluded. `session_policy_read` returns `boundAbove` and `boundElsewhere` so the editor locks those skills (`session-policy.ts`, `session-policy-server.ts`).
 8. The server converts the effective policy into the core format and sends `null` when there is no restriction (`session-policy.ts:172-202`).
 9. Inventory combines BB plugin metadata, project skills and host-discovered MCP/CLI plugins; failures from optional inventory sources return empty lists (`session-policy-server.ts:178-241`).
 
