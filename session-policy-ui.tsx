@@ -120,6 +120,10 @@ function originLabel(origin: PolicyOrigin | undefined, scope: ExecutionScope) {
 
 function modeLabel(filter: SessionFilter | undefined) {
   if (!filter || filter.mode === "all") return t("Все");
+  if (filter.mode === "adjust")
+    return t("Как выше, с изменениями: +{on} −{off}")
+      .replace("{on}", String(filter.enable?.length ?? 0))
+      .replace("{off}", String(filter.names.length));
   return filter.mode === "allow"
     ? t("Только выбранные: {n}").replace("{n}", String(filter.names.length))
     : t("Все, кроме: {n}").replace("{n}", String(filter.names.length));
@@ -338,9 +342,29 @@ function GroupRow({
   const [query, setQuery] = useState("");
   const [custom, setCustom] = useState("");
   const names = own?.names ?? [];
+  const enable = own?.enable ?? [];
+  const adjust = own?.mode === "adjust";
+  // What the place above loads: `adjust` shows it and changes single items.
+  const above = inherited?.value;
+  const loadedAbove = (name: string) =>
+    !above || above.mode === "all"
+      ? true
+      : above.mode === "allow"
+        ? above.names.includes(name)
+        : !above.names.includes(name);
+  const loadedHere = (name: string) =>
+    enable.includes(name)
+      ? true
+      : names.includes(name)
+        ? false
+        : loadedAbove(name);
   const listed = useMemo(() => {
     const known = new Map(items.map((i) => [i.name, i]));
-    for (const name of [...(BUILT_IN_SESSION_ITEMS[group] ?? []), ...names])
+    for (const name of [
+      ...(BUILT_IN_SESSION_ITEMS[group] ?? []),
+      ...names,
+      ...enable,
+    ])
       if (!known.has(name)) known.set(name, { name, label: name });
     const q = query.trim().toLowerCase();
     // Required items first, then plugins that actually shape the session.
@@ -358,16 +382,28 @@ function GroupRow({
         q ? `${item.name} ${item.label}`.toLowerCase().includes(q) : true,
       )
       .sort((a, b) => weight(a) - weight(b) || a.label.localeCompare(b.label));
-  }, [group, items, names, query]);
-  const toggle = (name: string, on: boolean) =>
+  }, [group, items, names, enable, query]);
+  const toggle = (name: string, on: boolean) => {
+    if (!adjust)
+      return onChange({
+        mode: own!.mode,
+        names: on ? [...names, name] : names.filter((n) => n !== name),
+      });
+    // Same as above: no change here. Otherwise record the switch.
+    const off = names.filter((n) => n !== name);
+    const back = enable.filter((n) => n !== name);
+    const same = on === loadedAbove(name);
     onChange({
-      mode: own!.mode,
-      names: on ? [...names, name] : names.filter((n) => n !== name),
+      mode: "adjust",
+      names: same || on ? off : [...off, name],
+      enable: same || !on ? back : [...back, name],
     });
+  };
   const addCustom = () => {
     const name = custom.trim();
-    if (!name || !own || names.includes(name)) return;
-    onChange({ mode: own.mode, names: [...names, name] });
+    if (!name || !own || names.includes(name) || enable.includes(name)) return;
+    if (adjust) toggle(name, !loadedAbove(name));
+    else onChange({ mode: own.mode, names: [...names, name] });
     setCustom("");
   };
   return (
@@ -391,10 +427,12 @@ function GroupRow({
             onChange(
               mode === INHERIT
                 ? undefined
-                : {
-                    mode: mode as SessionFilter["mode"],
-                    names: mode === "all" ? [] : names,
-                  },
+                : mode === "adjust"
+                  ? { mode: "adjust", names: [], enable: [] }
+                  : {
+                      mode: mode as SessionFilter["mode"],
+                      names: mode === "all" || adjust ? [] : names,
+                    },
             );
           }}
         >
@@ -402,6 +440,9 @@ function GroupRow({
           <option value="all">{t("Все")}</option>
           <option value="allow">{t("Только выбранные")}</option>
           <option value="deny">{t("Все, кроме выбранных")}</option>
+          {scope.kind !== "global" && (
+            <option value="adjust">{t("Как выше, с изменениями")}</option>
+          )}
         </select>
       </div>
       {own && own.mode !== "all" && (
@@ -425,9 +466,11 @@ function GroupRow({
                   <label>
                     <Checkbox
                       checked={
-                        required
-                          ? own.mode === "allow"
-                          : names.includes(item.name)
+                        adjust
+                          ? required || loadedHere(item.name)
+                          : required
+                            ? own.mode === "allow"
+                            : names.includes(item.name)
                       }
                       disabled={disabled || required}
                       onCheckedChange={(on) => toggle(item.name, on === true)}
@@ -439,6 +482,12 @@ function GroupRow({
                           {PINNED_SESSION_ITEMS.has(item.name)
                             ? t("закреплён, всегда подключён")
                             : t("нужен BB, всегда подключён")}
+                        </span>
+                      ) : adjust &&
+                        (names.includes(item.name) ||
+                          enable.includes(item.name)) ? (
+                        <span className="pf-session-adds">
+                          {t("изменено здесь")}
                         </span>
                       ) : (
                         item.adds && (

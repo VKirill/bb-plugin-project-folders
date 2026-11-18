@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5 — Change single inherited skills and plugins
+
+- **New mode "As above, with changes"** for every group in Session context of a project or section. The place keeps what it inherits — the plugin-wide default, the project, the section above — and switches single skills, plugins, MCP servers or CLI plugins on or off. The list shows what loads with the inherited rule; a click records only that item, marked **changed here**, and clicking it back removes the change.
+- So a default list can grow in the plugin settings ("never load these skills in any project") while one project turns a few of them back on, without copying the whole list. A later change to the default reaches every project that only adjusts it.
+- Core still receives a plain allow or deny list; nothing changes for projects that do not use the new mode.
+
 ## 0.8.4 — BB's own plugins stay in every session
 
 - **Session context can no longer drop BB's own plugins.** Every built-in BB plugin (BB marks it `builtin`) and every skill it ships stay loaded whatever a project or section rule says: an "only selected" list always includes them, an "all except" list cannot exclude them. The list is read from BB itself, so a built-in plugin a future BB adds is covered too. In the editor they are locked as **required by BB**.

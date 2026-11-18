@@ -139,7 +139,10 @@ describe("session context rules", () => {
           {
             origin: project,
             value: {
-              bbPlugins: { mode: "deny", names: ["md-editor", "bb-guide", "env-catalog", "aif-chat"] },
+              bbPlugins: {
+                mode: "deny",
+                names: ["md-editor", "bb-guide", "env-catalog", "aif-chat"],
+              },
               skills: { mode: "allow", names: ["roblox-build"] },
             },
           },
@@ -177,5 +180,90 @@ describe("session context rules", () => {
     expect(policy.skills.names).toEqual(
       expect.arrayContaining(["workflows", "thread-list", "roblox-build"]),
     );
+  });
+
+  it("lets a place switch single items of what it inherits", () => {
+    const resolved = resolveSessionPolicy([
+      {
+        origin: folder,
+        value: {
+          skills: { mode: "adjust", names: ["seo-agent"], enable: ["rigging"] },
+        },
+      },
+      {
+        origin: project,
+        value: {
+          skills: { mode: "adjust", names: [], enable: ["roblox-build"] },
+        },
+      },
+      {
+        origin: global,
+        value: {
+          skills: {
+            mode: "deny",
+            names: ["roblox-build", "rigging", "voxel-style"],
+          },
+        },
+      },
+    ]);
+    expect(resolved.skills?.origin).toEqual(folder);
+    expect(resolved.skills?.value.mode).toBe("deny");
+    expect([...resolved.skills!.value.names].sort()).toEqual([
+      "seo-agent",
+      "voxel-style",
+    ]);
+  });
+
+  it("adjusts an allow list, and turns changes over nothing into a deny list", () => {
+    expect(
+      resolveSessionPolicy([
+        {
+          origin: project,
+          value: {
+            skills: { mode: "adjust", names: ["git"], enable: ["rigging"] },
+          },
+        },
+        {
+          origin: global,
+          value: { skills: { mode: "allow", names: ["git", "ru-text"] } },
+        },
+      ]).skills?.value,
+    ).toEqual({ mode: "allow", names: ["ru-text", "rigging"] });
+    expect(
+      resolveSessionPolicy([
+        {
+          origin: project,
+          value: {
+            skills: { mode: "adjust", names: ["seo-agent"], enable: [] },
+          },
+        },
+      ]).skills?.value,
+    ).toEqual({ mode: "deny", names: ["seo-agent"] });
+    expect(
+      resolveSessionPolicy([
+        {
+          origin: project,
+          value: { skills: { mode: "adjust", names: [], enable: ["rigging"] } },
+        },
+        {
+          origin: global,
+          value: { skills: { mode: "deny", names: ["rigging"] } },
+        },
+      ]).skills?.value,
+    ).toEqual({ mode: "all", names: [] });
+  });
+
+  it("keeps an adjust group's switches apart when it is saved", () => {
+    expect(
+      normalizeSessionPolicy({
+        skills: {
+          mode: "adjust",
+          names: [" rigging ", "seo-agent", "bb-cli", "rigging"],
+          enable: ["rigging", "markdown-pro"],
+        },
+      }),
+    ).toEqual({
+      skills: { mode: "adjust", names: ["seo-agent"], enable: ["rigging"] },
+    });
   });
 });

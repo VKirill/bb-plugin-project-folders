@@ -83,9 +83,18 @@ export function isRequiredSessionItem(
 const NAME_MAX = 200;
 const NAMES_MAX = 500;
 
+/**
+ * `adjust` keeps what the place above resolves to and changes single items:
+ * `names` are switched off here, `enable` switched back on. A resolved group
+ * is never `adjust`; core only ever sees `allow`/`deny`.
+ */
 export const sessionFilterSchema = z.object({
-  mode: z.enum(["all", "allow", "deny"]),
+  mode: z.enum(["all", "allow", "deny", "adjust"]),
   names: z.array(z.string().trim().min(1).max(NAME_MAX)).max(NAMES_MAX),
+  enable: z
+    .array(z.string().trim().min(1).max(NAME_MAX))
+    .max(NAMES_MAX)
+    .optional(),
 });
 export type SessionFilter = z.infer<typeof sessionFilterSchema>;
 
@@ -136,25 +145,32 @@ export interface SessionPolicyLayer {
   value: SessionPolicy;
 }
 
-/** Drops empty and duplicate names; an `allow`/`deny` group always stays. */
+/** Drops empty and duplicate names; an `allow`/`deny`/`adjust` group always stays. */
 export function normalizeSessionPolicy(value: SessionPolicy): SessionPolicy {
   const out: SessionPolicy = {};
   for (const group of SESSION_POLICY_GROUPS) {
     const filter = value[group];
     if (!filter) continue;
+    // Required items are never stored: they are always in the session.
+    const clean = (names: readonly string[]) => [
+      ...new Set(
+        names
+          .map((n) => n.trim())
+          .filter((n) => n && !isRequiredSessionItem(group, n)),
+      ),
+    ];
+    if (filter.mode === "adjust") {
+      const enable = clean(filter.enable ?? []);
+      out[group] = {
+        mode: "adjust",
+        names: clean(filter.names).filter((n) => !enable.includes(n)),
+        enable,
+      };
+      continue;
+    }
     out[group] = {
       mode: filter.mode,
-      // Required items are never stored: they are always in the session.
-      names:
-        filter.mode === "all"
-          ? []
-          : [
-              ...new Set(
-                filter.names
-                  .map((n) => n.trim())
-                  .filter((n) => n && !isRequiredSessionItem(group, n)),
-              ),
-            ],
+      names: filter.mode === "all" ? [] : clean(filter.names),
     };
   }
   for (const key of SESSION_POLICY_SWITCHES)
@@ -162,7 +178,51 @@ export function normalizeSessionPolicy(value: SessionPolicy): SessionPolicy {
   return out;
 }
 
-/** Nearest layer first; the first layer that sets a group wins it. */
+type ResolvedFilter = { value: SessionFilter; origin: PolicyOrigin } | null;
+
+/**
+ * Nearest layer first. The nearest `all`/`allow`/`deny` layer sets the base;
+ * `adjust` layers below it then switch single items, the farthest first. The
+ * origin is the nearest layer that touched the group.
+ */
+function resolveFilter(
+  layers: readonly SessionPolicyLayer[],
+  group: SessionPolicyGroup,
+): ResolvedFilter {
+  const adjusts: { value: SessionFilter; origin: PolicyOrigin }[] = [];
+  let base: ResolvedFilter = null;
+  for (const layer of layers) {
+    const value = layer.value[group];
+    if (!value) continue;
+    if (value.mode !== "adjust") {
+      base = { value, origin: layer.origin };
+      break;
+    }
+    adjusts.push({ value, origin: layer.origin });
+  }
+  if (adjusts.length === 0) return base;
+  // Nothing above, or `all`: everything loads, so the changes form a deny list.
+  const mode = base?.value.mode === "allow" ? "allow" : "deny";
+  const names = new Set(
+    base && mode === base.value.mode ? base.value.names : [],
+  );
+  for (const { value } of [...adjusts].reverse()) {
+    const [add, drop] =
+      mode === "allow"
+        ? [value.enable ?? [], value.names]
+        : [value.names, value.enable ?? []];
+    for (const n of add) names.add(n);
+    for (const n of drop) names.delete(n);
+  }
+  return {
+    value:
+      mode === "deny" && names.size === 0
+        ? { mode: "all", names: [] }
+        : { mode, names: [...names] },
+    origin: adjusts[0]!.origin,
+  };
+}
+
 export function resolveSessionPolicy(
   layers: readonly SessionPolicyLayer[],
 ): ResolvedSessionPolicy {
@@ -174,12 +234,10 @@ export function resolveSessionPolicy(
     return null;
   };
   return {
-    bbPlugins: pick("bbPlugins") as ResolvedSessionPolicy["bbPlugins"],
-    skills: pick("skills") as ResolvedSessionPolicy["skills"],
-    mcpServers: pick("mcpServers") as ResolvedSessionPolicy["mcpServers"],
-    nativePlugins: pick(
-      "nativePlugins",
-    ) as ResolvedSessionPolicy["nativePlugins"],
+    bbPlugins: resolveFilter(layers, "bbPlugins"),
+    skills: resolveFilter(layers, "skills"),
+    mcpServers: resolveFilter(layers, "mcpServers"),
+    nativePlugins: resolveFilter(layers, "nativePlugins"),
     userInstructions: pick(
       "userInstructions",
     ) as ResolvedSessionPolicy["userInstructions"],
@@ -191,7 +249,9 @@ export function resolveSessionPolicy(
 }
 
 /** Items a group may never lose beyond REQUIRED_SESSION_ITEMS, e.g. BB's built-in plugins and their skills. */
-export type SessionItems = Partial<Record<SessionPolicyGroup, readonly string[]>>;
+export type SessionItems = Partial<
+  Record<SessionPolicyGroup, readonly string[]>
+>;
 
 /**
  * The policy core receives, or null when nothing narrows the session. `all`

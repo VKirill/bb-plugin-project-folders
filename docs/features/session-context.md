@@ -57,6 +57,7 @@ Inventory entries are presentation choices, not validation gates: selected names
 | `all` | Explicitly inherit all entries and lift a parent restriction |
 | `allow` | Load only listed names plus required infrastructure |
 | `deny` | Load everything except listed names and required infrastructure |
+| `adjust` | Keep what the place above resolves to and switch single items: `names` off here, `enable` back on. Not offered at the plugin-wide level. The nearest `all`/`allow`/`deny` sets the base, adjust layers below it apply farthest first; over no base they form a deny list. Core never sees `adjust`, only the resolved `allow`/`deny` (`session-policy.ts` `resolveFilter`). Typical use: the plugin settings deny a set of skills for every project, one project re-enables a few of them |
 
 | Switch | Effect |
 |---|---|
