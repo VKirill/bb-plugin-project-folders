@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.9 — Chats in a git worktree stay in their section
+
+- **A chat that moves into a git worktree stays in its section.** AI Factory plans (`/aif-plan --parallel`) and agents that switch a chat to a new checkout create the worktree beside the section's folder (`../bb-plugin-lane-pilot-feature-x`), not inside it, so the chat used to drop to the project root. The plugin now reads on the device which checkout a worktree belongs to and keeps the chat under that checkout's section. A worktree of the project's own folder stays at the project root.
+- Only live worktree environments are read, once each; a device on an older build is asked again ten minutes later and the chat stays where it was until then. Chat export (`.bb/chats`) and where a chat runs do not change.
+
 ## 0.8.8 — AIF Helper and Lane Pilot are pinned
 
 - **AIF Helper (`aif-chat`) and Lane Pilot are pinned** like Markdown PRO and Env Catalog: no project, section, plugin-wide or subthread rule can leave them out, and every skill they ship stays loaded too. In Session context they are locked with **pinned, always loaded**. Rules that listed them before simply no longer apply to them.

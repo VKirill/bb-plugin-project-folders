@@ -61,4 +61,12 @@ export const moveHostContract = defineRpcContract({
       ),
     }),
   },
+  worktree_origins: {
+    input: z.object({ paths: z.array(z.string().min(1).max(4096)).max(128) }).strict(),
+    output: z.object({
+      origins: z.array(
+        z.object({ path: z.string(), main: z.string().nullable() }),
+      ),
+    }),
+  },
 });

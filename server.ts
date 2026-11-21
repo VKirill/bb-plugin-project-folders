@@ -1145,6 +1145,80 @@ export default async function plugin(bb: BbPluginApi) {
         .finally(() => githubRefreshing.delete(hostId));
     }
   };
+  /**
+   * Linked git worktrees (`git worktree add ../repo-feature-x`) sit beside the
+   * section's folder, not in it. Their main checkout, read on the device, puts
+   * a chat that moved into one back under the section it came from.
+   */
+  const WORKTREE_RETRY_MS = 10 * 60 * 1000;
+  const worktreeMains = new Map<string, { main: string | null; at: number }>();
+  const worktreeRefreshing = new Set<string>();
+  const sectionForEnvironment = (
+    hostId: string,
+    envPath: string,
+    projectId: string,
+    rootPaths: readonly string[],
+  ): Folder | null => {
+    const own = sectionForMatches(foldersAt(hostId, envPath, projectId));
+    if (own) return own;
+    const main = worktreeMains.get(githubCacheKey(hostId, envPath))?.main;
+    if (!main) return null;
+    // A worktree of the project's own checkout stays at the project root.
+    if (rootPaths.includes(canonicalPath(hostId, main))) return null;
+    return sectionForMatches(foldersAt(hostId, main, projectId));
+  };
+  const refreshWorktreeHost = async (hostId: string, paths: string[]) => {
+    let dirty = false;
+    const now = Date.now();
+    try {
+      const result = await bb.hosts
+        .experimental_client({ contract: moveHostContract })
+        .call("worktree_origins", { paths }, { hostId });
+      const found = new Map(
+        result.origins
+          .filter((o) => paths.includes(o.path))
+          .map((o) => [o.path, o.main] as const),
+      );
+      for (const p of paths) {
+        const key = githubCacheKey(hostId, p);
+        const main = found.get(p) ?? null;
+        if ((worktreeMains.get(key)?.main ?? null) !== main) dirty = true;
+        worktreeMains.set(key, { main, at: now });
+      }
+    } catch {
+      // A device on an older plugin build has no worktree_origins: retry later.
+      for (const p of paths) {
+        const key = githubCacheKey(hostId, p);
+        worktreeMains.set(key, { main: worktreeMains.get(key)?.main ?? null, at: now });
+      }
+    }
+    return dirty;
+  };
+  const scheduleWorktreeRefresh = (
+    connected: Set<string>,
+    pending: { hostId: string; path: string }[],
+  ) => {
+    const byHost = new Map<string, string[]>();
+    const now = Date.now();
+    for (const { hostId, path: p } of pending) {
+      if (!connected.has(hostId)) continue;
+      const hit = worktreeMains.get(githubCacheKey(hostId, p));
+      // A found main checkout does not change; an unknown one is asked again later.
+      if (hit && (hit.main || now - hit.at < WORKTREE_RETRY_MS)) continue;
+      const list = byHost.get(hostId) ?? [];
+      if (!list.includes(p)) list.push(p);
+      byHost.set(hostId, list);
+    }
+    for (const [hostId, paths] of byHost) {
+      if (!paths.length || worktreeRefreshing.has(hostId)) continue;
+      worktreeRefreshing.add(hostId);
+      void refreshWorktreeHost(hostId, paths.slice(0, 128))
+        .then((dirty) => {
+          if (dirty) notifyGithubChange();
+        })
+        .finally(() => worktreeRefreshing.delete(hostId));
+    }
+  };
   /** Where custom rules apply: the AGENTS.md files, BB sessions, or both. */
   type RuleTarget = "file" | "session" | "both";
   type FolderRule = {
@@ -2095,8 +2169,14 @@ export default async function plugin(bb: BbPluginApi) {
       (r) => r.projectId === t.projectId && r.hostId === env.hostId,
     );
     if (root?.path === workspace) return null;
-    const matches = foldersAt(env.hostId, env.path ?? "", t.projectId);
-    return sectionForMatches(matches)?.id ?? null;
+    return (
+      sectionForEnvironment(
+        env.hostId,
+        env.path ?? "",
+        t.projectId,
+        root ? [root.path] : [],
+      )?.id ?? null
+    );
   }
   const syncing = new Map<string, Promise<{ path: string }>>();
   const exportedHeads = new Map<string, { digest: string; snapshot: string }>();
@@ -2675,20 +2755,22 @@ export default async function plugin(bb: BbPluginApi) {
       const fs = folders();
       const projectRoots = await roots();
       const bindings: Record<string, string> = {};
+      const worktreesToRead: { hostId: string; path: string }[] = [];
       for (const e of all) {
         const workspace = canonicalPath(e.hostId, e.path ?? "");
-        if (
-          projectRoots.some(
-            (r) =>
-              r.projectId === e.projectId &&
-              r.hostId === e.hostId &&
-              r.path === workspace,
-          )
-        )
-          continue;
-        const matches = foldersAt(e.hostId, e.path ?? "", e.projectId);
-        const bound = sectionForMatches(matches);
+        const ownRoots = projectRoots.filter(
+          (r) => r.projectId === e.projectId && r.hostId === e.hostId,
+        );
+        if (ownRoots.some((r) => r.path === workspace)) continue;
+        const bound = sectionForEnvironment(
+          e.hostId,
+          e.path ?? "",
+          e.projectId,
+          ownRoots.map((r) => r.path),
+        );
         if (bound) bindings[e.id] = bound.id;
+        else if (e.isWorktree && e.path && e.lifecycle?.phase !== "destroyed")
+          worktreesToRead.push({ hostId: e.hostId, path: e.path });
       }
       // Export failures re-record themselves while they keep failing; drop stale rows.
       db.prepare(
@@ -2707,12 +2789,11 @@ export default async function plugin(bb: BbPluginApi) {
       const machines = await bb.sdk.hosts.list();
       const listedFolders = fs.map((f) => withGithubUrl(withPaths(f)));
       const listedRoots = projectRoots.map(withGithubUrl);
-      scheduleGithubRefresh(
-        new Set(
-          machines.filter((h) => h.status === "connected").map((h) => h.id),
-        ),
-        [...listedFolders, ...listedRoots],
+      const connected = new Set(
+        machines.filter((h) => h.status === "connected").map((h) => h.id),
       );
+      scheduleGithubRefresh(connected, [...listedFolders, ...listedRoots]);
+      scheduleWorktreeRefresh(connected, worktreesToRead);
       return {
         folders: listedFolders,
         roots: listedRoots,
