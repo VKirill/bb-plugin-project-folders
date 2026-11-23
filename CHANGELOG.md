@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.10 — Repointed copies and section paths keep existing section chats
+
+- **Editing a project copy's path (`copy_edit`) or a section's path (`section_path_set`) keeps older chats in their section.** BB environments keep the workspace path they were created with; `copy_edit` now records the root relocation link and rebases completed section moves (and `section_path_set` records the section path link) without forming cycles when paths move again, so existing section chats stay bound to their section and keep exporting instead of falling back to the project root.
+
 ## 0.8.9 — Chats in a git worktree stay in their section
 
 - **A chat that moves into a git worktree stays in its section.** AI Factory plans (`/aif-plan --parallel`) and agents that switch a chat to a new checkout create the worktree beside the section's folder (`../bb-plugin-lane-pilot-feature-x`), not inside it, so the chat used to drop to the project root. The plugin now reads on the device which checkout a worktree belongs to and keeps the chat under that checkout's section. A worktree of the project's own folder stays at the project root.

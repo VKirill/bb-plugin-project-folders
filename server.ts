@@ -1781,7 +1781,9 @@ export default async function plugin(bb: BbPluginApi) {
     for (let i = 0; i < 100; i++) {
       const m = sectionMoves
         .list()
-        .find((m) => m.complete && within(result, m.source));
+        .find(
+          (m) => m.complete && m.hostId === hostId && within(result, m.source),
+        );
       if (!m) return result;
       result = m.destination + result.slice(m.source.length);
     }
@@ -3106,6 +3108,47 @@ export default async function plugin(bb: BbPluginApi) {
             );
           }
         }
+        for (const row of db
+          .prepare("SELECT folderId,data FROM section_moves")
+          .all() as { folderId: string; data: string }[]) {
+          const s = JSON.parse(row.data) as {
+            hostId: string;
+            source: string;
+            destination: string;
+          };
+          if (
+            s.hostId === input.hostId &&
+            (withinTree(s.source, oldRoot) ||
+              withinTree(s.destination, oldRoot))
+          ) {
+            const nextSource = remap(s.source);
+            const nextDest = remap(s.destination);
+            if (
+              nextSource === nextDest ||
+              withinTree(nextSource, nextDest) ||
+              withinTree(nextDest, nextSource)
+            )
+              db.prepare("DELETE FROM section_moves WHERE folderId=?").run(
+                row.folderId,
+              );
+            else
+              db.prepare("UPDATE section_moves SET data=? WHERE folderId=?").run(
+                JSON.stringify({
+                  ...s,
+                  source: nextSource,
+                  destination: nextDest,
+                }),
+                row.folderId,
+              );
+          }
+        }
+        moves.recordCompleted({
+          projectId: project.id,
+          hostId: input.hostId,
+          sourceId: source.id,
+          source: oldRoot,
+          destination: p,
+        });
       })();
       changed();
       return { ok: true as const };
@@ -3122,6 +3165,9 @@ export default async function plugin(bb: BbPluginApi) {
         input.hostId,
         input.path,
       );
+      const oldPath =
+        pathsOf(folder.id).find((r) => r.hostId === input.hostId)?.path ??
+        (folder.hostId === input.hostId ? folder.path : null);
       await bb.sdk.files.mkdir({
         hostId: input.hostId,
         path: p,
@@ -3136,6 +3182,39 @@ export default async function plugin(bb: BbPluginApi) {
       writePath(folder.id, input.hostId, p);
       if (folder.hostId === input.hostId)
         db.prepare("UPDATE folders SET path=? WHERE id=?").run(p, folder.id);
+      if (oldPath && oldPath !== p) {
+        forgetGithub(input.hostId, oldPath);
+        const prior = sectionMoves
+          .list()
+          .find((m) => m.folderId === folder.id);
+        if (!prior || (prior.complete && prior.hostId === input.hostId)) {
+          const source =
+            prior && prior.destination === oldPath ? prior.source : oldPath;
+          if (
+            source === p ||
+            withinTree(source, p) ||
+            withinTree(p, source)
+          ) {
+            if (prior)
+              db.prepare("DELETE FROM section_moves WHERE folderId=?").run(
+                folder.id,
+              );
+          } else {
+            db.prepare("INSERT OR REPLACE INTO section_moves VALUES (?,?)").run(
+              folder.id,
+              JSON.stringify({
+                folderId: folder.id,
+                projectId: folder.projectId,
+                hostId: input.hostId,
+                source,
+                destination: p,
+                complete: true,
+                error: null,
+              }),
+            );
+          }
+        }
+      }
       forgetGithub(input.hostId, p);
       await seedAgents(
         { ...folder, hostId: input.hostId, path: p },

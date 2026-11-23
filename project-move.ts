@@ -42,6 +42,50 @@ export function makeProjectMoves(
     }
     throw new Error("Too many project relocation links.");
   };
+  const recordCompleted = (input: {
+    projectId: string;
+    hostId: string;
+    sourceId: string;
+    source: string;
+    destination: string;
+    keepId?: string;
+  }) => {
+    if (input.source === input.destination) return;
+    const remapDest = (q: string) =>
+      within(q, input.source)
+        ? input.destination + q.slice(input.source.length)
+        : q;
+    for (const prev of list()) {
+      if (prev.id === input.keepId || !prev.complete || prev.hostId !== input.hostId)
+        continue;
+      const nextDest = remapDest(prev.destination);
+      if (
+        nextDest === prev.source ||
+        within(nextDest, prev.source) ||
+        within(prev.source, nextDest) ||
+        prev.source === input.destination
+      ) {
+        db.prepare("DELETE FROM project_moves WHERE id=?").run(prev.id);
+      } else if (nextDest !== prev.destination) {
+        put({ ...prev, destination: nextDest });
+      }
+    }
+    if (
+      within(input.source, input.destination) ||
+      within(input.destination, input.source)
+    )
+      return;
+    put({
+      id: input.keepId ?? randomUUID(),
+      projectId: input.projectId,
+      hostId: input.hostId,
+      sourceId: input.sourceId,
+      source: input.source,
+      destination: input.destination,
+      complete: true,
+      error: null,
+    });
+  };
   const host = bb.hosts.experimental_client({ contract: moveHostContract });
   let running = false;
   async function move(input: {
@@ -225,9 +269,49 @@ export function makeProjectMoves(
               remap(e.path),
               e.threadId,
             );
+        for (const row of db
+          .prepare("SELECT folderId, data FROM section_moves")
+          .all() as { folderId: string; data: string }[]) {
+          const s = JSON.parse(row.data) as {
+            hostId: string;
+            source: string;
+            destination: string;
+          };
+          if (
+            s.hostId === m!.hostId &&
+            (within(s.source, m!.source) || within(s.destination, m!.source))
+          ) {
+            const nextSource = remap(s.source);
+            const nextDest = remap(s.destination);
+            if (
+              nextSource === nextDest ||
+              within(nextSource, nextDest) ||
+              within(nextDest, nextSource)
+            )
+              db.prepare("DELETE FROM section_moves WHERE folderId=?").run(
+                row.folderId,
+              );
+            else
+              db.prepare("UPDATE section_moves SET data=? WHERE folderId=?").run(
+                JSON.stringify({
+                  ...s,
+                  source: nextSource,
+                  destination: nextDest,
+                }),
+                row.folderId,
+              );
+          }
+        }
         m!.complete = true;
         m!.error = null;
-        put(m!);
+        recordCompleted({
+          projectId: m!.projectId,
+          hostId: m!.hostId,
+          sourceId: m!.sourceId,
+          source: m!.source,
+          destination: m!.destination,
+          keepId: m!.id,
+        });
       })();
       changed();
       return m;
@@ -242,5 +326,5 @@ export function makeProjectMoves(
       running = false;
     }
   }
-  return { list, busy, canonical, move };
+  return { list, busy, canonical, recordCompleted, move };
 }

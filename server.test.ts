@@ -2016,6 +2016,63 @@ describe("repointing a copy to a new path", () => {
         "/srv/new/server",
       );
       expect(sources.find((s) => s.hostId === "h2")?.path).toBe("/srv/new");
+      // Existing BB environments keep their pre-edit workspace path and still bind to the section.
+      h.harness.inspection.sdk.stub("environments.list", async () => [
+        {
+          id: "e_old_section",
+          projectId: "p1",
+          hostId: "h2",
+          path: "/srv/old/server",
+          status: "ready",
+        },
+        {
+          id: "e_old_root",
+          projectId: "p1",
+          hostId: "h2",
+          path: "/srv/old",
+          status: "ready",
+        },
+      ]);
+      const rebound = (await h.harness.behavior.callRpc("list", null)) as {
+        bindings: Record<string, string>;
+      };
+      expect(rebound.bindings.e_old_section).toBe(section.id);
+      expect(rebound.bindings.e_old_root).toBeUndefined();
+      // Chat on the pre-edit section environment exports under the repointed section path.
+      h.harness.inspection.sdk.stub("threads.get", async () =>
+        makeThreadResponse({
+          id: "t_old_sec",
+          projectId: "p1",
+          environmentId: "e_old_section",
+        }),
+      );
+      h.harness.inspection.sdk.stub("environments.get", async () => ({
+        projectId: "p1",
+        hostId: "h2",
+        path: "/srv/old/server",
+      }));
+      h.harness.inspection.sdk.stub("threads.timeline", async () => ({
+        rows: [],
+        timelinePage: { hasOlderRows: false, olderCursor: null },
+      }));
+      await expect(
+        h.harness.behavior.callRpc("sync", { threadId: "t_old_sec" }),
+      ).resolves.toMatchObject({ path: "/srv/new/server/.bb/chats/t_old_sec" });
+      // Repointing back to /srv/old and forward again never creates a relocation cycle.
+      await h.harness.behavior.callRpc("copy_edit", {
+        projectId: "p1",
+        hostId: "h2",
+        path: "/srv/old",
+      });
+      await h.harness.behavior.callRpc("copy_edit", {
+        projectId: "p1",
+        hostId: "h2",
+        path: "/srv/new",
+      });
+      const afterRoundTrip = (await h.harness.behavior.callRpc("list", null)) as {
+        bindings: Record<string, string>;
+      };
+      expect(afterRoundTrip.bindings.e_old_section).toBe(section.id);
       // Chat on the moved root still resolves to the new path.
       h.harness.inspection.sdk.stub("threads.get", async () =>
         makeThreadResponse({ id: "t9", projectId: "p1", environmentId: "e9" }),
@@ -2024,10 +2081,6 @@ describe("repointing a copy to a new path", () => {
         projectId: "p1",
         hostId: "h2",
         path: "/srv/new",
-      }));
-      h.harness.inspection.sdk.stub("threads.timeline", async () => ({
-        rows: [],
-        timelinePage: { hasOlderRows: false, olderCursor: null },
       }));
       await expect(
         h.harness.behavior.callRpc("sync", { threadId: "t9" }),
