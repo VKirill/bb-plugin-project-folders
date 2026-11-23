@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.11 — The plugin no longer opens BB's database
+
+- **No direct access to `bb.db`.** The plugin used to write BB's remembered project defaults by opening BB's own database; it now uses the Plugin SDK only. Choosing a project or section in the new-thread composer passes the pinned provider, model, reasoning level, service tier and permission mode to the composer (`experimental_setSelection`), and BB remembers them itself when the chat is created. Only fields that are set are passed.
+- Saving a project's execution settings no longer writes anything to BB: the page compares them with BB's remembered defaults (read through the SDK) and says they will apply on the next new chat from the composer. The **Save to BB** button is gone; the `execution_remember` RPC only compares.
+- `better-sqlite3` stays a dev-only type dependency for the plugin's own storage handle.
+
 ## 0.8.10 — Repointed copies and section paths keep existing section chats
 
 - **Editing a project copy's path (`copy_edit`) or a section's path (`section_path_set`) keeps older chats in their section.** BB environments keep the workspace path they were created with; `copy_edit` now records the root relocation link and rebases completed section moves (and `section_path_set` records the section path link) without forming cycles when paths move again, so existing section chats stay bound to their section and keep exporting instead of falling back to the project root.

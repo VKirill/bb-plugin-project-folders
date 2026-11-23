@@ -67,21 +67,17 @@ const rememberedLabel = (r: Remembered) =>
 function BbDefaultsNotice({
   bb,
   sync,
-  busy,
-  onRemember,
 }: {
   bb: BbDefaults | null | undefined;
   sync: BbSync | null;
-  busy: boolean;
-  onRemember: () => void;
 }) {
   const result =
-    sync?.status === "written"
-      ? { tone: "ok", text: t("Записано в BB: треды без явного провайдера пойдут сюда.") }
+    sync?.status === "pending"
+      ? { tone: "ok", text: t("BB запомнит это при следующем новом чате из композера, где выбран проект или раздел.") }
       : sync?.status === "unavailable"
-        ? { tone: "warn", text: t("Не записано в BB: у выбранного провайдера нет моста на машине проекта.") }
+        ? { tone: "warn", text: t("BB не запомнит это: у выбранного провайдера нет моста на машине проекта.") }
         : sync?.status === "failed"
-          ? { tone: "warn", text: `${t("Не удалось записать в BB:")} ${sync.message ?? ""}` }
+          ? { tone: "warn", text: `${t("Не удалось сверить с BB:")} ${sync.message ?? ""}` }
           : null;
   const broken = !!bb?.remembered && !bb.rememberedAvailable;
   const differs = !!bb && !bb.matches;
@@ -105,13 +101,8 @@ function BbDefaultsNotice({
           </p>
           {differs && bb.wanted && !bb.wantedAvailable && sync?.status !== "unavailable" && (
             <p className="pf-exec-bb-warn">
-              {t("Не записано в BB: у выбранного провайдера нет моста на машине проекта.")}
+              {t("BB не запомнит это: у выбранного провайдера нет моста на машине проекта.")}
             </p>
-          )}
-          {differs && bb.wanted && bb.wantedAvailable && (
-            <Button variant="outline" size="sm" disabled={busy} onClick={onRemember}>
-              {t("Записать в BB")}
-            </Button>
           )}
         </>
       )}
@@ -280,31 +271,12 @@ export function ExecutionEditor({
       setBusy(false);
     }
   };
-  const remember = async () => {
-    if (scope.kind !== "project") return;
-    setBusy(true);
-    setError("");
-    try {
-      setSync(
-        (await rpc.call("execution_remember", {
-          projectId: scope.projectId,
-        })) as BbSync,
-      );
-      await load();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
   const controls = (
     <div className="pf-exec-rows">
       {scope.kind === "project" && (
         <BbDefaultsNotice
           bb={state.bb}
           sync={sync}
-          busy={busy}
-          onRemember={() => void remember()}
         />
       )}
       <div className="pf-exec-row">

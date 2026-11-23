@@ -707,7 +707,7 @@ it("does not argue with the picker about a service tier it dropped", async () =>
   view.lifecycle.unmount();
 });
 
-it("warns that BB's remembered provider cannot run and writes the project setting on request", async () => {
+it("warns that BB's remembered provider cannot run and shows the project setting differs", async () => {
   const remembered = {
     providerId: "acp-antigravity",
     model: "gemini-3.8-flash",
@@ -738,11 +738,6 @@ it("warns that BB's remembered provider cannot run and writes the project settin
                 }
               : null,
         }),
-        execution_remember: () => ({
-          status: "written",
-          providerId: "claude-code",
-          message: null,
-        }),
       },
     },
   );
@@ -755,15 +750,6 @@ it("warns that BB's remembered provider cannot run and writes the project settin
   expect(view.baseElement.textContent).toContain(
     "chats started without an explicit provider will fail",
   );
-  fireEvent.click(view.getByRole("button", { name: "Save to BB" }));
-  await waitFor(() =>
-    expect(view.baseElement.textContent).toContain(
-      "Saved to BB: chats started without an explicit provider will go here.",
-    ),
-  );
-  expect(
-    view.inspection.rpcCalls.find((c) => c.method === "execution_remember")!
-      .input,
-  ).toEqual({ projectId: "p1" });
+  expect(view.queryByRole("button", { name: "Save to BB" })).toBeNull();
   view.lifecycle.unmount();
 });

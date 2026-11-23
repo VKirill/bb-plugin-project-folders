@@ -1,3 +1,4 @@
+import type { ExperimentalComposerSelection as Selection } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
 
 /**
@@ -276,3 +277,32 @@ export const managedWorktreeEnvironment = (hostId: string) => ({
 /** The marker CLI Agents reads from the first message to bind one chat. */
 export const agentMarker = (token: string) => `[cli-agents-selection:${token}]`;
 export const AGENT_MARKER_PATTERN = /\[cli-agents-selection:[0-9a-f-]{36}\]/;
+
+/**
+ * The pins of a resolved execution as composer picker values, for
+ * `experimental_setSelection`. In BB's new-thread composer they become the
+ * remembered defaults of the next chat, so BB records them itself. Only
+ * fields that are set are included.
+ */
+export function selectionFromExecution(
+  resolved: Pick<ResolvedExecution, "model" | "permissionMode">,
+): Selection {
+  const pin = resolved.model;
+  return {
+    ...(pin
+      ? {
+          providerId: pin.providerId,
+          model: pin.model,
+          ...(pin.reasoningLevel
+            ? { reasoningLevel: pin.reasoningLevel as Selection["reasoningLevel"] }
+            : {}),
+          ...(pin.serviceTier
+            ? { serviceTier: pin.serviceTier as Selection["serviceTier"] }
+            : {}),
+        }
+      : {}),
+    ...(resolved.permissionMode
+      ? { permissionMode: resolved.permissionMode.value as Selection["permissionMode"] }
+      : {}),
+  };
+}

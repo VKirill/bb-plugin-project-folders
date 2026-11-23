@@ -1,5 +1,3 @@
-import path from "node:path";
-import type Database from "better-sqlite3";
 import { z } from "zod";
 import {
   PERMISSION_MODES,
@@ -9,18 +7,17 @@ import {
 
 /**
  * BB's remembered execution defaults: one row per project in BB's own
- * database (`project_execution_defaults`). A chat created without an explicit
- * provider â€” `bb thread spawn` without `--provider`, a new chat outside a
- * section â€” starts from this row. BB writes it only when a chat is created in
- * its own composer, so a choice made in this plugin never reached it.
+ * database. A chat created without an explicit provider — `bb thread spawn`
+ * without `--provider`, a new chat outside a section — starts from this row.
  *
  * The Plugin SDK can read the row (`projects.defaultExecutionOptions`) but
- * not write it, so the plugin writes it the way BB itself does: one upsert of
- * one row, inside an immediate transaction, after checking the table still
- * has the columns BB's upsert uses. A core setter would replace this file.
+ * not write it, and the plugin never opens BB's database. BB writes the row
+ * itself when a chat is created in its composer with explicit picks, so the
+ * composer chip and the section action pass the pinned execution to the
+ * composer (`experimental_setSelection`) and BB remembers it from there.
  *
- * Only the project's own level writes here: BB keeps one row per project,
- * and a chat started without a section lands in the project root.
+ * Only the project's own level is compared here: BB keeps one row per
+ * project, and a chat started without a section lands in the project root.
  */
 export type Remembered = {
   providerId: string;
@@ -34,16 +31,6 @@ export type Remembered = {
 const BB_DEFAULT_REASONING = "medium";
 const BB_DEFAULT_SERVICE_TIER = "default";
 const BB_DEFAULT_PERMISSION: PermissionMode = "auto";
-
-const COLUMNS = [
-  "project_id",
-  "provider_id",
-  "model",
-  "service_tier",
-  "reasoning_level",
-  "permission_mode",
-  "updated_at",
-] as const;
 
 export const rememberedSchema = z.object({
   providerId: z.string(),
@@ -68,8 +55,9 @@ export const bbDefaultsSchema = z.object({
 });
 export type BbDefaults = z.infer<typeof bbDefaultsSchema>;
 
+/** `pending`: BB records it on the next new chat started from the composer. */
 export const bbSyncSchema = z.object({
-  status: z.enum(["written", "unchanged", "nothing", "unavailable", "failed"]),
+  status: z.enum(["pending", "unchanged", "nothing", "unavailable", "failed"]),
   providerId: z.string().nullable(),
   message: z.string().nullable(),
 });
@@ -119,73 +107,4 @@ export function parseRemembered(value: unknown): Remembered | null {
   return parsed.success && parsed.data.providerId && parsed.data.model
     ? parsed.data
     : null;
-}
-
-export const bbDatabasePath = (dataDir: string) =>
-  path.join(dataDir, "bb.db");
-
-type DatabaseCtor = new (
-  filename: string,
-  options?: Database.Options,
-) => Database.Database;
-
-/**
- * Upserts one project's row in BB's database. `Ctor` is the server's own
- * better-sqlite3, taken from the plugin's storage handle, so no second
- * native build is loaded. BB keeps the file in WAL mode: readers never wait,
- * and a concurrent writer waits up to the busy timeout instead of failing.
- */
-export function writeRemembered(
-  Ctor: DatabaseCtor,
-  file: string,
-  projectId: string,
-  value: Remembered,
-): "written" | "unchanged" {
-  const db = new Ctor(file, { fileMustExist: true });
-  try {
-    db.pragma("busy_timeout = 5000");
-    const columns = new Set(
-      (
-        db.prepare("PRAGMA table_info(project_execution_defaults)").all() as {
-          name: string;
-        }[]
-      ).map((c) => c.name),
-    );
-    const missing = COLUMNS.filter((c) => !columns.has(c));
-    if (missing.length)
-      throw new Error(
-        `BB's project_execution_defaults table changed (missing ${missing.join(", ")}). Not written.`,
-      );
-    return db
-      .transaction(() => {
-        if (!db.prepare("SELECT 1 FROM projects WHERE id=?").get(projectId))
-          throw new Error(`BB has no project ${projectId}.`);
-        const row = db
-          .prepare(
-            "SELECT provider_id AS providerId, model, reasoning_level AS reasoningLevel, service_tier AS serviceTier, permission_mode AS permissionMode FROM project_execution_defaults WHERE project_id=?",
-          )
-          .get(projectId);
-        if (sameRemembered(parseRemembered(row), value))
-          return "unchanged" as const;
-        db.prepare(
-          `INSERT INTO project_execution_defaults (project_id, provider_id, model, service_tier, reasoning_level, permission_mode, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(project_id) DO UPDATE SET provider_id=excluded.provider_id, model=excluded.model,
-             service_tier=excluded.service_tier, reasoning_level=excluded.reasoning_level,
-             permission_mode=excluded.permission_mode, updated_at=excluded.updated_at`,
-        ).run(
-          projectId,
-          value.providerId,
-          value.model,
-          value.serviceTier,
-          value.reasoningLevel,
-          value.permissionMode,
-          Date.now(),
-        );
-        return "written" as const;
-      })
-      .immediate();
-  } finally {
-    db.close();
-  }
 }

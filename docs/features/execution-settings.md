@@ -35,11 +35,10 @@ Execution defaults seed new chats with settings without replacing BB’s own def
 
 BB keeps one remembered provider, model, reasoning, service tier and permission mode per project; a chat created without an explicit provider (`bb thread spawn` without `--provider`, a new chat outside a section) starts from it.
 
-- Saving the **project** scope writes the project's resolved setting into that row: the project's own pins, else the plugin-wide default. Fields the plugin does not pin keep BB's value for the same provider, else BB's defaults (`medium`, `default`, `auto`). With no provider pinned only the permission mode changes; with nothing pinned BB's row stays as it is (`bb-remembered.ts`).
-- **Sections never write**: a section pin applies only to chats started in that section. The **plugin-wide default does not write** either: it would overwrite every project's row. A project that inherits it shows a mismatch and a «Save to BB» button.
-- A provider without a live bridge on the project's machine is never written; the save itself still succeeds and reports «Not saved to BB».
-- The project page warns when BB's row names a provider without a bridge (chats without a flag would fail) or differs from the plugin's setting, and offers «Save to BB» (`execution_remember`).
-- Why the plugin writes BB's database itself, and what replaces it: [decision 004](../decisions.md).
+- The plugin **never writes** that row and never opens BB's database; the Plugin SDK has no setter. BB writes the row itself when a chat is created from the new-thread composer with explicit picks. So when the composer chip or the section action applies a project or section, it also passes the effective provider, model, reasoning level, service tier and permission mode (only the ones that are set) to `experimental_setSelection`, and BB remembers them with the next chat (`execution.ts` `selectionFromExecution`, `composer-chip.tsx`, `section-environment.tsx`).
+- Saving the **project** scope compares the project's resolved setting with BB's row (read through `projects.defaultExecutionOptions`) and reports `unchanged`, `pending` (applies on the next new chat from the composer), `unavailable` (the provider has no live bridge on the project's machine) or `nothing`.
+- The project page warns when BB's row names a provider without a bridge (chats without a flag would fail) or differs from the plugin's setting (`execution_remember` re-compares).
+- History: [decision 004](../decisions.md).
 
 ### Execution editor states
 
@@ -96,8 +95,8 @@ Schemas and hierarchy: `execution.ts:14-70`, `execution.ts:110-161`; offered hos
 
 | RPC | Purpose | Evidence |
 |---|---|---|
-| `execution_read`, `execution_save` | Read/save pin values and resolved inheritance; on the project scope also BB's remembered row (`bb`) and the result of writing it | `server.ts` |
-| `execution_remember` | Write the project's setting into BB's remembered defaults again | `server.ts`, `bb-remembered.ts` |
+| `execution_read`, `execution_save` | Read/save pin values and resolved inheritance; on the project scope also BB's remembered row (`bb`) and the result of comparing it | `server.ts` |
+| `execution_remember` | Compare the project's setting with BB's remembered defaults (read-only) | `server.ts`, `bb-remembered.ts` |
 | `execution_agents` | Query native agent catalog for a provider | `server.ts:541-547` |
 | `spawn` | Start a chat with resolved composer fields | `server.ts:577-580` |
 

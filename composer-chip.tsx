@@ -33,7 +33,11 @@ import {
   type SectionTree,
 } from "./section-tree";
 import { t, useLanguage } from "./i18n";
-import { managedWorktreeEnvironment, placeOnHost } from "./execution";
+import {
+  managedWorktreeEnvironment,
+  placeOnHost,
+  selectionFromExecution,
+} from "./execution";
 import {
   composerCanSetSelection,
   onComposerSubmitted,
@@ -251,6 +255,7 @@ export function ComposerProjectChip() {
     setError("");
     try {
       let worktree = false;
+      let execution: ReturnType<typeof selectionFromExecution> = {};
       let hostId = folder?.hostId ?? "";
       let folderPath = folder?.path ?? "";
       if (folder && entry.kind !== "group") {
@@ -266,6 +271,7 @@ export function ComposerProjectChip() {
                 : { kind: "project" as const, projectId: entry.projectId },
           });
           worktree = read.effective.environment?.value === "worktree";
+          execution = selectionFromExecution(read.effective);
           const copies =
             folder.paths && folder.paths.length > 0
               ? folder.paths
@@ -283,6 +289,7 @@ export function ComposerProjectChip() {
           folderPath = place.path;
         } catch {
           worktree = false;
+          execution = {};
         }
       }
       if (entry.kind === "section" && folder) {
@@ -299,6 +306,9 @@ export function ComposerProjectChip() {
       } else rememberPick(null);
       await composer.experimental_setSelection({
         projectId: entry.projectId,
+        // The pinned execution rides along: in the new-thread composer BB
+        // remembers it as the project's defaults itself.
+        ...execution,
         // A project BB knows and the plugin has no folder for keeps BB's own
         // environment: there is nothing here to point it at.
         ...(folder

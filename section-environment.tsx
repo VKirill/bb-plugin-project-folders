@@ -26,7 +26,11 @@ import {
   type SectionTree,
 } from "./section-tree";
 import { direction, t, useLanguage } from "./i18n";
-import { managedWorktreeEnvironment, placeOnHost } from "./execution";
+import {
+  managedWorktreeEnvironment,
+  placeOnHost,
+  selectionFromExecution,
+} from "./execution";
 import {
   composerCanSetSelection,
   onComposerSubmitted,
@@ -261,6 +265,7 @@ export function SectionComposerAction() {
     try {
       let hostId = folder.hostId;
       let worktree = false;
+      let execution: ReturnType<typeof selectionFromExecution> = {};
       try {
         const read = await rpc.call("execution_read", {
           scope: {
@@ -270,6 +275,7 @@ export function SectionComposerAction() {
           },
         });
         worktree = read.effective.environment?.value === "worktree";
+        execution = selectionFromExecution(read.effective);
         const copies =
           folder.paths && folder.paths.length > 0
             ? folder.paths
@@ -281,6 +287,7 @@ export function SectionComposerAction() {
         ).hostId;
       } catch {
         worktree = false;
+        execution = {};
       }
       await rpc.call("section_pick", {
         projectId,
@@ -289,6 +296,7 @@ export function SectionComposerAction() {
       });
       rememberPick({ projectId, hostId, folderId: folder.id });
       await composer.experimental_setSelection({
+        ...execution,
         environment: worktree
           ? managedWorktreeEnvironment(hostId)
           : {
