@@ -15,6 +15,7 @@ import {
   threadsToMarkRead,
   INACTIVE_SECTION_THRESHOLD_MS,
   sortFoldersByActivity,
+  followParentPlaces,
 } from "./chat-list";
 const chat = (id: string, overrides = {}) => ({
   id,
@@ -791,5 +792,25 @@ describe("auto-collapsing inactive sections", () => {
         threads,
       }).map((t) => t.id),
     ).toEqual(["parent-unread", "nested-unread"]);
+  });
+});
+
+describe("followParentPlaces", () => {
+  it("files children with their hand-filed ancestor in the same project", () => {
+    const threads = [
+      { id: "p", projectId: "a" },
+      { id: "c", projectId: "a", parentThreadId: "p" },
+      { id: "g", projectId: "a", parentThreadId: "c" },
+      { id: "own", projectId: "a", parentThreadId: "p" },
+      { id: "x", projectId: "b", parentThreadId: "p" },
+      { id: "loop1", projectId: "a", parentThreadId: "loop2" },
+      { id: "loop2", projectId: "a", parentThreadId: "loop1" },
+    ];
+    expect(followParentPlaces(threads, { p: "grp", own: "" })).toEqual({
+      p: "grp",
+      own: "",
+      c: "grp",
+      g: "grp",
+    });
   });
 });

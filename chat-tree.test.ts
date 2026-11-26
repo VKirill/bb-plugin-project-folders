@@ -216,6 +216,32 @@ describe("visibleChatRows", () => {
     expect(shown.rows[0]!.summary?.count).toBe(1);
   });
 
+  it("keeps other roots when a branch is unfolded by hand", () => {
+    const roots = tree([
+      chat("a"),
+      chat("a1", "a"),
+      chat("a2", "a"),
+      chat("a3", "a"),
+      chat("b"),
+      chat("c"),
+    ]);
+    const shown = visibleChatRows(roots, {
+      ...params,
+      limit: 3,
+      collapsed: new Set(["a"]),
+    });
+    expect(ids(shown)).toEqual(["a", "b", "c"]);
+    expect(
+      ids(
+        visibleChatRows(roots, {
+          ...params,
+          limit: 3,
+          expandedBranches: new Set(["a"]),
+        }),
+      ),
+    ).toEqual(["a", "a1", "a2", "a3", "b", "c"]);
+  });
+
   it("returns every root once the list is expanded", () => {
     const roots = tree([chat("a"), chat("b"), chat("c")]);
     expect(

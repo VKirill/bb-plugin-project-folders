@@ -1,3 +1,4 @@
+import { listAll } from "./list-all";
 import path from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { Folder } from "./server";
@@ -135,7 +136,7 @@ export async function removeSection(
       "Complete delete is only for a folder inside the project. Remove an outside folder from the tree instead.",
     );
 
-  const envs = await bb.sdk.environments.list();
+  const envs = await listAll((p) => bb.sdk.environments.list(p));
   if (
     input.mode === "purge" &&
     envs.some(

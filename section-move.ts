@@ -1,3 +1,4 @@
+import { listAll } from "./list-all";
 import path from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { Folder } from "./server";
@@ -169,7 +170,7 @@ export function makeSectionMoves(
             );
         }
       const canonical = (p: string) => deps.canonical(folder.hostId, p);
-      const envs = await bb.sdk.environments.list();
+      const envs = await listAll((p) => bb.sdk.environments.list(p));
       if (
         envs.some(
           (e) =>
@@ -194,7 +195,7 @@ export function makeSectionMoves(
           .map((e) => e.id),
       );
       const checkThreads = async (stop: boolean) => {
-        const current = await bb.sdk.environments.list();
+        const current = await listAll((p) => bb.sdk.environments.list(p));
         const relevant = new Set(
           current
             .filter(

@@ -1,3 +1,4 @@
+import { listAll } from "./list-all";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
@@ -138,7 +139,7 @@ export function makeProjectMoves(
         throw new Error(
           "Another BB project uses the source or destination tree. Move it separately.",
         );
-      const envs = await bb.sdk.environments.list();
+      const envs = await listAll((p) => bb.sdk.environments.list(p));
       if (
         envs.some(
           (e) =>

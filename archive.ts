@@ -1,3 +1,4 @@
+import { listAll } from "./list-all";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -141,7 +142,7 @@ export function makeArchives(
           throw new Error(
             "This folder contains another BB project. Move it separately before archiving the section.",
           );
-        const envs = await bb.sdk.environments.list();
+        const envs = await listAll((p) => bb.sdk.environments.list(p));
         if (
           envs.some(
             (e) =>
@@ -269,7 +270,7 @@ export function makeArchives(
       }
       try {
         await options.pending();
-        const currentEnvs = await bb.sdk.environments.list();
+        const currentEnvs = await listAll((p) => bb.sdk.environments.list(p));
         const currentEnvIds = new Set(
           currentEnvs
             .filter(

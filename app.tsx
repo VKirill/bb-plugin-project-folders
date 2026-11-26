@@ -51,6 +51,7 @@ import {
   isSectionCollapsed,
   parseCollapseState,
   placeOf,
+  followParentPlaces,
   type ChatSort,
   type CollapseRecord,
   hasFolderUnread,
@@ -386,7 +387,14 @@ function useTree() {
   }, [rpc]);
   useEffect(refresh, [refresh]);
   useRealtime("changed", refresh);
-  return { rpc, data, error, refresh };
+  // Children of a hand-filed chat sit with it; `filed` keeps the hand-filed ones.
+  const { threads } = experimental_useSidebarThreads();
+  const tree = {
+    ...data,
+    places: followParentPlaces(threads, data.places),
+    filed: data.places,
+  };
+  return { rpc, data: tree, error, refresh };
 }
 function FolderDialog({
   modal,
@@ -2520,7 +2528,7 @@ function Tree(props: PluginThreadListProps) {
    * names the machine the chat runs on and its tooltip the folder it works in.
    */
   const worksIn = (chat: PluginSidebarThread) => {
-    const placedId = data.places[chat.id];
+    const placedId = data.filed[chat.id];
     if (placedId === undefined) return undefined;
     const natural = data.bindings[chat.environment?.id ?? ""] ?? null;
     if (natural === (placedId || null)) return undefined;
@@ -2800,7 +2808,7 @@ function Tree(props: PluginThreadListProps) {
           }}
           worksIn={worksIn(thread)}
           onUnplace={
-            data.places[thread.id] === undefined
+            data.filed[thread.id] === undefined
               ? undefined
               : () => void unplaceChat(thread)
           }

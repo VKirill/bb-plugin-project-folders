@@ -1,3 +1,4 @@
+import { listAll } from "./list-all";
 import { z } from "zod";
 
 export const cacheKeepaliveSchema = z.object({
@@ -65,7 +66,12 @@ export interface KeepaliveQueuedMessage {
 
 export interface KeepaliveSdkSubset {
   threads: {
-    list: (args?: { signal?: AbortSignal }) => Promise<KeepaliveThread[]>;
+    list: (args?: {
+      signal?: AbortSignal;
+      archived?: boolean;
+      limit?: number;
+      offset?: number;
+    }) => Promise<KeepaliveThread[]>;
     get?: (args: { threadId: string }) => Promise<KeepaliveThread>;
     send: (args: any) => Promise<unknown>;
     queuedMessages?: {
@@ -235,7 +241,9 @@ export function createCacheKeepalive(deps: CacheKeepaliveDeps) {
     const currentNow = now();
     let threadList: KeepaliveThread[] = [];
     try {
-      threadList = await deps.sdk.threads.list();
+      threadList = await listAll((p) =>
+        deps.sdk.threads.list({ ...p, archived: false }),
+      );
     } catch (e) {
       log?.debug?.(`Cache keepalive: failed to list threads: ${String(e)}`);
       return;

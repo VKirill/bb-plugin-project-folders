@@ -1,3 +1,4 @@
+import { listAll } from "./list-all";
 import { parseRepoRemote, repoProviderForUrl } from "./repo-remote";
 import { agentConfiguration } from "./agent-context";
 import { createRepoVisibilityCache } from "./repo-visibility";
@@ -2745,7 +2746,7 @@ export default async function plugin(bb: BbPluginApi) {
       return archives.restore(id);
     },
     list: async () => {
-      const all = await bb.sdk.environments.list();
+      const all = await listAll((p) => bb.sdk.environments.list(p));
       const fs = folders();
       const projectRoots = await roots();
       const bindings: Record<string, string> = {};
@@ -2985,7 +2986,15 @@ export default async function plugin(bb: BbPluginApi) {
           "This copy still has sections in the tree. Archive or remove them first.",
         );
       if (
-        (await bb.sdk.environments.list()).some(
+        (
+          await listAll((p) =>
+            bb.sdk.environments.list({
+              ...p,
+              projectId: project.id,
+              hostId: input.hostId,
+            }),
+          )
+        ).some(
           (e) => e.projectId === project.id && e.hostId === input.hostId,
         )
       )

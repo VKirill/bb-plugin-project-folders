@@ -229,6 +229,8 @@ export function visibleChatRows<T extends TreeChat>(
   let used = 0;
   const selected = flat.map(({ node, blocked, forced }, i) => {
     if (blocked || !eligible[i]) return false;
+    // A branch unfolded by hand adds its rows on top: it never pushes other chats out.
+    if (forced) return true;
     const t = node.thread;
     const withinLimit = used++ < params.limit;
     return (

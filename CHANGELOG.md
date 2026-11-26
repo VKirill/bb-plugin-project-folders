@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.12 — Subthreads stay under a filed parent; full lists past 200 rows
+
+- **Subthreads of a chat filed by hand stay under it.** A chat dragged or moved into a group or section by hand used to leave its subthreads (AI Factory research and implement workers, `bb thread spawn` children) where their working folder put them — often the project root — so they showed as a separate flat list instead of a branch under the parent. A chat that was not filed by hand now sits where its nearest hand-filed ancestor in the same project sits. Filing a subthread by hand still wins, and **File back where it works** only appears on chats filed by hand.
+- **Unfolding a branch no longer pushes other chats out.** The rows of a branch opened by hand used to count toward the list limit, so a parent with many subthreads hid the ordinary chats below it behind **Show all**. They now come on top of the limit.
+- **Lists past 200 rows are read in full** ([#9](https://github.com/VKirill/bb-plugin-project-folders/issues/9)). BB will cap an unpaged `threads.list` / `environments.list` at 200 rows. Cache keepalive (pinned chats) and every environment lookup — the tree, archive and restore, project and section moves, section removal, removing a project copy — now page through with `limit`/`offset` (500 per page). Cache keepalive asks only for non-archived chats.
+
 ## 0.8.11 — The plugin no longer opens BB's database
 
 - **No direct access to `bb.db`.** The plugin used to write BB's remembered project defaults by opening BB's own database; it now uses the Plugin SDK only. Choosing a project or section in the new-thread composer passes the pinned provider, model, reasoning level, service tier and permission mode to the composer (`experimental_setSelection`), and BB remembers them itself when the chat is created. Only fields that are set are passed.

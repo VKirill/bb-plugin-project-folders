@@ -268,6 +268,48 @@ export function placeOf(
   return bindings[thread.environment?.id ?? ""] ?? null;
 }
 
+/**
+ * Hand-filed places plus the ones children take from them: a chat not filed by
+ * hand sits where its nearest filed ancestor in the same project sits, so a
+ * subagent stays nested under the parent the owner filed into a group.
+ */
+export function followParentPlaces(
+  threads: readonly {
+    id: string;
+    projectId: string;
+    parentThreadId?: string | null;
+  }[],
+  places: Record<string, string>,
+): Record<string, string> {
+  const byId = new Map(threads.map((t) => [t.id, t]));
+  const out = { ...places };
+  if (!Object.keys(places).length) return out;
+  // Resolved chats, with null for "no filed ancestor": each chain is walked once.
+  const known = new Map<string, string | null>();
+  for (const t of threads) {
+    const path = new Set<string>();
+    let found: string | null = null;
+    for (let at: typeof t | undefined = t; at && !path.has(at.id); ) {
+      if (places[at.id] !== undefined) {
+        found = places[at.id]!;
+        break;
+      }
+      if (known.has(at.id)) {
+        found = known.get(at.id)!;
+        break;
+      }
+      path.add(at.id);
+      const up = byId.get(at.parentThreadId ?? "");
+      at = up?.projectId === at.projectId ? up : undefined;
+    }
+    for (const id of path) {
+      known.set(id, found);
+      if (found !== null) out[id] = found;
+    }
+  }
+  return out;
+}
+
 export function collectFolderThreads<T extends ChatThread>(
   folderId: string,
   projectId: string,
