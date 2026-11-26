@@ -2185,7 +2185,7 @@
   align-items: center;
   justify-content: center;
   align-self: stretch;
-  width: var(--pf-tree-branch-width, 24px);
+  width: var(--pf-tree-branch-width, 20px);
   height: auto;
   min-height: 28px;
   padding: 0;
@@ -2277,10 +2277,19 @@
   background: transparent;
   border: 1.5px solid currentColor;
 }
+/* Touch keeps a 36 px target without pushing the chat icon away: the target
+   grows into the empty guide space on the left, not into the row. */
 @media (pointer: coarse) {
   .pf-tree .pf-branch-toggle {
-    --pf-tree-branch-width: 36px;
-    min-width: 36px;
     min-height: 36px;
+  }
+  .pf-tree button.pf-branch-toggle {
+    position: relative;
+  }
+  .pf-tree button.pf-branch-toggle::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline: -14px -2px;
   }
 }
