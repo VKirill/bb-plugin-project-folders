@@ -198,10 +198,10 @@ describe("native chat relocation", () => {
   it("rejects active chats and another project before changing anything", async () => {
     const x = await setup({ status: "active" });
     try {
-      await expect(x.moves.move(input)).rejects.toThrow("Wait for the chat");
+      await expect(x.moves.move(input)).rejects.toThrow("can’t be moved right now");
       await expect(
         x.moves.move({ ...input, projectId: "other" }),
-      ).rejects.toThrow("this chat's project");
+      ).rejects.toThrow("the chat belongs to");
       expect(x.current().environmentId).toBe("e1");
     } finally {
       await x.h.harness.lifecycle.dispose();

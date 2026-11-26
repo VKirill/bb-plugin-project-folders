@@ -228,7 +228,7 @@ it("rejects active work and occupied destinations without a persisted barrier", 
         hostId: "h1",
         destination: f.dest,
       }),
-    ).rejects.toThrow("running chats");
+    ).rejects.toThrow("Work is still going on");
     expect(await f.h.harness.behavior.callRpc("pending_moves")).toEqual([]);
     f.active(false);
     await mkdir(f.dest);
@@ -277,7 +277,7 @@ it("rejects the filesystem root and home directory", async () => {
   const home = await realpath(os.homedir());
   await expect(
     inspectMove({ source: "/", destination: "/some-new-folder" }),
-  ).rejects.toThrow("contain each other");
+  ).rejects.toThrow("nested one inside the other");
   await expect(
     inspectMove({
       source: home,

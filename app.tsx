@@ -126,6 +126,8 @@ import {
   TREE_BRANCH_TOGGLE_WIDTH,
 } from "./tree-layout";
 import "./style.css";
+import { errorText } from "./error-text";
+import { userError } from "./user-error";
 const COLLAPSED_CHATS_KEY = "project-folders:collapsed-chats";
 type Target = { projectId: string; folderId: string | null };
 type Modal = {
@@ -292,7 +294,7 @@ function MoveToGroupDialog({
       onMoved();
       onClose();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -382,7 +384,7 @@ function useTree() {
         setData({ ...d, places: d.places ?? {} });
         setError("");
       },
-      (e) => setError(String(e)),
+      (e) => setError(errorText(e)),
     );
   }, [rpc]);
   useEffect(refresh, [refresh]);
@@ -475,7 +477,7 @@ function FolderDialog({
         },
         (e) => {
           if (live) {
-            setError(String(e));
+            setError(errorText(e));
             setLocationsLoading(false);
           }
         },
@@ -518,7 +520,7 @@ function FolderDialog({
             setLoading(false);
           },
           (e) => {
-            setError(String(e));
+            setError(errorText(e));
             setLoading(false);
           },
         );
@@ -549,7 +551,7 @@ function FolderDialog({
       },
       (e) => {
         if (live) {
-          setError(String(e));
+          setError(errorText(e));
           setLoading(false);
         }
       },
@@ -596,7 +598,7 @@ function FolderDialog({
       else if (modal.action === "rename")
         await rpc.call("rename", { ...modal.target, name });
       else if (modal.action === "forget") {
-        if (!modal.target.folderId) throw new Error("Section not found.");
+        if (!modal.target.folderId) throw userError("file_section_not_found");
         await rpc.call("section_remove", {
           folderId: modal.target.folderId,
           mode: sectionMode,
@@ -638,7 +640,7 @@ function FolderDialog({
       onCreated();
       onClose();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -652,7 +654,7 @@ function FolderDialog({
       onCreated();
       onClose();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -756,32 +758,19 @@ function FolderDialog({
                 setLoading(true);
                 void rpc
                   .call("project_browse", { hostId, path: browse })
-                  .then(setListing, (e) => setError(String(e)))
+                  .then(setListing, (e) => setError(errorText(e)))
                   .finally(() => setLoading(false));
               }}
               onBusyChange={setBusy}
+              onBack={() => setBrowse(null)}
+              chooseDisabled={!listing}
+              onChoose={(picked) => {
+                setRelative(pickedPath(picked));
+                setPicked(true);
+                if (!name) setName(picked.split("/").at(-1) || "");
+                setBrowse(null);
+              }}
             />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => setBrowse(null)}
-              >
-                {t("Назад")}
-              </Button>
-              <Button
-                disabled={busy || loading || !listing}
-                onClick={() => {
-                  if (!listing) return;
-                  setRelative(pickedPath(listing.path));
-                  setPicked(true);
-                  if (!name) setName(listing.path.split("/").at(-1) || "");
-                  setBrowse(null);
-                }}
-              >
-                {t("Выбрать папку")}
-              </Button>
-            </DialogFooter>
           </>
         ) : (
           <form
@@ -1176,7 +1165,7 @@ export function ProjectDialog({
         }
       },
       (e) => {
-        if (live) setError(String(e));
+        if (live) setError(errorText(e));
       },
     );
     return () => {
@@ -1219,7 +1208,7 @@ export function ProjectDialog({
           setListing(r);
         }
       } catch (e) {
-        if (request === browseRequest.current) setError(String(e));
+        if (request === browseRequest.current) setError(errorText(e));
       } finally {
         if (request === browseRequest.current) setLoading(false);
       }
@@ -1237,7 +1226,7 @@ export function ProjectDialog({
       const next = await rpc.call("project_browse", { hostId, path });
       if (request === browseRequest.current) setListing(next);
     } catch (e) {
-      if (request === browseRequest.current) setError(String(e));
+      if (request === browseRequest.current) setError(errorText(e));
     } finally {
       if (request === browseRequest.current) setLoading(false);
     }
@@ -1255,7 +1244,7 @@ export function ProjectDialog({
       onCreated();
       onClose();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -1331,27 +1320,14 @@ export function ProjectDialog({
                 navigate={(p) => void enter(p)}
                 refresh={() => void enter(listing.path)}
                 onBusyChange={setBusy}
-              />
-            )}
-            <DialogFooter>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => setBrowse(false)}
-              >
-                {t("Назад")}
-              </Button>
-              <Button
-                disabled={busy || loading || !listing}
-                onClick={() => {
-                  setChosen(listing!.path);
-                  if (!name) setName(listing!.path.split("/").at(-1) ?? "");
+                onBack={() => setBrowse(false)}
+                onChoose={(picked) => {
+                  setChosen(picked);
+                  if (!name) setName(picked.split("/").at(-1) ?? "");
                   setBrowse(false);
                 }}
-              >
-                {t("Выбрать папку")}
-              </Button>
-            </DialogFooter>
+              />
+            )}
           </>
         ) : (
           <form
@@ -1448,7 +1424,7 @@ function CopiesDialog({
   const load = useCallback(() => {
     rpc.call("machines").then(
       (r) => setMachines(r.machines),
-      (e) => setError(String(e)),
+      (e) => setError(errorText(e)),
     );
     if (root)
       rpc.call("list").then(
@@ -1481,7 +1457,7 @@ function CopiesDialog({
       },
       (e) => {
         if (live) {
-          setError(String(e));
+          setError(errorText(e));
           setLoading(false);
         }
       },
@@ -1497,7 +1473,7 @@ function CopiesDialog({
     try {
       setListing(await rpc.call("project_browse", { hostId, path: p }));
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setLoading(false);
     }
@@ -1517,7 +1493,7 @@ function CopiesDialog({
       onChanged();
       load();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -1535,7 +1511,7 @@ function CopiesDialog({
       onChanged();
       load();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -1578,26 +1554,13 @@ function CopiesDialog({
                 navigate={(p) => void enter(p)}
                 refresh={() => void enter(listing.path)}
                 onBusyChange={setBusy}
-              />
-            )}
-            <DialogFooter>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => setBrowse(false)}
-              >
-                {t("Назад")}
-              </Button>
-              <Button
-                disabled={busy || loading || !listing}
-                onClick={() => {
-                  setChosen(listing!.path.replace(/\/$/, ""));
+                onBack={() => setBrowse(false)}
+                onChoose={(picked) => {
+                  setChosen(picked);
                   setBrowse(false);
                 }}
-              >
-                {t("Выбрать папку")}
-              </Button>
-            </DialogFooter>
+              />
+            )}
           </>
         ) : (
           <div className="pf-copies">
@@ -1860,7 +1823,7 @@ function ThreadRow({
       await a.rename(thread.id, title);
       setEditing(false);
     } catch (error) {
-      setRenameError(String(error));
+      setRenameError(errorText(error));
       inputRef.current?.focus();
     } finally {
       renamePending.current = false;
@@ -2440,7 +2403,7 @@ function Tree(props: PluginThreadListProps) {
     void saveItem(key, {
       ...(items[key] ?? {}),
       hidden: isHidden(f, root) ? undefined : true,
-    }).catch((e) => alert(String(e)));
+    }).catch((e) => alert(errorText(e)));
   };
   const { threads, projects, status } = experimental_useSidebarThreads();
   const providersState = experimental_useProviders();
@@ -2592,7 +2555,7 @@ function Tree(props: PluginThreadListProps) {
       });
       refresh();
     } catch (error) {
-      setMoveError(String(error));
+      setMoveError(errorText(error));
       if (!fromDrop) setMovingChat(chat);
     } finally {
       setMoveBusy(false);
@@ -2604,7 +2567,7 @@ function Tree(props: PluginThreadListProps) {
       await rpc.call("thread_place_clear", { threadId: chat.id });
       refresh();
     } catch (error) {
-      setMoveError(String(error));
+      setMoveError(errorText(error));
     }
   };
 
@@ -2873,7 +2836,7 @@ function Tree(props: PluginThreadListProps) {
       await rpc.call("group_delete", { folderId: g.id });
       refresh();
     } catch (e) {
-      alert(String(e));
+      alert(errorText(e));
     }
   };
   const node = (f: Folder, root = false): React.ReactNode => {
@@ -3295,7 +3258,7 @@ function ArchiveList({ bare = false }: { bare?: boolean }) {
   const refresh = useCallback(() => {
     rpc.call("archive_list").then(
       (r) => setItems(r.archives),
-      (e) => setError(String(e)),
+      (e) => setError(errorText(e)),
     );
   }, [rpc]);
   useEffect(refresh, [refresh]);
@@ -3309,7 +3272,7 @@ function ArchiveList({ bare = false }: { bare?: boolean }) {
       else await rpc.call("restore", { id: a.id });
       refresh();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(null);
     }
@@ -3428,7 +3391,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
     void saveItemStyle(key, {
       ...(itemStyles[key] ?? {}),
       hidden: panelHidden(f, root) ? undefined : true,
-    }).catch((e) => alert(String(e)));
+    }).catch((e) => alert(errorText(e)));
   };
   const [styling, setStyling] = useState<{
     projectId: string;
@@ -3469,7 +3432,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
       await rpc.call("section_reparent", { folderId, parentId });
       refresh();
     } catch (e) {
-      setReorderError(String(e));
+      setReorderError(errorText(e));
     }
   };
   const deleteGroup = async (g: Folder) => {
@@ -3485,7 +3448,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
       if (selectedKey === g.id) setSelectedKey(null);
       refresh();
     } catch (e) {
-      setReorderError(String(e));
+      setReorderError(errorText(e));
     }
   };
   const [reorderError, setReorderError] = useState("");
@@ -3704,7 +3667,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
           });
     call.then(
       () => refresh(),
-      (e) => setReorderError(String(e)),
+      (e) => setReorderError(errorText(e)),
     );
   };
   const sideNode = (f: Folder, root: boolean): React.ReactNode => {
@@ -4180,7 +4143,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
         (e) => {
           if (live) {
             setCardDraft("");
-            setCardRuleError(String(e));
+            setCardRuleError(errorText(e));
           }
         },
       );
@@ -4224,7 +4187,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
         setCardClaude(draft);
       }
     } catch (e) {
-      setCardRuleError(String(e));
+      setCardRuleError(errorText(e));
     } finally {
       setCardSaving(false);
     }
@@ -4249,7 +4212,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
       setRuleModeSaved(ruleDraft.mode);
       setRuleSaved(true);
     } catch (e) {
-      setRuleError(String(e));
+      setRuleError(errorText(e));
     } finally {
       setRuleSaving(false);
     }
@@ -4769,7 +4732,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                             folderId: sel.id,
                             hostId: cardHost,
                           })
-                          .then(refresh, (e) => setCardRuleError(String(e)))
+                          .then(refresh, (e) => setCardRuleError(errorText(e)))
                       }
                     >
                       {t("Убрать путь")}
@@ -4785,7 +4748,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                             folderId: sel.id,
                             hostId: cardHost,
                           })
-                          .then(refresh, (e) => setCardRuleError(String(e)))
+                          .then(refresh, (e) => setCardRuleError(errorText(e)))
                       }
                     >
                       {t("Сделать основной")}
@@ -5057,15 +5020,7 @@ function Panel({ subPath }: PluginNavPanelProps) {
                 });
                 nav.toThread(t.id);
               } catch (e) {
-                const message = e instanceof Error ? e.message : String(e);
-                const m = message.match(
-                  /This section lives on the "(.+)" device\./,
-                );
-                setSubmitError(
-                  m
-                    ? `${t("Этот раздел живёт на устройстве")} «${m[1]}». ${t("Выберите это устройство или создайте раздел на нужном сервере.")}`
-                    : message,
-                );
+                setSubmitError(errorText(e));
                 throw e;
               }
             }}

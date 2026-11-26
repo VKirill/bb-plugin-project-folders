@@ -64,3 +64,23 @@ it("protects registered folders even through a parent alias", async () => {
   ).rejects.toThrow("belongs to a project");
   expect((await stat(path.join(parent, "Project"))).isDirectory()).toBe(true);
 });
+it("explains a duplicate folder name, a missing parent and a full folder in plain words", async () => {
+  const parent = await root();
+  await mkdir(path.join(parent, "Same"));
+  await expect(
+    editFolder({ parent, name: "Same", action: "create" }),
+  ).rejects.toThrow(
+    /A folder named “Same” already exists in “.+”\. Choose another name\./,
+  );
+  await expect(
+    editFolder({
+      parent: path.join(parent, "gone"),
+      name: "X",
+      action: "create",
+    }),
+  ).rejects.toThrow(/gone.*was not found/);
+  await writeFile(path.join(parent, "Same", "f"), "x");
+  await expect(
+    editFolder({ parent, name: "Same", action: "delete" }),
+  ).rejects.toThrow(/is not empty/);
+});

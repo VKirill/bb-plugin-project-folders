@@ -484,7 +484,7 @@ describe("project folder boundaries", () => {
           name: "Wrong host",
           relativePath: "wrong",
         }),
-      ).rejects.toThrow(/project source/);
+      ).rejects.toThrow(/no folder on the selected device/);
     } finally {
       await h.harness.lifecycle.dispose();
     }
@@ -1409,13 +1409,13 @@ describe("AGENTS.md template", () => {
           parentId: null,
           ids: [b.id],
         }),
-      ).rejects.toThrow(/as a whole/);
+      ).rejects.toThrow(/must be set/);
       await expect(
         h.harness.behavior.callRpc("reorder", {
           kind: "projects",
           ids: ["unknown"],
         }),
-      ).rejects.toThrow(/as a whole/);
+      ).rejects.toThrow(/must be set/);
       await h.harness.behavior.callRpc("reorder", {
         kind: "projects",
         ids: ["p1"],
@@ -1740,14 +1740,14 @@ describe("multi-device working copies", () => {
           hostId: "h2",
           path: "/srv/other",
         }),
-      ).rejects.toThrow(/already has a copy/);
+      ).rejects.toThrow(/already has a folder/);
       await expect(
         h.harness.behavior.callRpc("copy_add", {
           projectId: "p1",
           hostId: "h1",
           path: "relative/path",
         }),
-      ).rejects.toThrow(/absolute/);
+      ).rejects.toThrow(/full folder path/);
     } finally {
       await h.harness.lifecycle.dispose();
     }
@@ -1937,13 +1937,13 @@ describe("multi-device working copies", () => {
           projectId: "p1",
           hostId: "h2",
         }),
-      ).rejects.toThrow(/last working copy/);
+      ).rejects.toThrow(/last folder/);
       await expect(
         h.harness.behavior.callRpc("copy_remove", {
           projectId: "p1",
           hostId: "unknown",
         }),
-      ).rejects.toThrow(/no copy/);
+      ).rejects.toThrow(/has no folder on this device/);
     } finally {
       await h.harness.lifecycle.dispose();
     }
@@ -2091,7 +2091,7 @@ describe("repointing a copy to a new path", () => {
           hostId: "h2",
           path: "relative",
         }),
-      ).rejects.toThrow(/absolute/);
+      ).rejects.toThrow(/full folder path/);
       // A folder used by ANOTHER project on the same device is rejected;
       // the same path on a different device would be fine.
       h.harness.inspection.sdk.stub("projects.list", async () => [
@@ -2230,7 +2230,7 @@ describe("sections on another device inside a group", () => {
           hostId: "h1",
           name: "x",
         }),
-      ).rejects.toThrow(/parent folder’s device/);
+      ).rejects.toThrow(/same device as its parent/);
     } finally {
       await h.harness.lifecycle.dispose();
     }
@@ -2260,7 +2260,7 @@ describe("sections on another device inside a group", () => {
       ).toBe(true);
       for (const [relativePath, error] of [
         ["/", /disk root/],
-        ["/home/u", /overlaps the project folder/],
+        ["/home/u", /overlaps the folder of the project/],
         ["/home/u/sites/.git", /reserved/],
       ] as const)
         await expect(

@@ -5,6 +5,7 @@ import { t } from "./i18n";
 import { Button } from "./components/ui/button";
 import { Icon } from "./components/ui/icon";
 import { AGENTS_BLOCK_END, AGENTS_BLOCK_START } from "./agents-template";
+import { errorText } from "./error-text";
 
 type ApplyResult = {
   updated: number;
@@ -25,7 +26,7 @@ export function AgentsApply() {
     try {
       setResult(await rpc.call("agents_apply", null));
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -73,7 +74,7 @@ export function AgentsRulesEditor() {
         if (live) setConfig(c);
       },
       (e) => {
-        if (live) setError(String(e));
+        if (live) setError(errorText(e));
       },
     );
     return () => {
@@ -95,7 +96,7 @@ export function AgentsRulesEditor() {
       setDirty(false);
       setSaved(true);
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

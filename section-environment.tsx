@@ -35,6 +35,7 @@ import {
   composerCanSetSelection,
   onComposerSubmitted,
 } from "./composer-compat";
+import { errorText } from "./error-text";
 
 export { SECTION_ENVIRONMENT_ID };
 
@@ -65,7 +66,7 @@ export function SectionEnvironmentInputs({
     let live = true;
     rpc.call("list", null).then(
       (r) => live && setTree({ folders: r.folders, roots: r.roots }),
-      (e) => live && setError(String(e)),
+      (e) => live && setError(errorText(e)),
     );
     return () => {
       live = false;
@@ -308,7 +309,7 @@ export function SectionComposerAction() {
       });
       setChosen(folder);
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

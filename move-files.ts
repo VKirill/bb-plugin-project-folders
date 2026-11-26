@@ -1,6 +1,7 @@
 import { lstat, realpath, rename, symlink, readlink } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import { userError } from "./user-error";
 export const within = (p: string, root: string) =>
   p === root || p.startsWith(root.endsWith(path.sep) ? root : root + path.sep);
 async function stat(p: string) {
@@ -15,10 +16,7 @@ export async function inspectMove(input: {
   source: string;
   destination: string;
 }) {
-  if (process.platform === "win32")
-    throw new Error(
-      "Project relocation currently supports macOS and Linux only.",
-    );
+  if (process.platform === "win32") throw userError("file_unsupported_os");
   const source = path.resolve(input.source),
     destination = path.resolve(input.destination);
   if (
@@ -26,14 +24,14 @@ export async function inspectMove(input: {
     !path.isAbsolute(input.destination) ||
     /[\x00-\x1f]/.test(source + destination)
   )
-    throw new Error("Choose absolute folder paths.");
+    throw userError("file_paths_not_absolute");
   if (within(destination, source) || within(source, destination))
-    throw new Error("Source and destination must not contain each other.");
+    throw userError("file_paths_nested", { source, destination });
   const src = await stat(source),
     dst = await stat(destination);
   const parent = await realpath(path.dirname(destination));
   if (parent !== path.dirname(destination))
-    throw new Error("Choose a destination without symbolic-link parents.");
+    throw userError("file_dest_symlink_parent", { path: destination });
   if (
     src?.isSymbolicLink() &&
     dst?.isDirectory() &&
@@ -41,9 +39,9 @@ export async function inspectMove(input: {
   )
     return { source, destination, moved: true };
   if (!src?.isDirectory() || src.isSymbolicLink())
-    throw new Error("The source must be an existing real project directory.");
+    throw userError("file_source_not_dir", { path: source });
   if ((await realpath(source)) !== source)
-    throw new Error("Choose a source without symbolic-link parents.");
+    throw userError("file_source_symlink_parent", { path: source });
   const home = await realpath(os.homedir());
   for (const protectedPath of [
     home,
@@ -52,23 +50,14 @@ export async function inspectMove(input: {
     path.join(home, ".bb-machines"),
   ])
     if (within(protectedPath, source))
-      throw new Error(
-        "The home folder or a directory containing BB runtime data cannot be moved.",
-      );
-  if (dst)
-    throw new Error(
-      "The destination already exists. Choose a new folder name; folders are never merged or overwritten.",
-    );
+      throw userError("file_source_protected", { path: source });
+  if (dst) throw userError("file_dest_exists", { path: destination });
   const parentStat = await lstat(parent);
   if (src.dev !== parentStat.dev)
-    throw new Error(
-      "Choose a folder on the same disk volume. Cross-volume relocation is not supported yet.",
-    );
+    throw userError("file_other_volume", { path: source });
   // A linked worktree needs git worktree repair and its external repository; do not move it implicitly.
   if ((await stat(path.join(source, ".git")))?.isFile())
-    throw new Error(
-      "Linked Git worktrees must be moved with Git worktree tools.",
-    );
+    throw userError("file_worktree_linked", { path: source });
   return { source, destination, moved: false };
 }
 export async function moveDirectory(input: {
@@ -84,9 +73,10 @@ export async function moveDirectory(input: {
   } catch (e) {
     // Do not undo over a path another process has created.
     if (!(await stat(plan.source))) await rename(plan.destination, plan.source);
-    throw new Error(
-      "Could not create the compatibility link. Inspect the source and destination before retrying.",
-    );
+    throw userError("file_link_failed", {
+      source: plan.source,
+      destination: plan.destination,
+    });
   }
   return { ...plan, moved: true };
 }
@@ -104,15 +94,16 @@ export async function linkDirectory(input: {
     !path.isAbsolute(input.destination) ||
     /[\x00-\x1f]/.test(source + destination)
   )
-    throw new Error("Choose absolute folder paths.");
+    throw userError("file_paths_not_absolute");
   if (within(destination, source) || within(source, destination))
-    throw new Error("Source and destination must not contain each other.");
-  if (await stat(source)) throw new Error("The original path already exists.");
+    throw userError("file_paths_nested", { source, destination });
+  if (await stat(source))
+    throw userError("file_original_exists", { path: source });
   const dst = await stat(destination);
   if (!dst?.isDirectory() || dst.isSymbolicLink())
-    throw new Error("The destination must be an existing real directory.");
+    throw userError("file_dest_not_dir", { path: destination });
   if ((await realpath(destination)) !== destination)
-    throw new Error("Choose a destination without symbolic-link parents.");
+    throw userError("file_dest_symlink_parent", { path: destination });
   await symlink(destination, source, "dir");
   return { source, destination, moved: true };
 }

@@ -3,7 +3,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { moveHostContract } from "./move-contract";
-import { archiveSchema } from "./archive";
+import { archiveSchema, busyThread } from "./archive";
+import { userError } from "./user-error";
 type Move = {
   id: string;
   projectId: string;
@@ -41,7 +42,7 @@ export function makeProjectMoves(
       if (!m) return result;
       result = m.destination + result.slice(m.source.length);
     }
-    throw new Error("Too many project relocation links.");
+    throw userError("sec_project_links_loop", { path: p });
   };
   const recordCompleted = (input: {
     projectId: string;
@@ -94,7 +95,7 @@ export function makeProjectMoves(
     hostId: string;
     destination: string;
   }) {
-    if (running) throw new Error("Another project move is running.");
+    if (running) throw userError("sec_project_move_running");
     running = true;
     let m: Move | undefined;
     try {
@@ -103,15 +104,18 @@ export function makeProjectMoves(
       const source = project?.sources.find(
         (s) => s.type === "local_path" && s.hostId === input.hostId,
       );
-      if (!project || !source) throw new Error("Project source not found.");
+      if (!project) throw userError("sec_project_not_found");
+      if (!source)
+        throw userError("sec_project_source_missing", { project: project.name });
       m = list().find((m) => m.projectId === input.projectId && !m.complete);
       if (
         m &&
         (m.destination !== input.destination || m.hostId !== input.hostId)
       )
-        throw new Error(
-          "Retry the unfinished move to its original destination first.",
-        );
+        throw userError("sec_project_move_retry_first", {
+          project: project.name,
+          destination: m.destination,
+        });
       if (!m)
         m = {
           id: randomUUID(),
@@ -136,9 +140,10 @@ export function makeProjectMoves(
             ),
         )
       )
-        throw new Error(
-          "Another BB project uses the source or destination tree. Move it separately.",
-        );
+        throw userError("sec_project_move_other_project", {
+          project: project.name,
+          path: m.destination,
+        });
       const envs = await listAll((p) => bb.sdk.environments.list(p));
       if (
         envs.some(
@@ -149,9 +154,7 @@ export function makeProjectMoves(
             within(canonical(e.hostId, e.path), m!.source),
         )
       )
-        throw new Error(
-          "Another project has an environment inside this folder.",
-        );
+        throw userError("sec_foreign_env", { path: m.source });
       if (
         envs.some(
           (e) =>
@@ -161,9 +164,7 @@ export function makeProjectMoves(
             !within(canonical(e.hostId, e.path), m!.source),
         )
       )
-        throw new Error(
-          "This project has environments outside its folder. Relocate those separately before moving the project.",
-        );
+        throw userError("sec_project_env_outside", { project: project.name, path: m.source });
       const archived = (
         db.prepare("SELECT data FROM folder_archives").all() as {
           data: string;
@@ -174,9 +175,7 @@ export function makeProjectMoves(
           (a) => a.folder.projectId === project.id && a.state !== "archived",
         )
       )
-        throw new Error(
-          "Finish pending archive operations before moving this project.",
-        );
+        throw userError("sec_archives_pending_project", { project: project.name });
       await host.call(
         "inspect",
         { source: m.source, destination: m.destination },
@@ -200,9 +199,10 @@ export function makeProjectMoves(
                 t.queuedWork !== "none" ||
                 Object.values(t.activity).some((n) => n > 0)
               )
-                throw new Error(
-                  "Finish all running chats and queued work before moving the project.",
-                );
+                throw userError("sec_project_running_chats", {
+                  project: project!.name,
+                  chat: t.title || t.id,
+                });
               if (stop) await bb.sdk.threads.stop({ threadId: t.id });
             }
             if (threads.length < 200) break;

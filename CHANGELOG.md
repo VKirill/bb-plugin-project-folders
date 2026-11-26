@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.13 — Errors people can read; a new folder is the one you choose
+
+- **Every error now says what happened, where and what to do, in the interface language.** About 190 messages from projects, sections, archives, moves, chat filing, backups and the device's disk were rewritten: they name the project, section, device, chat or folder involved and the next step. They are shown in all 11 UI languages instead of English, without the `experimental_PluginRpcCallError:` prefix. Example: “The folder … is already connected as the project “Мои проекты”. Choose another folder (for example, create a subfolder like “…/My projects/New project”) or open that project.”
+- Disk, network and BB failures get plain explanations too: no permission for a folder, folder not found or already there, disk full, BB server unreachable, invalid fields. The CLI and logs keep a readable English first line.
+- **A folder created in the folder picker is the one that gets chosen.** Creating a folder now opens it, so **Choose folder** picks the new folder instead of its parent. A folder name typed but not confirmed with ✓ is created (or the existing folder of that name is taken) when you press **Choose folder**. Before, both cases silently chose the parent folder — for a new project that meant “This folder is already connected as a project”.
+
 ## 0.8.12 — Subthreads stay under a filed parent; full lists past 200 rows
 
 - **Subthreads of a chat filed by hand stay under it.** A chat dragged or moved into a group or section by hand used to leave its subthreads (AI Factory research and implement workers, `bb thread spawn` children) where their working folder put them — often the project root — so they showed as a separate flat list instead of a branch under the parent. A chat that was not filed by hand now sits where its nearest hand-filed ancestor in the same project sits. Filing a subthread by hand still wins, and **File back where it works** only appears on chats filed by hand.

@@ -250,7 +250,7 @@ it("archives and restores existing idle chats and rejects active work before mov
     );
     await expect(
       h.harness.behavior.callRpc("archive", { folderId: f.id }),
-    ).rejects.toThrow(/running chats/);
+    ).rejects.toThrow(/Work is still going on/);
     h.harness.inspection.sdk.stub("threads.list", async (a) =>
       a.archived ? [] : [t],
     );

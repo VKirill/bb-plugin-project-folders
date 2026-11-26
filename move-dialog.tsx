@@ -20,6 +20,7 @@ import {
 } from "./components/ui/dropdown-menu";
 import { t, direction } from "./i18n";
 import { FolderBrowser } from "./folder-browser";
+import { errorText } from "./error-text";
 export function MoveDialog({
   folder,
   onClose,
@@ -59,7 +60,7 @@ export function MoveDialog({
         }),
       );
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -85,7 +86,7 @@ export function MoveDialog({
       onMoved();
       onClose();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -282,7 +283,7 @@ export function SectionMoveDialog({
         }),
       );
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -302,7 +303,7 @@ export function SectionMoveDialog({
       onMoved();
       onClose();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -381,26 +382,13 @@ export function SectionMoveDialog({
               navigate={(p) => void browse(p)}
               refresh={() => void browse(listing.path)}
               onBusyChange={setBusy}
+              onBack={() => setListing(null)}
+              onChoose={(picked) => {
+                setDestination(picked);
+                setAdopt(true);
+                setListing(null);
+              }}
             />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => setListing(null)}
-              >
-                {t("Назад")}
-              </Button>
-              <Button
-                disabled={busy}
-                onClick={() => {
-                  setDestination(listing.path.replace(/\/$/, ""));
-                  setAdopt(true);
-                  setListing(null);
-                }}
-              >
-                {t("Выбрать папку")}
-              </Button>
-            </DialogFooter>
           </>
         ) : (
           <form
@@ -474,7 +462,7 @@ export function PendingSectionMoves() {
   const refresh = useCallback(() => {
     rpc
       .call("pending_section_moves")
-      .then(setItems, (e) => setError(String(e)));
+      .then(setItems, (e) => setError(errorText(e)));
   }, [rpc]);
   useEffect(refresh, [refresh]);
   useRealtime("changed", refresh);
@@ -496,7 +484,7 @@ export function PendingSectionMoves() {
                 await rpc.call("section_move", m);
                 refresh();
               } catch (e) {
-                setError(String(e));
+                setError(errorText(e));
               } finally {
                 setBusy(false);
               }
@@ -522,7 +510,7 @@ export function PendingMoves() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(() => {
-    rpc.call("pending_moves").then(setItems, (e) => setError(String(e)));
+    rpc.call("pending_moves").then(setItems, (e) => setError(errorText(e)));
   }, [rpc]);
   useEffect(refresh, [refresh]);
   useRealtime("changed", refresh);
@@ -544,7 +532,7 @@ export function PendingMoves() {
                 await rpc.call("project_move", m);
                 refresh();
               } catch (e) {
-                setError(String(e));
+                setError(errorText(e));
               } finally {
                 setBusy(false);
               }

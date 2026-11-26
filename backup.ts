@@ -1,5 +1,7 @@
 import { z } from "zod";
 import type Database from "better-sqlite3";
+import type { ErrorId } from "./errors/catalog";
+import { userError } from "./user-error";
 
 export const BACKUP_KIND = "bb-project-folders-backup";
 export const BACKUP_VERSION = 1;
@@ -77,7 +79,7 @@ export type BackupImportResult = z.infer<typeof backupImportResultSchema>;
 export function parseBackup(value: unknown): BackupPayload {
   const parsed = backupPayloadSchema.safeParse(value);
   if (!parsed.success)
-    throw new Error("Not a Projects & Sections backup file.");
+    throw userError("file_backup_invalid");
   return parsed.data;
 }
 
@@ -102,27 +104,27 @@ export function exportTables(
   return backupTablesSchema.parse(tables);
 }
 
-export function importBusyReason(db: Database.Database): string | null {
+export function importBusyReason(db: Database.Database): ErrorId | null {
   for (const row of db.prepare("SELECT data FROM project_moves").all() as {
     data: string;
   }[]) {
     try {
       if (!(JSON.parse(row.data) as { complete?: boolean }).complete)
-        return "Finish pending project moves first.";
+        return "file_import_busy_project_moves";
     } catch {
-      return "Finish pending project moves first.";
+      return "file_import_busy_project_moves";
     }
   }
   if (db.prepare("SELECT 1 FROM thread_moves LIMIT 1").get())
-    return "Finish pending chat moves first.";
+    return "file_import_busy_chat_moves";
   for (const row of db.prepare("SELECT data FROM section_moves").all() as {
     data: string;
   }[]) {
     try {
       if (!(JSON.parse(row.data) as { complete?: boolean }).complete)
-        return "Finish pending section moves first.";
+        return "file_import_busy_section_moves";
     } catch {
-      return "Finish pending section moves first.";
+      return "file_import_busy_section_moves";
     }
   }
   for (const row of db.prepare("SELECT data FROM folder_archives").all() as {
@@ -131,9 +133,9 @@ export function importBusyReason(db: Database.Database): string | null {
     try {
       const state = (JSON.parse(row.data) as { state?: string }).state;
       if (state && state !== "archived")
-        return "Finish pending archive operations first.";
+        return "file_import_busy_archives";
     } catch {
-      return "Finish pending archive operations first.";
+      return "file_import_busy_archives";
     }
   }
   return null;
@@ -148,7 +150,7 @@ function insertRow(
 ) {
   const cols = columns.filter((c) => Object.hasOwn(row, c));
   if (!cols.length)
-    throw new Error(`Backup row for ${table} has no known columns.`);
+    throw userError("file_backup_no_columns", { table });
   const placeholders = cols.map(() => "?").join(",");
   const sql = replace
     ? `INSERT OR REPLACE INTO ${table} (${cols.join(",")}) VALUES (${placeholders})`
@@ -162,7 +164,7 @@ export function importTables(
   mode: BackupImportMode,
 ): Omit<BackupImportResult, "settingsNotRestored"> {
   const busy = importBusyReason(db);
-  if (busy) throw new Error(busy);
+  if (busy) throw userError(busy);
   const counts = {
     folders: 0,
     folder_paths: 0,

@@ -18,6 +18,7 @@ import { Button } from "./components/ui/button";
 import { Checkbox } from "./components/ui/checkbox";
 import { Icon } from "./components/ui/icon";
 import { Input } from "./components/ui/input";
+import { errorText } from "./error-text";
 
 type Loaded = {
   own: SessionPolicy;
@@ -170,7 +171,7 @@ export function SessionPolicyEditor({ scope }: { scope: ExecutionScope }) {
     setError("");
     setSaved(false);
     load().catch((e) => {
-      if (live) setError(String(e));
+      if (live) setError(errorText(e));
     });
     rpc
       .call("session_policy_inventory", { scope })
@@ -206,7 +207,7 @@ export function SessionPolicyEditor({ scope }: { scope: ExecutionScope }) {
       await load();
       setSaved(true);
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

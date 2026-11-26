@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { userError } from "./user-error";
 
 /**
  * Plugin preferences shared by every device: the chat list, the tree view and
@@ -327,6 +328,6 @@ export function exportPayload(prefs: Prefs, items: ItemStyles) {
 export function parseImport(text: string): { prefs: Prefs; items: ItemStyles } {
   const data = JSON.parse(text);
   if (data?.kind !== EXPORT_KIND)
-    throw new Error("Not a Projects & Sections settings file.");
+    throw userError("file_settings_invalid");
   return { prefs: parsePrefs(data.prefs), items: parseItemStyles(data.items) };
 }

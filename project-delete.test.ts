@@ -142,7 +142,7 @@ describe("project delete", () => {
           projectId: "p1",
           files: "archive",
         }),
-      ).rejects.toThrow(/local project folder/);
+      ).rejects.toThrow(/has no local folder/);
       expect(h.deleted).toEqual([]);
       expect(h.moved).toEqual([]);
     } finally {

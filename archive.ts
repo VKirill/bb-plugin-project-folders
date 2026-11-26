@@ -4,6 +4,13 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { Folder } from "./server";
+import { userError } from "./user-error";
+
+export type ListedThread = Awaited<ReturnType<BbPluginApi["sdk"]["threads"]["list"]>>[number];
+export const busyThread = (t: ListedThread) =>
+  ["active", "starting", "stopping", "pending"].includes(t.status) ||
+  t.queuedWork !== "none" ||
+  Object.values(t.activity).some((n) => n > 0);
 const savedFolder = z.object({
   id: z.string(),
   projectId: z.string(),
@@ -124,7 +131,7 @@ export function makeArchives(
       );
       if (!a) {
         const f = options.folders().find((f) => f.id === folderId);
-        if (!f) throw new Error("Section not found.");
+        if (!f) throw userError("sec_not_found");
         const root = await options.root(f.projectId, f.hostId);
         const otherProjects = await bb.sdk.projects.list();
         if (
@@ -139,9 +146,7 @@ export function makeArchives(
               ),
           )
         )
-          throw new Error(
-            "This folder contains another BB project. Move it separately before archiving the section.",
-          );
+          throw userError("sec_nested_project_archive", { section: f.name });
         const envs = await listAll((p) => bb.sdk.environments.list(p));
         if (
           envs.some(
@@ -153,9 +158,7 @@ export function makeArchives(
               e.status === "ready",
           )
         )
-          throw new Error(
-            "An environment from another BB project uses this folder.",
-          );
+          throw userError("sec_foreign_env", { path: f.path });
         const envIds = new Set(
           envs
             .filter(
@@ -195,9 +198,7 @@ export function makeArchives(
               t.parentThreadId && ids.has(t.parentThreadId) && !ids.has(t.id),
           )
         )
-          throw new Error(
-            "Section chats have child chats outside this folder. Finish or move them first.",
-          );
+          throw userError("sec_children_outside", { section: f.name });
         if (
           selected.some(
             (t) =>
@@ -208,9 +209,10 @@ export function makeArchives(
               Object.values(t.activity).some((n) => n > 0),
           )
         )
-          throw new Error(
-            "The section has running chats or queued messages. Finish them before archiving.",
-          );
+          throw userError("sec_running_chats", {
+            section: f.name,
+            chat: (selected.find(busyThread) ?? selected[0]).title || "",
+          });
         const members = withNestedGroups(
           options.folders(),
           options
@@ -233,9 +235,7 @@ export function makeArchives(
                 c.parentId && memberIds.has(c.parentId) && !memberIds.has(c.id),
             )
         )
-          throw new Error(
-            "The section holds sections on another device or outside its folder. Move or archive them first.",
-          );
+          throw userError("sec_members_elsewhere", { section: f.name });
         // Save history before admitting the move; after journaling, event exports are suppressed.
         for (const t of selected) await options.sync(t.id);
         const id = randomUUID();
@@ -300,9 +300,10 @@ export function makeArchives(
               Object.values(t.activity).some((n) => n > 0),
           )
         )
-          throw new Error(
-            "A new chat started in the section. Wait for it to finish and retry archiving.",
-          );
+          throw userError("sec_new_chat_started", {
+            section: a.folder.name,
+            chat: (late.find(busyThread) ?? late[0]).title || "",
+          });
         if (late.length) {
           a.threadIds.push(...late.map((t) => t.id));
           a.restoreThreadIds.push(
@@ -314,9 +315,7 @@ export function makeArchives(
         for (const id of a.restoreThreadIds) {
           const t = await bb.sdk.threads.get({ threadId: id });
           if (["active", "starting", "pending", "stopping"].includes(t.status))
-            throw new Error(
-              "The chat started running. Wait for it to finish and retry archiving.",
-            );
+            throw userError("sec_chat_started_running", { chat: t.title || id });
           await bb.sdk.threads.stop({ threadId: id });
           await bb.sdk.threads.archive({ threadId: id });
         }
@@ -331,9 +330,10 @@ export function makeArchives(
             exists.existence[a.folder.path] &&
             exists.existence[a.archivePath]
           )
-            throw new Error(
-              "Both paths exist; the move stopped without overwriting files.",
-            );
+            throw userError("sec_both_paths_exist", {
+              source: a.folder.path,
+              destination: a.archivePath,
+            });
           if (exists.existence[a.folder.path]) {
             await bb.sdk.files.mkdir({
               hostId: a.folder.hostId,
@@ -354,9 +354,11 @@ export function makeArchives(
               destinationPath: a.archivePath,
             });
           } else if (!exists.existence[a.archivePath])
-            throw new Error(
-              "Neither the original folder nor the archive was found.",
-            );
+            throw userError("sec_archive_folder_missing", {
+              section: a.folder.name,
+              path: a.folder.path,
+              archive: a.archivePath,
+            });
         }
         db.transaction(() => {
           for (const f of a!.members) {
@@ -380,31 +382,35 @@ export function makeArchives(
   async function restore(id: string): Promise<Folder> {
     return serial(async () => {
       const a = list().find((a) => a.id === id);
-      if (!a) throw new Error("Archive not found.");
+      if (!a) throw userError("sec_archive_not_found");
       if (options.projectMoving?.(a.folder.projectId))
-        throw new Error("Finish the project move before restoring sections.");
+        throw userError("sec_restore_project_moving", { section: a.folder.name });
       if (a.state === "archiving")
-        throw new Error("Finish archiving first using Retry.");
+        throw userError("sec_archiving_unfinished", { section: a.folder.name });
       if (
         a.folder.parentId &&
         !options.folders().some((f) => f.id === a.folder.parentId)
       )
-        throw new Error("Restore the parent section first.");
+        throw userError("sec_restore_parent_first", { section: a.folder.name });
       try {
         const exists = await bb.sdk.hosts.pathsExist({
           hostId: a.folder.hostId,
           paths: [a.folder.path, a.archivePath],
         });
         if (a.external && !exists.existence[a.folder.path])
-          throw new Error("The section folder was not found.");
+          throw userError("sec_restore_folder_missing", {
+            section: a.folder.name,
+            path: a.folder.path,
+          });
         if (
           !a.external &&
           exists.existence[a.folder.path] &&
           (a.state !== "restoring" || exists.existence[a.archivePath])
         )
-          throw new Error(
-            "The original path is occupied. Move the current folder or use a different name for the new section.",
-          );
+          throw userError("sec_restore_path_occupied", {
+            section: a.folder.name,
+            path: a.folder.path,
+          });
         for (const f of a.members) {
           const active = options
             .folders()
@@ -415,7 +421,10 @@ export function makeArchives(
                 x.path === f.path,
             );
           if (active && active.id !== f.id)
-            throw new Error("The section path is already used in the tree.");
+            throw userError("sec_restore_path_used", {
+              section: f.name,
+              path: f.path,
+            });
         }
         a.state = "restoring";
         a.error = null;
@@ -436,7 +445,11 @@ export function makeArchives(
             destinationPath: a.folder.path,
           });
         } else if (!exists.existence[a.folder.path])
-          throw new Error("Archive folder not found.");
+          throw userError("sec_archive_folder_missing", {
+            section: a.folder.name,
+            path: a.folder.path,
+            archive: a.archivePath,
+          });
         db.transaction(() => {
           for (const f of a.members)
             db.prepare(

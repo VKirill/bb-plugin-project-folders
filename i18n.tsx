@@ -58,7 +58,7 @@ function preference(): string {
 export function resolveLanguage(value: string): Language {
   return Object.hasOwn(languages, value) ? (value as Language) : "en";
 }
-function language() {
+export function language() {
   return resolveLanguage(preference());
 }
 function subscribe(listener: () => void) {

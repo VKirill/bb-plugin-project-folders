@@ -4,7 +4,9 @@ import type { rpcContract } from "./server";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Icon } from "./components/ui/icon";
+import { DialogFooter } from "./components/ui/dialog";
 import { t } from "./i18n";
+import { errorText } from "./error-text";
 
 export function FolderBrowser({
   hostId,
@@ -15,6 +17,9 @@ export function FolderBrowser({
   navigate,
   refresh,
   onBusyChange,
+  onBack,
+  onChoose,
+  chooseDisabled = false,
 }: {
   hostId: string;
   path: string;
@@ -24,6 +29,10 @@ export function FolderBrowser({
   navigate: (path: string) => void;
   refresh: () => void;
   onBusyChange: (busy: boolean) => void;
+  onBack: () => void;
+  /** Gets the folder to use: the open one, or the new folder typed in it. */
+  onChoose: (path: string) => void;
+  chooseDisabled?: boolean;
 }) {
   const rpc = useRpc<typeof rpcContract>();
   const [creating, setCreating] = useState(false);
@@ -37,22 +46,54 @@ export function FolderBrowser({
       if (pane.current) pane.current.scrollTop = 0;
   }, [creating, remove]);
   const disabled = loading || busy;
-  const edit = async (action: "create" | "delete", name: string) => {
+  const run = async <T,>(work: () => Promise<T>): Promise<T | null> => {
     setBusy(true);
     onBusyChange(true);
     setError("");
     try {
-      await rpc.call("folder_edit", { hostId, parent: path, name, action });
-      setCreating(false);
-      setRemove(null);
-      setName("");
-      refresh();
+      return await work();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
+      return null;
     } finally {
       setBusy(false);
       onBusyChange(false);
     }
+  };
+  const create = (folder: string) =>
+    run(() =>
+      rpc.call("folder_edit", {
+        hostId,
+        parent: path,
+        name: folder,
+        action: "create",
+      }),
+    );
+  const edit = async (action: "create" | "delete", folder: string) => {
+    if (action === "create") {
+      // Opening the new folder makes "Choose folder" pick it, not its parent.
+      const made = await create(folder);
+      if (!made) return;
+      setCreating(false);
+      setName("");
+      navigate(made.path);
+      return;
+    }
+    const removed = await run(() =>
+      rpc.call("folder_edit", { hostId, parent: path, name: folder, action }),
+    );
+    if (!removed) return;
+    setRemove(null);
+    refresh();
+  };
+  /** A name typed but not confirmed still means "this new folder". */
+  const choose = async () => {
+    const draft = creating ? name.trim() : "";
+    if (!draft) return onChoose(path.replace(/\/$/, "") || "/");
+    const existing = directories.find((d) => d.name === draft);
+    if (existing) return onChoose(existing.path);
+    const made = await create(draft);
+    if (made) onChoose(made.path);
   };
   return (
     <div className="pf-native-browser">
@@ -204,6 +245,17 @@ export function FolderBrowser({
           </p>
         )}
       </div>
+      <DialogFooter>
+        <Button variant="outline" disabled={busy} onClick={onBack}>
+          {t("Назад")}
+        </Button>
+        <Button
+          disabled={disabled || chooseDisabled}
+          onClick={() => void choose()}
+        >
+          {t("Выбрать папку")}
+        </Button>
+      </DialogFooter>
     </div>
   );
 }

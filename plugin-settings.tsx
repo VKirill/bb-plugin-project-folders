@@ -24,6 +24,7 @@ import {
   defaultAutoArchiveConfig,
   type AutoArchiveConfig,
 } from "./auto-archive";
+import { errorText } from "./error-text";
 
 export const SETTINGS_SECTIONS = [
   "projects",
@@ -132,7 +133,7 @@ export function ProjectSettings() {
         projects: { ...prefs.projects, startingFolder },
       });
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -177,7 +178,7 @@ export function ProjectSettings() {
             if (!loaded || busy) return;
             setBusy(true); setError("");
             try { await savePrefs({ ...prefs, projects: { ...prefs.projects, checkRepoVisibility } }); }
-            catch (e) { setError(String(e)); }
+            catch (e) { setError(errorText(e)); }
             finally { setBusy(false); }
           }} />
       </SettingRow>
@@ -309,7 +310,7 @@ export function AutoArchiveSettings() {
           : t("Старых чатов нет."),
       );
     } catch (e) {
-      setResult(String(e));
+      setResult(errorText(e));
     } finally {
       setBusy(false);
     }

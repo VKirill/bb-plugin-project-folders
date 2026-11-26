@@ -4,6 +4,7 @@ import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { Folder } from "./server";
 import { moveHostContract } from "./move-contract";
 import { within } from "./move-files";
+import { userError } from "./user-error";
 
 type SectionMove = {
   folderId: string;
@@ -53,22 +54,18 @@ export function makeSectionMoves(
     list().some((m) => m.projectId === projectId && !m.complete);
   let running = false;
   async function move(input: { folderId: string; destination: string }) {
-    if (running) throw new Error("Another section move is running.");
+    if (running) throw userError("sec_move_running");
     running = true;
     let m: SectionMove | undefined;
     try {
       // Every row in the folders table is a real section; project roots are
       // synthetic records over BB project sources and move via project_move.
       const folder = deps.folders().find((f) => f.id === input.folderId);
-      if (!folder) throw new Error("Section not found.");
+      if (!folder) throw userError("sec_not_found");
       if (deps.busyProjectMoves(folder.projectId))
-        throw new Error(
-          "Project relocation is pending. Finish or retry it before changing the project.",
-        );
+        throw userError("sec_project_moving", { section: folder.name });
       if (deps.pendingArchives(folder.projectId))
-        throw new Error(
-          "Finish pending archive operations before moving this section.",
-        );
+        throw userError("sec_archives_pending", { section: folder.name });
       const destination = path.resolve(input.destination);
       const saved = list().find(
         (x) => x.folderId === folder.id && !x.complete,
@@ -77,9 +74,10 @@ export function makeSectionMoves(
         saved &&
         (saved.destination !== destination || saved.hostId !== folder.hostId)
       )
-        throw new Error(
-          "Retry the unfinished move to its original destination first.",
-        );
+        throw userError("sec_move_retry_first", {
+          section: folder.name,
+          destination: saved.destination,
+        });
       m = saved ?? {
         folderId: folder.id,
         projectId: folder.projectId,
@@ -101,9 +99,10 @@ export function makeSectionMoves(
         return { destination, complete: true };
       }
       if (within(folder.path, destination) || within(destination, folder.path))
-        throw new Error(
-          "The new path must not be inside the section or contain it.",
-        );
+        throw userError("sec_move_into_self", {
+          section: folder.name,
+          path: destination,
+        });
       const all = deps.folders();
       const ancestors = new Set<string>();
       for (
@@ -141,11 +140,15 @@ export function makeSectionMoves(
           continue;
         if (f.path === destination) continue;
         if (within(destination, f.path) && !ancestors.has(f.id))
-          throw new Error("Choose a path that is not inside another section.");
+          throw userError("sec_move_inside_other", {
+            section: folder.name,
+            path: destination,
+          });
         if (within(f.path, destination))
-          throw new Error(
-            "Another section is inside the new path. Move it separately.",
-          );
+          throw userError("sec_move_contains_other", {
+            section: folder.name,
+            path: destination,
+          });
       }
       const projects = await bb.sdk.projects.list();
       const free = (await deps.detached?.(folder)) ?? false;
@@ -158,16 +161,18 @@ export function makeSectionMoves(
               (!free && !within(destination, s.path)) ||
               (within(s.path, destination) && destination !== s.path)
             )
-              throw new Error(
-                "Keep the section inside its project folder on this device.",
-              );
+              throw userError("sec_move_outside_project", {
+                section: folder.name,
+                path: destination,
+              });
           } else if (
             within(destination, s.path) ||
             within(s.path, destination)
           )
-            throw new Error(
-              "Another BB project uses this path. Move the section within its own project folder.",
-            );
+            throw userError("sec_move_other_project_path", {
+              section: folder.name,
+              path: destination,
+            });
         }
       const canonical = (p: string) => deps.canonical(folder.hostId, p);
       const envs = await listAll((p) => bb.sdk.environments.list(p));
@@ -181,7 +186,7 @@ export function makeSectionMoves(
               within(canonical(e.path), destination)),
         )
       )
-        throw new Error("Another project has an environment inside this folder.");
+        throw userError("sec_foreign_env", { path: folder.path });
       const relevantEnvs = new Set(
         envs
           .filter(
@@ -227,9 +232,10 @@ export function makeSectionMoves(
                 t.queuedWork !== "none" ||
                 Object.values(t.activity).some((n) => n > 0)
               )
-                throw new Error(
-                  "Finish the running chats in this section before changing its path.",
-                );
+                throw userError("sec_running_chats", {
+                  section: folder.name,
+                  chat: t.title || t.id,
+                });
               if (stop) await bb.sdk.threads.stop({ threadId: t.id });
             }
             if (threads.length < 200) break;
@@ -260,9 +266,11 @@ export function makeSectionMoves(
       const srcExists = existence[folder.path];
       const dstExists = existence[destination];
       if (!srcExists && !dstExists)
-        throw new Error(
-          "Neither the section folder nor the new path was found on the device.",
-        );
+        throw userError("sec_neither_path_found", {
+          section: folder.name,
+          path: folder.path,
+          destination,
+        });
       if (srcExists && dstExists) {
         // Tolerated only when the source is the compatibility link of an
         // already finished move; anything else would merge two folders.
@@ -272,9 +280,10 @@ export function makeSectionMoves(
           { hostId: folder.hostId },
         );
         if (!probe.moved)
-          throw new Error(
-            "Both paths exist; folders are never merged or overwritten.",
-          );
+          throw userError("sec_both_paths_exist", {
+            source: folder.path,
+            destination,
+          });
       }
       await checkThreads(false);
       // Persist the barrier, drain exports, then recheck for work admitted during preflight.

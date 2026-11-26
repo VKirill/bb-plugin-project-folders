@@ -42,6 +42,7 @@ import {
   composerCanSetSelection,
   onComposerSubmitted,
 } from "./composer-compat";
+import { errorText } from "./error-text";
 
 /** The class marking the span a replacement chip is portalled into. */
 export const NATIVE_SLOT_CLASS = "pf-native-project-slot";
@@ -341,7 +342,7 @@ export function ComposerProjectChip() {
       });
       setChosen(entry);
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

@@ -36,6 +36,7 @@ import {
 } from "./components/ui/dialog";
 import { Icon } from "./components/ui/icon";
 import { Switch } from "./settings-ui";
+import { errorText } from "./error-text";
 
 type Loaded = {
   own: Execution;
@@ -168,7 +169,7 @@ export function ExecutionEditor({
     setSaved(false);
     setSync(null);
     load().catch((e) => {
-      if (live) setError(String(e));
+      if (live) setError(errorText(e));
     });
     return () => {
       live = false;
@@ -266,7 +267,7 @@ export function ExecutionEditor({
       await load();
       setSaved(true);
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

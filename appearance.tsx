@@ -155,6 +155,7 @@ import {
   type Preset,
   type Style,
 } from "./preferences";
+import { errorText } from "./error-text";
 
 export const ICON_GROUPS: {
   label: Parameters<typeof t>[0];
@@ -713,7 +714,7 @@ export function AppearanceSettings() {
   const save = (appearance: typeof prefs.appearance) =>
     savePrefs({ ...prefs, appearance }).then(
       () => setError(""),
-      (e) => setError(String(e)),
+      (e) => setError(errorText(e)),
     );
   const sampleFolders = [
     { id: "s1", parentId: null, projectId: "sample" },
@@ -902,7 +903,7 @@ export function AppearanceSettings() {
                   const kept = { sort: v.sort, limit: v.limit };
                   if (!isEmptyItem(kept)) next[k] = kept;
                 }
-                savePrefs(prefs, next).catch((e) => setError(String(e)));
+                savePrefs(prefs, next).catch((e) => setError(errorText(e)));
               }}
             >
               {t("Сбросить все")}
@@ -958,7 +959,7 @@ export function TransferSettings() {
       URL.revokeObjectURL(url);
       setFullMessage("");
     } catch (err) {
-      setFullMessage(String(err));
+      setFullMessage(errorText(err));
     }
   };
   return (
@@ -1019,7 +1020,7 @@ export function TransferSettings() {
               await savePrefs(data.prefs, withItems ? data.items : undefined);
               setMessage(t("Настройки импортированы."));
             } catch (err) {
-              setMessage(String(err));
+              setMessage(errorText(err));
             }
           }}
         />
@@ -1093,7 +1094,7 @@ export function TransferSettings() {
               });
               setFullMessage(t("Все данные импортированы."));
             } catch (err) {
-              setFullMessage(String(err));
+              setFullMessage(errorText(err));
             }
           }}
         />
@@ -1161,7 +1162,7 @@ export function AppearanceDialog({
       await saveItem(key, style);
       onClose();
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }

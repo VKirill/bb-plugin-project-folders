@@ -2,6 +2,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { Folder } from "./server";
+import { busyThread } from "./archive";
+import { userError } from "./user-error";
 
 const within = (p: string, r: string) =>
   p === r || p.startsWith(r.endsWith(path.sep) ? r : r + path.sep);
@@ -35,18 +37,24 @@ export async function deleteProject(
   },
   input: { projectId: string; files: "keep" | "archive" },
 ) {
+  // One cheap lookup, only on the failure paths, so the message can name the project.
+  const projectName = async () =>
+    (await bb.sdk.projects.list()).find((p) => p.id === input.projectId)
+      ?.name ?? "";
   if (deps.busy(input.projectId))
-    throw new Error(
-      "Project relocation is pending. Finish or retry it before deleting the project.",
-    );
+    throw userError("sec_project_moving_delete", {
+      project: await projectName(),
+    });
   if (deps.pendingArchives(input.projectId))
-    throw new Error("Finish pending section archives before deleting the project.");
+    throw userError("sec_archives_pending_project", {
+      project: await projectName(),
+    });
   const project = (await bb.sdk.projects.list()).find(
     (p) => p.id === input.projectId,
   );
-  if (!project) throw new Error("Project not found.");
+  if (!project) throw userError("sec_project_not_found");
   if (project.kind === "personal")
-    throw new Error("The personal inbox cannot be deleted from this plugin.");
+    throw userError("sec_inbox_undeletable", { project: project.name });
   const threads = await threadInventory(bb, project.id);
   if (
     threads.some(
@@ -56,16 +64,15 @@ export async function deleteProject(
         Object.values(t.activity).some((n) => n > 0),
     )
   )
-    throw new Error(
-      "Finish running chats and queued messages before deleting the project.",
-    );
+    throw userError("sec_project_running_chats", {
+      project: project.name,
+      chat: (threads.find(busyThread) ?? threads[0]).title || "",
+    });
   const sources = project.sources.filter((s) => s.type === "local_path");
   let archivePath: string | null = null;
   if (input.files === "archive") {
     if (sources.length < 1)
-      throw new Error(
-        "Moving files to the archive needs a local project folder. Choose keep files instead.",
-      );
+      throw userError("sec_project_archive_needs_folder", { project: project.name });
     const others = await bb.sdk.projects.list();
     for (const source of sources) {
       if (
@@ -80,9 +87,7 @@ export async function deleteProject(
             ),
         )
       )
-        throw new Error(
-          "Another BB project lives inside this folder. Choose keep files or move that project first.",
-        );
+        throw userError("sec_project_contains_project", { project: project.name, path: source.path });
       if (
         deps
           .folders()
@@ -93,9 +98,7 @@ export async function deleteProject(
               f.path === source.path,
           )
       )
-        throw new Error(
-          "This folder is also a section of another project. Choose keep files or archive that section.",
-        );
+        throw userError("sec_project_folder_is_section", { project: project.name, path: source.path });
     }
     const archiveId = randomUUID();
     for (const source of sources) {

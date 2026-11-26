@@ -219,7 +219,7 @@ it("rejects running chats without persisting a barrier", async () => {
         folderId: section.id,
         destination: path.join(f.root, "moved"),
       }),
-    ).rejects.toThrow("running chats");
+    ).rejects.toThrow("Work is still going on");
     expect(
       ((await f.h.harness.behavior.callRpc(
         "pending_section_moves",
@@ -248,7 +248,7 @@ it("refuses occupied destinations and paths outside the project", async () => {
         folderId: section.id,
         destination: path.join(f.base, "outside"),
       }),
-    ).rejects.toThrow("Keep the section inside its project folder");
+    ).rejects.toThrow("must stay inside its project");
     const other = await f.createSection("Other", "other");
     const tree = (await f.h.harness.behavior.callRpc("list")) as {
       folders: { id: string; path: string }[];

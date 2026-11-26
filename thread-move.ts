@@ -2,6 +2,7 @@ import path from "node:path";
 import { z } from "zod";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { Folder } from "./server";
+import { userError } from "./user-error";
 const jobSchema = z.object({
   threadId: z.string(),
   projectId: z.string(),
@@ -70,22 +71,23 @@ export function makeThreadMoves(
     hostId?: string;
   }) {
     if (running.has(input.threadId))
-      throw new Error("This chat is already moving.");
+      throw userError("sec_chat_already_moving", { chat: input.threadId });
     running.add(input.threadId);
     try {
       const thread = await bb.sdk.threads.get({ threadId: input.threadId });
       if (thread.projectId !== input.projectId || !thread.environmentId)
-        throw new Error("Choose a section in this chat's project.");
+        throw userError("sec_chat_wrong_project", { chat: thread.title || thread.id });
       if (thread.archivedAt || !["idle", "error"].includes(thread.status))
-        throw new Error(
-          "Wait for the chat and its queued messages to finish before moving it.",
-        );
+        throw userError("sec_chat_busy", { chat: thread.title || thread.id });
       const environment = await bb.sdk.environments.get({
         environmentId: thread.environmentId,
       });
       const folder = await options.target(input);
       if (!environment.path || environment.hostId !== folder.hostId)
-        throw new Error("Choose a section on the same device.");
+        throw userError("sec_chat_other_device", {
+          chat: thread.title || thread.id,
+          section: folder.name,
+        });
       options.allowed(thread.id, folder);
       const saved = db
         .prepare("SELECT data FROM thread_moves WHERE threadId=?")
@@ -103,7 +105,10 @@ export function makeThreadMoves(
             destination: path.join(folder.path, ".bb/chats", thread.id),
           };
       if (job.to !== folder.path)
-        throw new Error("Finish the previous move to " + job.to + " first.");
+        throw userError("sec_chat_prev_move", {
+          chat: thread.title || thread.id,
+          path: job.to,
+        });
       if (job.from === job.to) return { path: job.to };
       let existence = (
         await bb.sdk.hosts.pathsExist({
@@ -112,9 +117,11 @@ export function makeThreadMoves(
         })
       ).existence;
       if (existence[job.source] && existence[job.destination])
-        throw new Error(
-          "Both chat storage folders exist. No files were overwritten.",
-        );
+        throw userError("sec_chat_storage_both", {
+          chat: thread.title || thread.id,
+          source: job.source,
+          destination: job.destination,
+        });
       db.prepare("INSERT OR REPLACE INTO thread_moves VALUES (?,?)").run(
         thread.id,
         JSON.stringify(job),
@@ -131,9 +138,11 @@ export function makeThreadMoves(
           db.prepare("DELETE FROM thread_moves WHERE threadId=?").run(
             thread.id,
           );
-        throw new Error(
-          "Both chat storage folders exist. No files were overwritten.",
-        );
+        throw userError("sec_chat_storage_both", {
+          chat: thread.title || thread.id,
+          source: job.source,
+          destination: job.destination,
+        });
       }
       if (from !== job.to) {
         const request = {

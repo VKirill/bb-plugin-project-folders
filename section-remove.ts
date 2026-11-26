@@ -2,6 +2,8 @@ import { listAll } from "./list-all";
 import path from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { Folder } from "./server";
+import { busyThread } from "./archive";
+import { userError } from "./user-error";
 
 export const sectionRemoveMode = ["archive", "unbind", "purge"] as const;
 export type SectionRemoveMode = (typeof sectionRemoveMode)[number];
@@ -66,14 +68,12 @@ export async function removeSection(
 ) {
   const f = deps.folders().find((x) => x.id === input.folderId);
   if (!f || isGroup(f))
-    throw new Error(
-      "A group has no folder. Move or archive its sections, then delete the group.",
-    );
-  if (deps.chatMoving()) throw new Error("Finish pending chat moves first.");
+    throw userError("sec_group_no_folder", { section: f?.name ?? "" });
+  if (deps.chatMoving()) throw userError("sec_chat_moves_pending", { section: f.name });
   if (deps.sectionMoving(f.id))
-    throw new Error("Finish the unfinished section move first.");
+    throw userError("sec_section_move_unfinished", { section: f.name });
   if (deps.pendingArchives(f.projectId))
-    throw new Error("Finish pending section archives first.");
+    throw userError("sec_archives_pending", { section: f.name });
   if (input.mode === "archive") {
     deps.forgetGithub(f.hostId, f.path);
     await deps.archive(f.id);
@@ -97,9 +97,7 @@ export async function removeSection(
       (c) => c.parentId && memberIds.has(c.parentId) && !memberIds.has(c.id),
     )
   )
-    throw new Error(
-      "The section holds sections on another device or outside its folder. Move or remove them first.",
-    );
+    throw userError("sec_members_elsewhere", { section: f.name });
 
   const otherProjects = await bb.sdk.projects.list();
   const nestedProject = otherProjects.some(
@@ -113,9 +111,7 @@ export async function removeSection(
       ),
   );
   if (input.mode === "purge" && nestedProject)
-    throw new Error(
-      "This folder contains another BB project. Remove it from the tree instead of deleting the files.",
-    );
+    throw userError("sec_nested_project_purge", { section: f.name });
 
   const pathShared = all.some(
     (c) =>
@@ -125,16 +121,12 @@ export async function removeSection(
       c.path === f.path,
   );
   if (input.mode === "purge" && pathShared)
-    throw new Error(
-      "Another section uses this folder. Remove it from the tree so the shared files stay.",
-    );
+    throw userError("sec_purge_shared_path", { section: f.name, path: f.path });
 
   const root = await deps.root(f.projectId, f.hostId);
   const insideProject = within(f.path, root.path);
   if (input.mode === "purge" && !insideProject)
-    throw new Error(
-      "Complete delete is only for a folder inside the project. Remove an outside folder from the tree instead.",
-    );
+    throw userError("sec_purge_outside_project", { section: f.name, path: f.path });
 
   const envs = await listAll((p) => bb.sdk.environments.list(p));
   if (
@@ -148,7 +140,7 @@ export async function removeSection(
         e.status === "ready",
     )
   )
-    throw new Error("An environment from another BB project uses this folder.");
+    throw userError("sec_foreign_env", { path: f.path });
   const envIds = new Set(
     envs
       .filter(
@@ -182,9 +174,7 @@ export async function removeSection(
       (t) => t.parentThreadId && ids.has(t.parentThreadId) && !ids.has(t.id),
     )
   )
-    throw new Error(
-      "Section chats have child chats outside this folder. Finish or move them first.",
-    );
+    throw userError("sec_children_outside", { section: f.name });
   if (
     selected.some(
       (t) =>
@@ -193,9 +183,10 @@ export async function removeSection(
         Object.values(t.activity).some((n) => n > 0),
     )
   )
-    throw new Error(
-      "The section has running chats or queued messages. Finish them first.",
-    );
+    throw userError("sec_running_chats", {
+      section: f.name,
+      chat: (selected.find(busyThread) ?? selected[0]).title || "",
+    });
 
   for (const t of selected) await deps.sync(t.id);
   await deps.pending();
@@ -207,9 +198,7 @@ export async function removeSection(
       ) ?? remaining[0];
     const live = await bb.sdk.threads.get({ threadId: leaf.id });
     if (["active", "starting", "pending", "stopping"].includes(live.status))
-      throw new Error(
-        "The chat started running. Wait for it to finish and retry.",
-      );
+      throw userError("sec_chat_started_running", { chat: live.title || leaf.id });
     await bb.sdk.threads.stop({ threadId: leaf.id });
     if (input.mode === "purge")
       await bb.sdk.threads.delete({

@@ -13,6 +13,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { makeExportQueue } from "./export-queue";
 import path from "node:path";
+import { userError } from "./user-error";
 import {
   BACKUP_KIND,
   BACKUP_VERSION,
@@ -767,15 +768,13 @@ export function resolveFolderPath(root: string, relative: string) {
       .some((p) => p === ".." || p === ".bb" || p === ".git") ||
     /[\x00-\x1f]/.test(relative)
   )
-    throw new Error(
-      "Enter a relative path inside the section; .bb and .git are reserved.",
-    );
+    throw userError("srv_path_relative_invalid");
   const result = path.resolve(root, relative);
   if (
     result === path.resolve(root) ||
     !result.startsWith(path.resolve(root) + path.sep)
   )
-    throw new Error("The folder must be inside its parent section.");
+    throw userError("srv_path_outside_parent");
   return result;
 }
 export default async function plugin(bb: BbPluginApi) {
@@ -1582,9 +1581,9 @@ export default async function plugin(bb: BbPluginApi) {
     if (scope.kind === "global") return { folder: null, hostId: null };
     if (scope.kind === "folder") {
       const folder = folders().find((f) => f.id === scope.folderId);
-      if (!folder) throw new Error("Section not found.");
+      if (!folder) throw userError("srv_section_not_found");
       if (folder.projectId !== scope.projectId)
-        throw new Error("This section belongs to another project.");
+        throw userError("srv_section_other_project");
       return { folder, hostId: folder.hostId };
     }
     const project = (await bb.sdk.projects.list()).find(
@@ -1722,13 +1721,17 @@ export default async function plugin(bb: BbPluginApi) {
     // So is a Lane Pilot profile enabled in the composer; binding the pin too
     // would make Lane Pilot refuse the send as a second agent choice.
     if (request.pluginSubmission?.pluginId === "lane-pilot") return null;
-    const where = folder ? `section “${folder.name}”` : "this project";
-    const fail = (reason: string) =>
-      new Error(
-        `Agent “${pin.agentId}” is pinned for ${where}: ${reason} Choose another agent for the section, or set it to “Inherit”.`,
-      );
-    if (!(await cliAgentsRunning()))
-      throw fail("the CLI Agents plugin is not running.");
+    const fail = (reason: string | null) =>
+      folder
+        ? userError(
+            reason === null ? "srv_agent_pin_section_off" : "srv_agent_pin_section_err",
+            { agent: pin.agentId ?? "", section: folder.name, reason: reason ?? "" },
+          )
+        : userError(
+            reason === null ? "srv_agent_pin_project_off" : "srv_agent_pin_project_err",
+            { agent: pin.agentId ?? "", reason: reason ?? "" },
+          );
+    if (!(await cliAgentsRunning())) throw fail(null);
     try {
       const pending = await callCliAgents(
         "pending",
@@ -1780,7 +1783,7 @@ export default async function plugin(bb: BbPluginApi) {
       if (!m) return result;
       result = m.destination + result.slice(m.source.length);
     }
-    throw new Error("Too many section relocation links.");
+    throw userError("srv_relocation_links");
   }
   /**
    * What the folder uses: its own untouched file ("manual"), the shared
@@ -1857,9 +1860,7 @@ export default async function plugin(bb: BbPluginApi) {
     options: { allowGroup?: boolean; anyHost?: boolean } = {},
   ): Promise<Folder> {
     if (moves.busy(input.projectId))
-      throw new Error(
-        "Project relocation is pending. Finish or retry it before changing the project.",
-      );
+      throw userError("srv_project_moving");
     if (!input.folderId && input.hostId) {
       const project = (await bb.sdk.projects.list()).find(
         (p) => p.id === input.projectId,
@@ -1868,9 +1869,7 @@ export default async function plugin(bb: BbPluginApi) {
         (s) => s.type === "local_path" && s.hostId === input.hostId,
       );
       if (!project || !source || source.type !== "local_path")
-        throw new Error(
-          "This project has no folder on the selected device. Add a project source in BB.",
-        );
+        throw userError("srv_project_no_folder_device");
       return {
         id: project.id,
         projectId: project.id,
@@ -1884,18 +1883,16 @@ export default async function plugin(bb: BbPluginApi) {
       ? folders().find((f) => f.id === input.folderId)
       : (await roots()).find((f) => f.projectId === input.projectId);
     if (!f || f.projectId !== input.projectId)
-      throw new Error("Section or project source not found.");
+      throw userError("srv_section_or_project_missing");
     if (
       input.hostId &&
       f.hostId !== input.hostId &&
       !isGroup(f) &&
       !options.anyHost
     )
-      throw new Error("A nested section must use its parent folder’s device.");
+      throw userError("srv_nested_device", { section: f.name });
     if (isGroup(f) && !options.allowGroup)
-      throw new Error(
-        "A group has no folder. Choose a section inside it or the project root.",
-      );
+      throw userError("srv_group_no_folder", { group: f.name });
     return f;
   }
   /**
@@ -1934,15 +1931,13 @@ export default async function plugin(bb: BbPluginApi) {
     input: string,
   ) {
     if (/[\x00-\x1f]/.test(input) || !path.isAbsolute(input))
-      throw new Error("Enter an absolute folder path.");
+      throw userError("srv_path_not_absolute");
     const p = path.resolve(input);
     if (
       p === path.parse(p).root ||
       p.split(path.sep).some((s) => s === ".bb" || s === ".git")
     )
-      throw new Error(
-        "Choose a folder, not the disk root; .bb and .git are reserved.",
-      );
+      throw userError("srv_path_disk_root");
     const projects = await bb.sdk.projects.list();
     for (const project of projects)
       for (const s of project.sources) {
@@ -1950,19 +1945,25 @@ export default async function plugin(bb: BbPluginApi) {
         if (project.id === projectId) {
           if (p === s.path || within(p, s.path)) continue;
           if (within(s.path, p))
-            throw new Error(
-              "The folder overlaps the project folder: choose one inside the parent section, the project folder itself, or fully outside the project.",
-            );
+            throw userError("srv_path_overlaps_project", { project: project.name, path: p });
           continue;
         }
         if (within(p, s.path) || within(s.path, p))
-          throw new Error(
-            `The project “${project.name}” already works in this folder.`,
-          );
+          throw userError("srv_folder_taken", { project: project.name, path: p });
       }
     return p;
   }
   const changed = () => bb.realtime.publish("changed", {});
+  /** The connected device, or a message naming it (its id when the list lacks it). */
+  const connectedHost = async (hostId: string) => {
+    const hosts = await bb.sdk.hosts.list();
+    const host = hosts.find((h) => h.id === hostId && h.status === "connected");
+    if (!host)
+      throw userError("device_offline", {
+        device: hosts.find((h) => h.id === hostId)?.name || hostId,
+      });
+    return host;
+  };
   notifyGithubChange = changed;
   const agentsFile = (f: Folder) => path.join(f.path, "AGENTS.md");
   const isMissing = (e: unknown) =>
@@ -1990,7 +1991,7 @@ export default async function plugin(bb: BbPluginApi) {
       content,
     });
     if (r.outcome === "conflict")
-      throw new Error("AGENTS.md changed. Reopen the rules before saving.");
+      throw userError("srv_agents_changed", { file: "AGENTS.md" });
   }
   async function seedAgents(folder: Folder, parent: Folder | null) {
     const { agents_auto_create, agents_template, agents_custom } = shared;
@@ -2059,16 +2060,12 @@ export default async function plugin(bb: BbPluginApi) {
       external === null &&
       path.resolve(absolute) === path.resolve(parent.path);
     if (archives.moving(parent.hostId, parent.path))
-      throw new Error(
-        "The section is moving. Try again after the operation finishes.",
-      );
+      throw userError("srv_section_moving", { section: parent.name });
     if (
       !input.allowFresh &&
       archives.matches(parent.projectId, parent.hostId, input.name).length
     )
-      throw new Error(
-        "An archived section has this name. Restore it or explicitly create a new section.",
-      );
+      throw userError("srv_archived_name_exists", { name: input.name });
     const folder: Folder = {
       id: randomUUID(),
       projectId: parent.projectId,
@@ -2119,7 +2116,7 @@ export default async function plugin(bb: BbPluginApi) {
   async function locate(threadId: string) {
     const t = await bb.sdk.threads.get({ threadId });
     if (!t.environmentId)
-      throw new Error("The chat does not have an environment yet.");
+      throw userError("srv_chat_no_workspace");
     const env = await bb.sdk.environments.get({
       environmentId: t.environmentId,
     });
@@ -2146,7 +2143,7 @@ export default async function plugin(bb: BbPluginApi) {
         ? root
         : sectionForMatches(foldersAt(env.hostId, env.path ?? "", t.projectId)));
     if (!f)
-      throw new Error("The chat working folder is not registered in the tree.");
+      throw userError("srv_chat_not_in_tree");
     return { t, f };
   }
   /**
@@ -2254,7 +2251,7 @@ export default async function plugin(bb: BbPluginApi) {
       cursor = timeline.timelinePage.hasOlderRows
         ? timeline.timelinePage.olderCursor
         : null;
-      if (page > 10000) throw new Error("History is too large for one export.");
+      if (page > 10000) throw userError("srv_history_too_large");
       if (cursor) await new Promise((resolve) => setTimeout(resolve, 25));
     } while (cursor);
     await write(
@@ -2407,7 +2404,7 @@ export default async function plugin(bb: BbPluginApi) {
         archives.blocked(threadId) ||
         archives.moving(folder.hostId, folder.path)
       )
-        throw new Error("The project or section is archived or moving.");
+        throw userError("srv_chat_place_blocked", { section: folder.name });
     },
     pendingExports: () => Promise.allSettled([...syncing.values()]),
     changed,
@@ -2512,9 +2509,9 @@ export default async function plugin(bb: BbPluginApi) {
     },
     project_move: (input) => {
       if (threadMoves.any())
-        throw new Error("Finish pending chat moves first.");
+        throw userError("srv_finish_chat_moves");
       if (sectionMoves.busyProject(input.projectId))
-        throw new Error("Finish pending section moves first.");
+        throw userError("srv_finish_section_moves");
       for (const f of folders().filter((f) => f.projectId === input.projectId))
         forgetGithub(f.hostId, f.path);
       return moves.move(input);
@@ -2551,11 +2548,9 @@ export default async function plugin(bb: BbPluginApi) {
     group_delete: ({ folderId }) => {
       const all = folders();
       const g = all.find((f) => f.id === folderId);
-      if (!g || !isGroup(g)) throw new Error("Group not found.");
+      if (!g || !isGroup(g)) throw userError("srv_group_not_found");
       if (all.some((f) => f.parentId === g.id))
-        throw new Error(
-          "The group is not empty. Move its sections out or archive them first.",
-        );
+        throw userError("srv_group_not_empty", { group: g.name });
       db.prepare("DELETE FROM folders WHERE id=?").run(g.id);
       db.prepare("DELETE FROM item_styles WHERE key=?").run(`f:${g.id}`);
       db.prepare("DELETE FROM execution_defaults WHERE key=?").run(`f:${g.id}`);
@@ -2565,12 +2560,12 @@ export default async function plugin(bb: BbPluginApi) {
     thread_place: async ({ threadId, projectId, folderId }) => {
       const thread = await bb.sdk.threads.get({ threadId });
       if (thread.projectId !== projectId)
-        throw new Error("Choose a section in this chat's project.");
+        throw userError("srv_thread_other_project");
       const all = folders();
       const f = folderId ? all.find((x) => x.id === folderId) : null;
-      if (folderId && !f) throw new Error("Section not found.");
+      if (folderId && !f) throw userError("srv_section_not_found");
       if (f && f.projectId !== projectId)
-        throw new Error("Choose a section in this chat's project.");
+        throw userError("srv_thread_other_project");
       // Filing a chat where it already works leaves nothing to remember.
       if ((await naturalPlace(threadId)) === (folderId ?? null))
         db.prepare("DELETE FROM thread_places WHERE threadId=?").run(threadId);
@@ -2591,11 +2586,11 @@ export default async function plugin(bb: BbPluginApi) {
     section_reparent: async ({ folderId, parentId }) => {
       const all = folders();
       const f = all.find((x) => x.id === folderId);
-      if (!f) throw new Error("Section not found.");
+      if (!f) throw userError("srv_section_not_found");
       if (moves.busy(f.projectId) || sectionMoves.busyProject(f.projectId))
-        throw new Error("Finish pending moves first.");
+        throw userError("srv_finish_moves");
       const parent = parentId ? all.find((x) => x.id === parentId) : null;
-      if (parentId && !parent) throw new Error("Destination not found.");
+      if (parentId && !parent) throw userError("srv_destination_not_found");
       const current = f.parentId
         ? (all.find((x) => x.id === f.parentId) ?? null)
         : null;
@@ -2612,9 +2607,7 @@ export default async function plugin(bb: BbPluginApi) {
           parent.projectId !== f.projectId ||
           (parent.hostId !== f.hostId && !anyDevice)
         )
-          throw new Error(
-            "Choose a destination in the same project and device.",
-          );
+          throw userError("srv_destination_mismatch", { section: f.name });
         for (
           let cur: Folder | undefined = parent;
           cur;
@@ -2623,16 +2616,14 @@ export default async function plugin(bb: BbPluginApi) {
             : undefined
         )
           if (cur.id === f.id)
-            throw new Error("A section cannot go inside itself.");
+            throw userError("srv_section_into_itself", { section: f.name });
       }
       // Only the place in the tree changes, so the folder containment must stay the same.
       if (
         !free &&
         folderAnchor(current)?.id !== folderAnchor(parent ?? null)?.id
       )
-        throw new Error(
-          "Only the place in the tree changes: choose a group or section within the same parent folder.",
-        );
+        throw userError("srv_tree_only_same_parent", { section: f.name });
       if ((f.parentId ?? null) === (parentId ?? null))
         return { ok: true as const };
       const sort =
@@ -2653,7 +2644,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
     section_move: (input) => {
       if (threadMoves.any())
-        throw new Error("Finish pending chat moves first.");
+        throw userError("srv_finish_chat_moves");
       const before = folders().find((f) => f.id === input.folderId);
       if (before) forgetGithub(before.hostId, before.path);
       return sectionMoves.move(input);
@@ -2677,11 +2668,9 @@ export default async function plugin(bb: BbPluginApi) {
     },
     archive: ({ folderId }) => {
       if (isGroup(folders().find((f) => f.id === folderId)))
-        throw new Error(
-          "A group has no folder to archive. Move or archive its sections, then delete the group.",
-        );
+        throw userError("srv_group_no_archive");
       if (threadMoves.any())
-        throw new Error("Finish pending chat moves first.");
+        throw userError("srv_finish_chat_moves");
       const archived = folders().find((f) => f.id === folderId);
       if (archived) forgetGithub(archived.hostId, archived.path);
       return archives.archive(folderId);
@@ -2742,7 +2731,7 @@ export default async function plugin(bb: BbPluginApi) {
     restore: ({ id }) => {
       const a = archives.list().find((a) => a.id === id);
       if (a && moves.busy(a.folder.projectId))
-        throw new Error("Finish the project relocation first.");
+        throw userError("srv_project_moving");
       return archives.restore(id);
     },
     list: async () => {
@@ -2822,11 +2811,8 @@ export default async function plugin(bb: BbPluginApi) {
         input.name === ".." ||
         /[\\/\x00-\x1f]/.test(input.name)
       )
-        throw new Error("Invalid folder name.");
-      const host = (await bb.sdk.hosts.list()).find(
-        (h) => h.id === input.hostId && h.status === "connected",
-      );
-      if (!host) throw new Error("The device is offline.");
+        throw userError("srv_folder_name_invalid");
+      const host = await connectedHost(input.hostId);
       let protectedPaths: string[] = [];
       if (input.action === "delete") {
         const target = path.resolve(input.parent, input.name);
@@ -2854,19 +2840,14 @@ export default async function plugin(bb: BbPluginApi) {
             ),
           )
         )
-          throw new Error(
-            "This folder belongs to a project or section. Use its archive action.",
-          );
+          throw userError("srv_folder_has_project", { path: target });
       }
       return bb.hosts
         .experimental_client({ contract: moveHostContract })
         .call("folder_edit", { ...input, protectedPaths }, { hostId: host.id });
     },
     project_browse: async (input) => {
-      const h = (await bb.sdk.hosts.list()).find(
-        (h) => h.id === input.hostId && h.status === "connected",
-      );
-      if (!h) throw new Error("The device is offline.");
+      const h = await connectedHost(input.hostId);
       const d = await bb.sdk.hosts.directory(input);
       return {
         path: d.directory,
@@ -2878,21 +2859,17 @@ export default async function plugin(bb: BbPluginApi) {
     },
     project_create: async (input) => {
       if (!path.isAbsolute(input.path) || /[\x00-\x1f]/.test(input.path))
-        throw new Error("Enter an absolute project folder path.");
+        throw userError("srv_path_not_absolute");
       const p = path.normalize(input.path);
-      const h = (await bb.sdk.hosts.list()).find(
-        (h) => h.id === input.hostId && h.status === "connected",
-      );
-      if (!h) throw new Error("The device is offline.");
+      const h = await connectedHost(input.hostId);
       const projects = await bb.sdk.projects.list();
-      if (
-        projects.some((project) =>
-          project.sources.some(
-            (s) => s.type === "local_path" && s.hostId === h.id && s.path === p,
-          ),
-        )
-      )
-        throw new Error("This folder is already connected as a project.");
+      const taken = projects.find((project) =>
+        project.sources.some(
+          (s) => s.type === "local_path" && s.hostId === h.id && s.path === p,
+        ),
+      );
+      if (taken)
+        throw userError("srv_folder_taken", { project: taken.name, path: p });
       await bb.sdk.files.mkdir({ hostId: h.id, path: p, recursive: true });
       const project = await bb.sdk.projects.create({
         name: input.name,
@@ -2913,34 +2890,28 @@ export default async function plugin(bb: BbPluginApi) {
     project_delete: (input) => deleteProject(bb, projectDeleteDeps, input),
     copy_add: async (input) => {
       if (moves.busy(input.projectId))
-        throw new Error(
-          "Project relocation is pending. Finish or retry it before changing the project.",
-        );
+        throw userError("srv_project_moving");
       const p = path.normalize(input.path);
       if (!path.isAbsolute(p) || /[\x00-\x1f]/.test(p))
-        throw new Error("Enter an absolute project folder path.");
-      const h = (await bb.sdk.hosts.list()).find(
-        (h) => h.id === input.hostId && h.status === "connected",
-      );
-      if (!h) throw new Error("The device is offline.");
+        throw userError("srv_path_not_absolute");
+      const h = await connectedHost(input.hostId);
       const project = (await bb.sdk.projects.list()).find(
         (x) => x.id === input.projectId,
       );
-      if (!project) throw new Error("Project not found.");
+      if (!project) throw userError("srv_project_not_found");
       if (
         project.sources.some(
           (s) => s.type === "local_path" && s.hostId === h.id,
         )
       )
-        throw new Error("This project already has a copy on this device.");
-      if (
-        (await bb.sdk.projects.list()).some((x) =>
-          x.sources.some(
-            (s) => s.type === "local_path" && s.hostId === h.id && s.path === p,
-          ),
-        )
-      )
-        throw new Error("This folder is already connected as a project.");
+        throw userError("srv_copy_exists", { project: project.name, device: h.name || h.id });
+      const takenBy = (await bb.sdk.projects.list()).find((x) =>
+        x.sources.some(
+          (s) => s.type === "local_path" && s.hostId === h.id && s.path === p,
+        ),
+      );
+      if (takenBy)
+        throw userError("srv_folder_taken", { project: takenBy.name, path: p });
       await bb.sdk.files.mkdir({ hostId: h.id, path: p, recursive: true });
       await bb.sdk.projects.sources.add({
         projectId: project.id,
@@ -2962,9 +2933,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
     copy_remove: async (input) => {
       if (moves.busy(input.projectId))
-        throw new Error(
-          "Project relocation is pending. Finish or retry it before changing the project.",
-        );
+        throw userError("srv_project_moving");
       const project = (await bb.sdk.projects.list()).find(
         (x) => x.id === input.projectId,
       );
@@ -2972,19 +2941,15 @@ export default async function plugin(bb: BbPluginApi) {
         (s) => s.type === "local_path" && s.hostId === input.hostId,
       );
       if (!project || !source)
-        throw new Error("This project has no copy on this device.");
+        throw userError("srv_copy_missing", { project: project?.name ?? input.projectId });
       if (project.sources.length <= 1)
-        throw new Error(
-          "The last working copy cannot be removed. Delete the project instead.",
-        );
+        throw userError("srv_copy_last", { project: project.name });
       if (
         folders().some(
           (f) => f.projectId === project.id && f.hostId === input.hostId,
         )
       )
-        throw new Error(
-          "This copy still has sections in the tree. Archive or remove them first.",
-        );
+        throw userError("srv_copy_has_sections", { project: project.name });
       if (
         (
           await listAll((p) =>
@@ -2998,9 +2963,7 @@ export default async function plugin(bb: BbPluginApi) {
           (e) => e.projectId === project.id && e.hostId === input.hostId,
         )
       )
-        throw new Error(
-          "This copy still has chats. Move or archive them first.",
-        );
+        throw userError("srv_copy_has_chats", { project: project.name });
       await bb.sdk.projects.sources.delete({
         projectId: project.id,
         sourceId: source.id,
@@ -3010,16 +2973,11 @@ export default async function plugin(bb: BbPluginApi) {
     },
     copy_edit: async (input) => {
       if (moves.busy(input.projectId))
-        throw new Error(
-          "Project relocation is pending. Finish or retry it before changing the project.",
-        );
+        throw userError("srv_project_moving");
       const p = path.normalize(input.path);
       if (!path.isAbsolute(p) || /[\x00-\x1f]/.test(p))
-        throw new Error("Enter an absolute project folder path.");
-      const h = (await bb.sdk.hosts.list()).find(
-        (h) => h.id === input.hostId && h.status === "connected",
-      );
-      if (!h) throw new Error("The device is offline.");
+        throw userError("srv_path_not_absolute");
+      const h = await connectedHost(input.hostId);
       const project = (await bb.sdk.projects.list()).find(
         (x) => x.id === input.projectId,
       );
@@ -3027,16 +2985,15 @@ export default async function plugin(bb: BbPluginApi) {
         (s) => s.type === "local_path" && s.hostId === input.hostId,
       );
       if (!project || !source)
-        throw new Error("This project has no copy on this device.");
+        throw userError("srv_copy_missing", { project: project?.name ?? input.projectId });
       if (source.path === p) return { ok: true as const };
-      if (
-        (await bb.sdk.projects.list()).some((x) =>
-          x.sources.some(
-            (s) => s.type === "local_path" && s.hostId === h.id && s.path === p,
-          ),
-        )
-      )
-        throw new Error("This folder is already connected as a project.");
+      const takenBy = (await bb.sdk.projects.list()).find((x) =>
+        x.sources.some(
+          (s) => s.type === "local_path" && s.hostId === h.id && s.path === p,
+        ),
+      );
+      if (takenBy)
+        throw userError("srv_folder_taken", { project: takenBy.name, path: p });
       const oldRoot = source.path;
       forgetGithub(input.hostId, oldRoot);
       for (const f of folders())
@@ -3156,11 +3113,8 @@ export default async function plugin(bb: BbPluginApi) {
     },
     section_path_set: async (input) => {
       const folder = folders().find((f) => f.id === input.folderId);
-      if (!folder || isGroup(folder)) throw new Error("Section not found.");
-      const host = (await bb.sdk.hosts.list()).find(
-        (h) => h.id === input.hostId && h.status === "connected",
-      );
-      if (!host) throw new Error("The device is offline.");
+      if (!folder || isGroup(folder)) throw userError("srv_section_not_found");
+      const host = await connectedHost(input.hostId);
       const p = await externalFolderPath(
         folder.projectId,
         input.hostId,
@@ -3226,17 +3180,15 @@ export default async function plugin(bb: BbPluginApi) {
     },
     section_path_remove: async (input) => {
       const folder = folders().find((f) => f.id === input.folderId);
-      if (!folder || isGroup(folder)) throw new Error("Section not found.");
+      if (!folder || isGroup(folder)) throw userError("srv_section_not_found");
       const extra = pathsOf(folder.id);
       const listed = extra.length
         ? extra
         : [{ hostId: folder.hostId, path: folder.path }];
       if (listed.length <= 1)
-        throw new Error("The last section path cannot be removed.");
+        throw userError("srv_section_path_last", { section: folder.name });
       if (folder.hostId === input.hostId)
-        throw new Error(
-          "Remove extra device paths first, or change the home path instead.",
-        );
+        throw userError("srv_section_path_home", { section: folder.name });
       db.prepare("DELETE FROM folder_paths WHERE folderId=? AND hostId=?").run(
         folder.id,
         input.hostId,
@@ -3251,11 +3203,11 @@ export default async function plugin(bb: BbPluginApi) {
     /** Make a device copy the section's home; the old home stays a device copy. */
     section_home_set: async (input) => {
       const folder = folders().find((f) => f.id === input.folderId);
-      if (!folder || isGroup(folder)) throw new Error("Section not found.");
+      if (!folder || isGroup(folder)) throw userError("srv_section_not_found");
       if (sectionMoves.busyProject(folder.projectId))
-        throw new Error("Finish pending section moves first.");
+        throw userError("srv_finish_section_moves");
       const next = pathsOf(folder.id).find((r) => r.hostId === input.hostId);
-      if (!next) throw new Error("The section has no folder on this device.");
+      if (!next) throw userError("srv_section_no_folder_here", { section: folder.name });
       if (folder.hostId !== next.hostId) {
         writePath(folder.id, folder.hostId, folder.path);
         db.prepare("UPDATE folders SET hostId=?, path=? WHERE id=?").run(
@@ -3277,7 +3229,7 @@ export default async function plugin(bb: BbPluginApi) {
       const project = (await bb.sdk.projects.list()).find(
         (p) => p.id === input.projectId,
       );
-      if (!project) throw new Error("Project not found.");
+      if (!project) throw userError("srv_project_not_found");
       const node = input.folderId
         ? await target(input, { allowGroup: true })
         : null;
@@ -3345,7 +3297,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
     forget: async (input) => {
       if (!input.folderId)
-        throw new Error("Archive the project separately using BB.");
+        throw userError("srv_forget_project");
       await archives.archive(input.folderId);
       return { ok: true };
     },
@@ -3356,9 +3308,7 @@ export default async function plugin(bb: BbPluginApi) {
           ? (bindFolder(raw, input.hostId) ?? raw)
           : raw;
       if (!rulesAllowed(input.folderId ? f : null))
-        throw new Error(
-          "Rules are available only for projects and sections, not groups.",
-        );
+        throw userError("srv_rules_groups");
       const p = path.join(f.path, "AGENTS.md");
       const folderOverride = input.folderId ? folderRule(f.id) : undefined;
       const projectOverride = projectRule(f.projectId);
@@ -3406,9 +3356,7 @@ export default async function plugin(bb: BbPluginApi) {
           ? (bindFolder(raw, input.hostId) ?? raw)
           : raw;
       if (!rulesAllowed(input.folderId ? f : null))
-        throw new Error(
-          "Rules are available only for projects and sections, not groups.",
-        );
+        throw userError("srv_rules_groups");
       const file = input.file ?? "AGENTS.md";
       const r = await bb.sdk.files.write({
         hostId: f.hostId,
@@ -3418,15 +3366,13 @@ export default async function plugin(bb: BbPluginApi) {
         expectedSha256: input.sha,
       });
       if (r.outcome === "conflict")
-        throw new Error(`${file} changed. Reopen the rules before saving.`);
+        throw userError("srv_agents_changed", { file });
       return { ok: true as const };
     },
     rules_settings_save: async (input) => {
       const f = await target(input);
       if (!rulesAllowed(input.folderId ? f : null))
-        throw new Error(
-          "Rules are available only for projects and sections, not groups.",
-        );
+        throw userError("srv_rules_groups");
       const custom = input.custom ?? "";
       const customTarget = input.customTarget ?? "file";
       const startup = input.startup ?? "";
@@ -3491,9 +3437,7 @@ export default async function plugin(bb: BbPluginApi) {
         }
       }
       if (failed.length)
-        throw new Error(
-          `Saved, but not written to every copy: ${failed.join(", ")}`,
-        );
+        throw userError("srv_rules_partial", { paths: failed.join(", ") });
       return { ok: true as const };
     },
     execution_read: async ({ scope }) => {
@@ -3550,14 +3494,11 @@ export default async function plugin(bb: BbPluginApi) {
           ),
         );
         if (!catalog.installed)
-          throw new Error(
-            "Agents need the CLI Agents plugin. Install it, or choose “Inherit”.",
-          );
+          throw userError("srv_agent_plugin_missing");
         if (!catalog.agents.some((a) => a.id === value.agentId))
-          throw new Error(
-            catalog.error ??
-              "This agent is not available on the section's machine. Refresh the list and choose again.",
-          );
+          throw catalog.error
+            ? userError("srv_agent_unavailable_detail", { detail: catalog.error })
+            : userError("srv_agent_unavailable");
       }
       saveExecution(executionKey(scope), value);
       changed();
@@ -3608,10 +3549,10 @@ export default async function plugin(bb: BbPluginApi) {
     section_pick: ({ projectId, hostId, folderId }) => {
       const folder = folders().find((f) => f.id === folderId);
       if (!folder || folder.projectId !== projectId)
-        throw new Error("This section is not on that device of this project.");
+        throw userError("srv_section_not_on_device", { section: folder?.name ?? folderId });
       const bound = bindFolder(folder, hostId);
       if (!bound)
-        throw new Error("This section is not on that device of this project.");
+        throw userError("srv_section_not_on_device", { section: folder?.name ?? folderId });
       pendingSection.set(pendingKey(projectId, hostId), {
         folderId,
         at: Date.now(),
@@ -3668,11 +3609,9 @@ export default async function plugin(bb: BbPluginApi) {
           ids.size !== input.ids.length ||
           [...ids].some((id) => !known.has(id))
         )
-          throw new Error(
-            "Reorder the project list as a whole, without duplicates.",
-          );
+          throw userError("srv_reorder_projects");
         if (input.ids.some((id) => moves.busy(id)))
-          throw new Error("Finish pending project moves first.");
+          throw userError("srv_project_moving");
         db.transaction(() => {
           db.prepare("DELETE FROM project_order").run();
           input.ids.forEach((projectId, index) =>
@@ -3685,7 +3624,7 @@ export default async function plugin(bb: BbPluginApi) {
         return { ok: true as const };
       }
       if (moves.busy(input.projectId))
-        throw new Error("Finish the project relocation first.");
+        throw userError("srv_project_moving");
       const siblings = folders().filter(
         (f) =>
           f.projectId === input.projectId &&
@@ -3697,9 +3636,7 @@ export default async function plugin(bb: BbPluginApi) {
         input.ids.length !== siblings.length ||
         input.ids.some((id) => !siblings.some((f) => f.id === id))
       )
-        throw new Error(
-          "Reorder the sibling sections as a whole, without duplicates.",
-        );
+        throw userError("srv_reorder_sections");
       db.transaction(() => {
         input.ids.forEach((id, index) =>
           db.prepare("UPDATE folders SET sort=? WHERE id=?").run(index, id),
@@ -3768,9 +3705,7 @@ export default async function plugin(bb: BbPluginApi) {
         ? (anchor ?? (await target({ ...input, folderId: null })))
         : node;
       if (input.request.projectId !== f.projectId)
-        throw new Error(
-          "The composer project must match the selected section.",
-        );
+        throw userError("srv_composer_project_mismatch");
       const req = input.request as NewThreadRequest;
       // The composer may point at another device. A project root exists on
       // every copy, so follow the choice instead of refusing it.
@@ -3789,9 +3724,7 @@ export default async function plugin(bb: BbPluginApi) {
         const bound = bindFolder(f, picked);
         if (bound) f = bound;
         else if (picked !== pinnedHost)
-          throw new Error(
-            "This section has no folder on the selected device. Set a path for that device in the section card.",
-          );
+          throw userError("srv_section_no_folder_selected", { section: f.name });
       } else if (!sectionId && picked && picked !== f.hostId) {
         const copy = (await roots()).find(
           (r) => r.projectId === f.projectId && r.hostId === picked,
@@ -3810,9 +3743,7 @@ export default async function plugin(bb: BbPluginApi) {
           req.environment.hostId !== pinnedHost) ||
           (req.environment.workspace.type !== "unmanaged" && !managedWorktree))
       )
-        throw new Error(
-          "A section chat uses that section’s device and folder. Select a working copy on its device.",
-        );
+        throw userError("srv_section_chat_device", { section: f.name });
       if (req.environment.type === "reuse") {
         const e = await bb.sdk.environments.get({
           environmentId: req.environment.environmentId,
@@ -3821,9 +3752,7 @@ export default async function plugin(bb: BbPluginApi) {
           e.hostId !== f.hostId ||
           canonicalPath(e.hostId, e.path ?? "") !== f.path
         )
-          throw new Error(
-            "The selected environment does not match the section folder.",
-          );
+          throw userError("srv_workspace_mismatch", { section: f.name });
       }
       if (
         req.environment.type === "provider" &&
@@ -3835,9 +3764,7 @@ export default async function plugin(bb: BbPluginApi) {
         const hostName = (
           (await bb.sdk.hosts.list()) as { id: string; name?: string }[]
         ).find((h) => h.id === f.hostId)?.name;
-        throw new Error(
-          `This section lives on the "${hostName ?? f.hostId}" device. Pick that device for the chat, or create a section on the target server.`,
-        );
+        throw userError("srv_section_on_device", { section: f.name, device: hostName ?? f.hostId });
       }
       const branch =
         req.environment.type === "host" &&
@@ -4048,11 +3975,11 @@ export default async function plugin(bb: BbPluginApi) {
         await threadMoves.finish(threadId);
         const result = await sync(threadId, true);
         if (!result.path)
-          throw new Error("Chat export is waiting for a move or archive.");
+          throw userError("srv_export_waiting");
         changed();
       } catch (error) {
         if (
-          /not.found|http 404|environment|not registered in the tree/i.test(
+          /not.found|http 404|environment|not registered in the tree|srv_chat_no_workspace|srv_chat_not_in_tree/i.test(
             String(error),
           )
         )
@@ -4406,7 +4333,7 @@ export default async function plugin(bb: BbPluginApi) {
           );
         else if (args[0] === "forget" || args[0] === "archive") {
           if (threadMoves.any())
-            throw new Error("Finish pending chat moves first.");
+            throw userError("srv_finish_chat_moves");
           value = await archives.archive(z.string().min(1).parse(args[1]));
         } else if (args[0] === "remove-section") {
           value = await handlers.section_remove({
@@ -4490,7 +4417,7 @@ export default async function plugin(bb: BbPluginApi) {
             const mode = asked
               ? (modes[asked as keyof typeof modes] ??
                 (() => {
-                  throw new Error("Mode is default, custom or own-file.");
+                  throw userError("srv_mode_invalid");
                 })())
               : current.mode;
             const template = await text("template", place.hostId, place.path);
